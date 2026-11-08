@@ -1,0 +1,6 @@
+{
+  "files.exclude": { "node_modules": true, "dist": true, "dev-dist": true, "tsconfig.tsbuildinfo": true },
+  "search.exclude": { "node_modules": true, "dist": true, "supabase/alles_in_einem.sql": true },
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "editor.tabSize": 2
+}
