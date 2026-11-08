@@ -207,6 +207,17 @@ export const ITEM_LABELS: Record<string, string> = {
   hotel: 'Hotel', budget: 'Budget', wahl: 'Joker nach Wahl',
 };
 
+/** Was ein Joker oder Bonus bewirkt, in einem Satz. */
+export const ITEM_HELP: Record<string, string> = {
+  regeneration: 'Du wirst eine Zeit lang nicht gepingt. Nicht während eines Speedhunts.',
+  hunter_erfragen: 'Du siehst 5 Minuten lang auf der Karte, wo die Hunter sind.',
+  catch_free: 'Du kannst eine Zeit lang nicht gefangen werden.',
+  fake_ping: 'Dein nächster Ping zeigt einen Ort, den du auf der Karte wählst.',
+  hotel: 'Du bist an deinem jetzigen Ort eine Zeit lang geschützt.',
+  budget: 'Mehr Geld in deinem Budget.',
+  wahl: 'Du wählst beim Einsetzen, welcher Joker es wird.',
+};
+
 export const TRANSPORT_LABELS: Record<string, string> = {
   zu_fuss: 'Zu Fuss', oev_bus: 'Bus', oev_bahn: 'Bahn', oev_tram: 'Tram', faehre: 'Fähre', taxi: 'Taxi', fahrrad: 'Fahrrad',
   scooter: 'Scooter', eigenes_fahrzeug: 'Eigenes Fahrzeug',

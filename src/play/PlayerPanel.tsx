@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { api, clock, countdown, ITEM_LABELS, PENALTY_LABELS, TRANSPORT_LABELS, uploadProof } from '../lib/engine';
+import { api, clock, countdown, ITEM_HELP, ITEM_LABELS, PENALTY_LABELS, TRANSPORT_LABELS, uploadProof } from '../lib/engine';
 import { formatMinutes } from '../shared/format';
 import CatchCode from './CatchCode';
 import { Confirm, nameOf, Section, type PanelProps } from './common';
@@ -114,7 +114,10 @@ export default function PlayerPanel({ s, now, act, pickFake }: PanelProps & { pi
         <Section title="Joker und Boni">
           {me.inventory.map((i) => (
             <div key={i.id} className="row">
-              <span className="spacer">{ITEM_LABELS[i.type] ?? i.type}{i.minutes ? ` (${formatMinutes(i.minutes)})` : ''} <span className="muted small">{i.kind === 'joker' ? 'Joker' : 'Bonus'}</span></span>
+              <span className="spacer">
+                {ITEM_LABELS[i.type] ?? i.type}{i.minutes ? ` (${formatMinutes(i.minutes)})` : ''} <span className="muted small">{i.kind === 'joker' ? 'Joker' : 'Bonus'}</span>
+                {ITEM_HELP[i.type] && <span className="muted tiny" style={{ display: 'block' }}>{ITEM_HELP[i.type]}</span>}
+              </span>
               {i.type === 'fake_ping' ? (
                 <button className="small" disabled={!running} onClick={() => pickFake(i.id)}>Ort wählen</button>
               ) : i.type === 'wahl' ? (
@@ -123,7 +126,7 @@ export default function PlayerPanel({ s, now, act, pickFake }: PanelProps & { pi
                   {cfg.joker.types.map((t) => <option key={t.type} value={t.type}>{ITEM_LABELS[t.type]}</option>)}
                 </select>
               ) : (
-                <Confirm className="small" disabled={!running} label="Einsetzen" confirm="Wirklich?" onYes={() => act(() => api.useItem(i.id), 'Eingesetzt.')} />
+                <Confirm className="small" disabled={!running} label="Einsetzen" confirm="Jetzt einsetzen?" onYes={() => act(() => api.useItem(i.id), 'Eingesetzt.')} />
               )}
             </div>
           ))}

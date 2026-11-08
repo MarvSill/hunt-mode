@@ -131,8 +131,8 @@ export default function PlayPage() {
     }
     for (const e of s.me.effects) {
       if (e.type === 'hunter_snapshot') {
-        for (const h of (e.payload.hunters as { name: string; lat: number; lng: number }[]) ?? []) {
-          list.push({ id: `hs${h.name}`, lat: h.lat, lng: h.lng, color: '#f85149', kind: 'hunter', label: `Hunter ${h.name}` });
+        for (const h of (e.payload.hunters as { name: string; lat: number; lng: number; at?: string }[]) ?? []) {
+          list.push({ id: `hs${h.name}`, lat: h.lat, lng: h.lng, color: '#f85149', kind: 'hunter', label: `Hunter ${h.name}${h.at ? ` · Stand ${clock(h.at)}` : ''}` });
         }
       }
       if (e.type === 'hotel') list.push({ id: 'hotel', lat: e.payload.lat as number, lng: e.payload.lng as number, color: '#a371f7', kind: 'hotel', label: 'Hotel', accuracy: e.payload.radius_m as number });
