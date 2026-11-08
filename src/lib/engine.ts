@@ -95,15 +95,15 @@ export const ZONE_KINDS = ['spielfeld', 'sektion', 'startzone', 'center', 'kern'
 export type ZoneKind = (typeof ZONE_KINDS)[number];
 
 export const ZONE_INFO: Record<ZoneKind, { label: string; color: string; point: boolean; help: string }> = {
-  spielfeld: { label: 'Spielfeld', color: '#3fb950', point: false, help: 'Wo gespielt wird. Optional pro Spieltag.' },
-  sektion: { label: 'Sektion', color: '#58a6ff', point: false, help: 'Eigenes Gebiet pro Spieler (Wien-Modus).' },
+  spielfeld: { label: 'Spielfeld', color: '#3fb950', point: false, help: 'Wo gespielt wird. Kann im Lauf des Spiels kleiner werden.' },
+  sektion: { label: 'Sektion', color: '#58a6ff', point: false, help: 'Eigenes Gebiet pro Spieler.' },
   startzone: { label: 'Startzone', color: '#a371f7', point: false, help: 'Gemeinsamer Bereich in Sektions-Spielen.' },
-  center: { label: 'Center', color: '#d29922', point: false, help: 'Eigene Ping-Regeln, z. B. kein Fahrzeug (Bangkok).' },
+  center: { label: 'Center', color: '#d29922', point: false, help: 'Eigene Ping-Regeln, z. B. kein Fahrzeug.' },
   kern: { label: 'Kernzone', color: '#db6d28', point: false, help: 'Häufigere Pings.' },
   aussen: { label: 'Aussenzone', color: '#8b949e', point: false, help: 'Eigenes Ping-Intervall.' },
   sperrzone: { label: 'Sperrzone', color: '#f85149', point: false, help: 'Betreten verboten (z. B. Bahnhof, Schule).' },
   sicher: { label: 'Sichere Zone', color: '#2ea043', point: false, help: 'Hier darf nicht gefangen werden.' },
-  exit: { label: 'Exit-Kandidat', color: '#f0f6fc', point: true, help: 'Einer davon wird zufällig der Exitpoint.' },
+  exit: { label: 'Fluchtpunkt-Kandidat', color: '#f0f6fc', point: true, help: 'Einer davon wird zufällig der Fluchtpunkt.' },
   hq: { label: 'HQ', color: '#f85149', point: true, help: 'Startort der Hunter.' },
   treffpunkt: { label: 'Treffpunkt', color: '#58a6ff', point: true, help: 'Treffpunkt vor dem Start.' },
 };
@@ -125,7 +125,6 @@ export const api = {
   deviceCheck: (g: string, checks: Record<string, unknown>) => rpc('set_device_check', { p_game_id: g, p_checks: checks }),
   speedhuntStart: (g: string, target: string) => rpc<string>('speedhunt_start', { p_game_id: g, p_target: target }),
   speedhuntQuery: (sh: string) => rpc('speedhunt_query', { p_speedhunt_id: sh }),
-  speedhuntApprove: (sh: string, ok: boolean) => rpc('speedhunt_approve', { p_speedhunt_id: sh, p_approve: ok }),
   catchCode: (g: string) => rpc<{ code: string; valid_s: number; qr: string }>('my_catch_code', { p_game_id: g }),
   catchByCode: (g: string, code: string, lat?: number, lng?: number) =>
     rpc<{ catch_id: string; status: string; runner: string }>('catch_by_code', { p_game_id: g, p_code: code, p_lat: lat ?? null, p_lng: lng ?? null }),
@@ -133,7 +132,6 @@ export const api = {
     rpc<{ catch_id: string; status: string; runner: string }>('catch_claim', { p_game_id: g, p_runner: runner, p_lat: lat ?? null, p_lng: lng ?? null }),
   catchRespond: (c: string, accept: boolean) => rpc('catch_respond', { p_catch_id: c, p_accept: accept }),
   catchMedia: (c: string, path: string) => rpc('catch_attach_media', { p_catch_id: c, p_path: path }),
-  catchDecide: (c: string, valid: boolean) => rpc('gm_catch_decide', { p_catch_id: c, p_valid: valid }),
   confirmExit: (g: string, participant?: string) => rpc('confirm_exit', { p_game_id: g, p_participant: participant ?? null }),
   giveUp: (g: string) => rpc('give_up', { p_game_id: g }),
   hideout: (g: string, inside: boolean) => rpc('hideout_report', { p_game_id: g, p_inside: inside }),
@@ -143,27 +141,12 @@ export const api = {
   purchase: (g: string, amount: number, category: string, note: string, receipt: string | null) =>
     rpc<{ balance: number }>('make_purchase', { p_game_id: g, p_amount: amount, p_category: category, p_note: note, p_receipt: receipt }),
   useItem: (item: string, payload: Record<string, unknown> = {}) => rpc('use_item', { p_item_id: item, p_payload: payload }),
-  grantItem: (g: string, p: string, kind: string, type: string, minutes: number | null) =>
-    rpc('gm_grant_item', { p_game_id: g, p_participant: p, p_kind: kind, p_type: type, p_minutes: minutes }),
-  challengeCreate: (g: string, data: Record<string, unknown>) => rpc('challenge_create', { p_game_id: g, p_data: data }),
-  challengeCancel: (c: string) => rpc('challenge_cancel', { p_challenge_id: c }),
-  challengeJoin: (c: string) => rpc('challenge_join', { p_challenge_id: c }),
-  challengeSubmit: (c: string, code: string | null, path: string | null) => rpc<string>('challenge_submit', { p_challenge_id: c, p_code: code, p_proof_path: path }),
-  challengeDecide: (e: string, ok: boolean) => rpc('challenge_decide', { p_entry_id: e, p_success: ok }),
-  pause: (g: string, reason: string) => rpc('pause_game', { p_game_id: g, p_reason: reason }),
-  resume: (g: string) => rpc('resume_game', { p_game_id: g }),
   emergency: (g: string, lat?: number, lng?: number) => rpc('emergency_start', { p_game_id: g, p_lat: lat ?? null, p_lng: lng ?? null }),
   emergencyResolve: (e: string) => rpc('emergency_resolve', { p_emergency_id: e }),
   emergencyContact: (g: string, p: string) => rpc<{ name: string; phone: string } | null>('emergency_contact', { p_game_id: g, p_participant: p }),
   explain: (v: string, text: string) => rpc('violation_explain', { p_violation_id: v, p_text: text }),
-  decide: (v: string, penalty: string | null) => rpc('violation_decide', { p_violation_id: v, p_penalty: penalty }),
-  report_violation: (g: string, p: string, type: string, note: string) => rpc('violation_report', { p_game_id: g, p_participant: p, p_type: type, p_note: note }),
-  gmPing: (g: string, p: string) => rpc('gm_ping', { p_game_id: g, p_participant: p }),
-  gmZone: (g: string, feature: MapFeature) => rpc('gm_add_zone', { p_game_id: g, p_feature: feature }),
-  gmState: (p: string, state: string) => rpc('gm_set_state', { p_participant: p, p_state: state }),
+  /** Spiel vorzeitig beenden (nur wer das Spiel erstellt hat). */
   endGame: (g: string) => rpc('gm_end_game', { p_game_id: g }),
-  gmConfig: (g: string, config: GameConfig, changes: unknown[]) => rpc('gm_update_config', { p_game_id: g, p_config: config, p_changes: changes }),
-  briefing: (g: string) => rpc('briefing_confirm', { p_game_id: g }),
   send: (g: string, channel: string, body: string) => rpc('send_message', { p_game_id: g, p_channel: channel, p_body: body }),
   replay: (g: string) => rpc<Replay>('game_replay', { p_game_id: g }),
 };
@@ -188,28 +171,28 @@ export async function uploadProof(gameId: string, file: Blob, name: string) {
 
 export const STATE_LABELS: Record<string, string> = {
   aktiv: 'Aktiv', ausserhalb: 'Ausserhalb', gefangen: 'Gefangen', disqualifiziert: 'Disqualifiziert', aufgegeben: 'Aufgegeben',
-  im_ziel: 'Am Exit', verloren: 'Verloren', notfall: 'Notfall', pausiert: 'Pausiert',
+  im_ziel: 'Am Fluchtpunkt', verloren: 'Verloren', notfall: 'Notfall', pausiert: 'Pausiert',
 };
 
 export const SOURCE_LABELS: Record<string, string> = {
-  silent: 'Silent-Ping', speedhunt: 'Speedhunt', purchase: 'Kauf', transit: 'ÖV', proximity: 'Teambildung', fake: 'Fake',
-  hotel_end: 'Hotel', out_of_bounds: 'Ausserhalb', penalty: 'Strafe', gm: 'Spielleitung', kein_signal: 'Kein Signal',
-  challenge: 'Challenge', device_switch: 'Gerätewechsel',
+  silent: 'Ping', speedhunt: 'Blitzjagd', purchase: 'Kauf', transit: 'ÖV', proximity: 'Teambildung', fake: 'Fake',
+  hotel_end: 'Hotel', out_of_bounds: 'Ausserhalb', penalty: 'Strafe', gm: 'Sonder-Ping', kein_signal: 'Kein Signal',
+  challenge: 'Aufgabe', device_switch: 'Gerätewechsel',
 };
 
 export const PENALTY_LABELS: Record<string, string> = {
-  verwarnung: 'Verwarnung', straf_speedhunt: 'Straf-Speedhunt', disqualifikation: 'Disqualifikation', catch: 'Als gefangen werten',
+  verwarnung: 'Verwarnung', straf_speedhunt: 'Straf-Blitzjagd', disqualifikation: 'Disqualifikation', catch: 'Als gefangen werten',
   live_standort: '15 min live', sofort_ping: 'Sofort-Ping',
 };
 
 export const ITEM_LABELS: Record<string, string> = {
-  regeneration: 'Regeneration', hunter_erfragen: 'Hunter erfragen', catch_free: 'Catch-Free', fake_ping: 'Fake-Ping',
+  regeneration: 'Regeneration', hunter_erfragen: 'Hunter-Standorte', catch_free: 'Schutzschild', fake_ping: 'Fake-Ping',
   hotel: 'Hotel', budget: 'Budget', wahl: 'Joker nach Wahl',
 };
 
 /** Was ein Joker oder Bonus bewirkt, in einem Satz. */
 export const ITEM_HELP: Record<string, string> = {
-  regeneration: 'Du wirst eine Zeit lang nicht gepingt. Nicht während eines Speedhunts.',
+  regeneration: 'Du wirst eine Zeit lang nicht gepingt. Nicht während einer Blitzjagd.',
   hunter_erfragen: 'Du siehst 5 Minuten lang auf der Karte, wo die Hunter sind.',
   catch_free: 'Du kannst eine Zeit lang nicht gefangen werden.',
   fake_ping: 'Dein nächster Ping zeigt einen Ort, den du auf der Karte wählst.',

@@ -26,7 +26,7 @@ export function useTracker(gameId: string | undefined, enabled: boolean, kick = 
   const latest = useRef<Sample | null>(null);
   const flushRef = useRef<((force?: boolean) => Promise<void>) | null>(null);
 
-  // Standort-Anfrage vom Server (Ping, Speedhunt-Abfrage): sofort senden.
+  // Standort-Anfrage vom Server (Ping, Blitzjagd-Abfrage): sofort senden.
   useEffect(() => {
     if (kick > 0) {
       interval.current = 5;

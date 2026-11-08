@@ -134,12 +134,12 @@ export function checkMap(i: MapCheckInput): MapIssue[] {
   const exits = pts('exit');
   if (meet.length === 0) out.push({ level: 'warning', text: 'Kein Treffpunkt gesetzt (empfohlen).' });
   if (hq.length === 0) out.push({ level: 'warning', text: 'Kein HQ für die Hunter gesetzt (empfohlen).' });
-  if (i.exitEnabled && exits.length === 0) out.push({ level: 'error', text: 'Setze mindestens einen Exitpoint-Kandidaten oder schalte den Exitpoint in den Regeln aus.' });
+  if (i.exitEnabled && exits.length === 0) out.push({ level: 'error', text: 'Setze mindestens einen Fluchtpunkt-Kandidaten oder schalte den Fluchtpunkt in den Regeln aus.' });
   if (field1) {
     if (meet.some((p) => !pointInside(p, field1))) out.push({ level: 'error', text: 'Der Treffpunkt liegt ausserhalb des Spielfelds.' });
     const lastField = i.autoShrink ? field1 : last ?? field1;
     if (exits.some((p) => !pointInside(p, lastField))) {
-      out.push({ level: 'error', text: i.manualShrink ? 'Ein Exitpoint liegt ausserhalb des Spielfelds der letzten Phase.' : 'Ein Exitpoint liegt ausserhalb des Spielfelds.' });
+      out.push({ level: 'error', text: i.manualShrink ? 'Ein Fluchtpunkt liegt ausserhalb des Spielfelds der letzten Phase.' : 'Ein Fluchtpunkt liegt ausserhalb des Spielfelds.' });
     }
     const km2 = areaKm2(field1);
     if (km2 > 500) out.push({ level: 'warning', text: 'Das Spielfeld ist grösser als 500 km².' });
@@ -152,7 +152,7 @@ export function checkMap(i: MapCheckInput): MapIssue[] {
     }
   }
   if (restricted) {
-    if ([...meet, ...hq, ...exits].some((p) => pointInside(p, restricted))) out.push({ level: 'error', text: 'Treffpunkt, HQ oder ein Exitpoint liegt in einer Sperrzone.' });
+    if ([...meet, ...hq, ...exits].some((p) => pointInside(p, restricted))) out.push({ level: 'error', text: 'Treffpunkt, HQ oder ein Fluchtpunkt liegt in einer Sperrzone.' });
   }
   if (meet.length && hq.length && distM(meet[0], hq[0]) < i.hqMinDistanceM) {
     out.push({ level: 'warning', text: `Das HQ ist nur ${Math.round(distM(meet[0], hq[0]))} m vom Treffpunkt entfernt (Regel: mindestens ${i.hqMinDistanceM} m).` });

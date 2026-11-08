@@ -27,7 +27,7 @@ import { getPreset } from '../shared/presets';
 import { distributeRoles, lobbyIssues } from '../shared/roles';
 import { validateConfig } from '../shared/validation';
 
-const ASSIGNABLE: Role[] = ['offen', 'spieler', 'hunter', 'zentrale', 'gm', 'zuschauer'];
+const ASSIGNABLE: Role[] = ['offen', 'spieler', 'hunter', 'zentrale', 'zuschauer'];
 const WISHABLE: Role[] = ['spieler', 'hunter', 'zentrale', 'zuschauer'];
 
 export default function GamePage() {
@@ -109,8 +109,7 @@ export default function GamePage() {
 
   function shuffleRoles() {
     if (!config) return;
-    const candidates = roster.filter((r) => r.role !== 'gm' || r.user_id !== game?.host_id);
-    const result = distributeRoles(candidates.map((r) => r.participant_id), config.roles);
+    const result = distributeRoles(roster.map((r) => r.participant_id), config.roles);
     return run(async () => {
       for (const [pid, role] of Object.entries(result)) await setRole(pid, role);
     });
@@ -210,6 +209,9 @@ export default function GamePage() {
               {t.action}
             </div>
           ))}
+          {me?.role === 'offen' && (
+            <div className="notice" style={{ marginTop: 8 }}>Wähle unten bei deinem Namen auch deine eigene Rolle: Spieler, Hunter, Zentrale oder Zuschauer.</div>
+          )}
         </div>
       )}
 

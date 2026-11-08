@@ -15,10 +15,10 @@ const SLIDES: { art: string; title: string; lead: string; points: [string, strin
   {
     art: '🏃',
     title: 'Flucht durch die Stadt',
-    lead: 'Hunt Mode ist Verstecken in gross: wie in der Serie Manhunt, nur mit deinen Freunden.',
+    lead: 'Hunt Mode ist Verstecken in gross: draussen in der Stadt, mit deinen Freunden.',
     points: [
       ['🟢', 'Spieler', 'verstecken sich im Spielfeld und wollen bis zum Schluss frei bleiben.'],
-      ['🔴', 'Hunter', 'sind die Taskforce. Sie jagen die Spieler und versuchen sie zu fangen.'],
+      ['🔴', 'Hunter', 'jagen die Spieler als Team und versuchen sie zu fangen.'],
       ['🗺️', 'Spielfeld', 'Ein Gebiet auf der Karte. Wer es verlässt, wird sofort sichtbar.'],
     ],
   },
@@ -28,8 +28,8 @@ const SLIDES: { art: string; title: string; lead: string; points: [string, strin
     lead: 'Die Hunter sehen nicht immer, wo du bist, nur in bestimmten Momenten.',
     points: [
       ['⏱️', 'Ping', 'Alle paar Minuten sehen die Hunter deinen Standort von diesem Moment.'],
-      ['⚡', 'Speedhunt', 'Kurze Live-Jagd: die Hunter fragen deinen Standort mehrmals ab.'],
-      ['🃏', 'Joker', 'Hilfen für Spieler, z. B. eine Zeit lang nicht gepingt werden.'],
+      ['⚡', 'Blitzjagd', 'Kurze Live-Jagd: die Hunter fragen deinen Standort mehrmals ab.'],
+      ['🃏', 'Joker', 'Hilfen für Spieler, die nach einer bestimmten Spielzeit freigeschaltet werden.'],
     ],
   },
   {
@@ -38,7 +38,7 @@ const SLIDES: { art: string; title: string; lead: string; points: [string, strin
     lead: 'Erwischt ist, wer den Fang-Code des Hunters scannt. Wer frei bleibt, gewinnt.',
     points: [
       ['📷', 'Fangen', 'Der Spieler zeigt seinen Code, der Hunter scannt ihn mit der App.'],
-      ['🏁', 'Exitpoint', 'Am Schluss müssen die Spieler oft noch zu einem Ziel.'],
+      ['🏁', 'Fluchtpunkt', 'Am Schluss müssen die Spieler oft noch zu einem Ziel.'],
       ['🏆', 'Sieg', 'Spieler gewinnen, wenn sie frei ankommen. Hunter, wenn alle gefangen sind.'],
     ],
   },
@@ -47,7 +47,7 @@ const SLIDES: { art: string; title: string; lead: string; points: [string, strin
     title: 'Sicherheit geht vor',
     lead: 'Es ist ein Spiel. Verkehrsregeln und Gesetze gelten immer.',
     points: [
-      ['🚨', 'Notfall', 'Der rote SOS-Knopf alarmiert sofort alle Hunter und die Spielleitung.'],
+      ['🚨', 'Notfall', 'Der rote SOS-Knopf alarmiert sofort alle Hunter.'],
       ['📞', 'Notrufe', '117 Polizei, 144 Sanität, 112 Notruf. Direkt aus der App anrufbar.'],
       ['🔒', 'Standort', 'Wird nur während eines Spiels geteilt und danach gelöscht.'],
     ],

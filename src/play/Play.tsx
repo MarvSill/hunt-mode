@@ -9,16 +9,14 @@ import { useTracker } from '../lib/tracker';
 import { useGameState, useNow } from '../lib/useGame';
 import Chat from './Chat';
 import EmergencyBox from './EmergencyBox';
-import { colorFor, nameOf } from './common';
+import { colorFor, Confirm, nameOf, Section } from './common';
 import { CallButtons } from './EmergencyBox';
-import GmPanel from './GmPanel';
 import HunterPanel from './HunterPanel';
 import PlayerPanel from './PlayerPanel';
 import Result from './Result';
 
 type Tab = 'karte' | 'aktionen' | 'meldungen' | 'chat';
 const TABS: [Tab, string, IconName][] = [['karte', 'Karte', 'map'], ['aktionen', 'Aktionen', 'bolt'], ['meldungen', 'Meldungen', 'bell'], ['chat', 'Chat', 'chat']];
-type Pick = { kind: 'fake'; itemId: string } | { kind: 'zone' } | { kind: 'challenge'; cb: (lat: number, lng: number) => void } | null;
 
 function beep(critical: boolean) {
   try {
@@ -42,7 +40,6 @@ export default function PlayPage() {
   const [tab, setTab] = useState<Tab>('karte');
   const [zones, setZones] = useState<MapFeature[]>([]);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
-  const [pick, setPick] = useState<Pick>(null);
   const [notifPerm, setNotifPerm] = useState(typeof Notification !== 'undefined' ? Notification.permission : 'denied');
   const mapVersion = useRef<number | null>(null);
   const [sosAsk, setSosAsk] = useState(false);
@@ -106,7 +103,7 @@ export default function PlayPage() {
   const markers = useMemo<Marker[]>(() => {
     if (!s) return [];
     const list: Marker[] = [];
-    const tf = role === 'hunter' || role === 'zentrale' || role === 'gm';
+    const tf = role === 'hunter' || role === 'zentrale';
     const fade = s.game.config.ping.fade_after_minutes * 60000;
     for (const p of s.pings) {
       if (p.lat == null || p.lng == null) continue;
@@ -114,7 +111,6 @@ export default function PlayPage() {
       const age = now - new Date(p.at).getTime();
       const label = `${nameOf(s, p.participant_id)} · ${SOURCE_LABELS[p.source] ?? p.source}${p.n ? ` ${p.n}` : ''} · ${clock(p.at)}${p.stale_seconds ? ` (${Math.round(p.stale_seconds / 60)} min alt)` : ''}${p.is_fake ? ' · FAKE' : ''}`;
       list.push({ id: p.id, lat: p.lat, lng: p.lng, color: colorFor(s, p.participant_id), label, kind: 'ping', opacity: Math.max(0.3, 1 - age / Math.max(fade, 1)), accuracy: p.accuracy_m });
-      if (p.truth && role === 'gm') list.push({ id: `${p.id}t`, lat: p.truth.lat, lng: p.truth.lng, color: '#8b949e', label: `Echt: ${nameOf(s, p.participant_id)}`, kind: 'fake' });
     }
     for (const x of s.positions) {
       const isMe = x.participant_id === s.me.id;
@@ -135,17 +131,10 @@ export default function PlayPage() {
           list.push({ id: `hs${h.name}`, lat: h.lat, lng: h.lng, color: '#f85149', kind: 'hunter', label: `Hunter ${h.name}${h.at ? ` · Stand ${clock(h.at)}` : ''}` });
         }
       }
-      if (e.type === 'hotel') list.push({ id: 'hotel', lat: e.payload.lat as number, lng: e.payload.lng as number, color: '#a371f7', kind: 'hotel', label: 'Hotel', accuracy: e.payload.radius_m as number });
-      if (e.type === 'fake_ping') list.push({ id: 'fake', lat: e.payload.lat as number, lng: e.payload.lng as number, color: '#8b949e', kind: 'fake', label: 'Dein Fake-Ping' });
     }
     for (const n of s.notifications.slice(0, 10)) {
       if (n.kind === 'proximity_self' && n.payload.lat != null && now - new Date(n.at).getTime() < 15 * 60000) {
-        list.push({ id: `px${n.id}`, lat: n.payload.lat as number, lng: n.payload.lng as number, color: '#d29922', kind: 'player', label: `${n.payload.name} (Teambildung)` });
-      }
-    }
-    for (const c of s.challenges) {
-      if (c.lat != null && c.lng != null && c.status !== 'beendet' && c.status !== 'abgesagt') {
-        list.push({ id: `c${c.id}`, lat: c.lat, lng: c.lng, color: '#e3b341', kind: 'challenge', label: `Challenge: ${c.title}`, accuracy: c.radius_m });
+        list.push({ id: `px${n.id}`, lat: n.payload.lat as number, lng: n.payload.lng as number, color: '#d29922', kind: 'player', label: `${n.payload.name} (in der Nähe)` });
       }
     }
     for (const e of s.emergencies) {
@@ -153,21 +142,6 @@ export default function PlayPage() {
     }
     return list;
   }, [s, now, pos, role, tracker.last?.acc]);
-
-  async function mapClick(lat: number, lng: number) {
-    if (!pick || !id) return;
-    const p = pick;
-    setPick(null);
-    setTab('aktionen');
-    if (p.kind === 'fake') {
-      await act(() => api.useItem(p.itemId, { lat, lng, applies: 'beide' }), 'Fake-Ping scharf: der nächste Ping zeigt diesen Ort.');
-    } else if (p.kind === 'zone') {
-      const r = 60;
-      await act(() => api.gmZone(id, { type: 'Feature', geometry: { type: 'Point', coordinates: [lng, lat] }, properties: { kind: 'sperrzone', name: 'Sperrzone', radius_m: r } }).then(() => undefined), 'Sperrzone gesetzt.');
-    } else {
-      p.cb(lat, lng);
-    }
-  }
 
   if (!s) {
     return (
@@ -181,11 +155,12 @@ export default function PlayPage() {
   const g = s.game;
   const ended = ['beendet', 'archiviert'].includes(g.status);
   const players = s.participants.filter((p) => p.role === 'spieler');
-  const headline = g.paused ? 'PAUSE' : g.status === 'vorsprung' ? `Jagd in ${countdown(g.hunt_start_at, now)}`
-    : g.status === 'finale' ? `Exit bis ${clock(g.deadline_at, g.timezone)} · ${countdown(g.deadline_at, now)}`
+  const live = ['vorsprung', 'laeuft', 'finale'].includes(g.status);
+  const headline = g.status === 'vorsprung' ? `Jagd in ${countdown(g.hunt_start_at, now)}`
+    : g.status === 'finale' ? `Fluchtpunkt bis ${clock(g.deadline_at, g.timezone)} · ${countdown(g.deadline_at, now)}`
     : ended ? 'Spiel beendet' : `Ende in ${countdown(g.ends_at, now)}`;
 
-  const roleLabel = role === 'spieler' ? 'Spieler' : role === 'gm' ? 'Spielleitung' : role === 'zuschauer' ? 'Zuschauer' : 'Taskforce';
+  const roleLabel = role === 'spieler' ? 'Spieler' : role === 'zuschauer' ? 'Zuschauer' : role === 'zentrale' ? 'Zentrale' : 'Hunter';
   const canSos = !ended && role !== 'zuschauer' && s.me.state !== 'notfall';
   const unseen = tab === 'meldungen' ? 0 : s.notifications.length - seenNotes;
   function openTab(t: Tab) {
@@ -199,8 +174,8 @@ export default function PlayPage() {
         <Link to="/" className="button ghost back" aria-label="Zur Startseite"><Icon name="back" /></Link>
         <div className="spacer play-head">
           <div className="sub-line">
-            <span className={`role-pill ${role === 'spieler' ? 'spieler' : role === 'gm' ? 'gm' : role === 'zuschauer' ? 'zuschauer' : 'hunter'}`} style={{ padding: '1px 8px', marginRight: 6 }}>{roleLabel}</span>
-            {g.name}{g.is_test ? ' · Probelauf' : ''}{g.current_day > 0 && ` · Tag ${g.current_day}/${g.config.game.days}`}{(g.phase_count ?? 0) > 1 && g.config.zone.shrink_every_minutes > 0 && ` · Phase ${g.phase}/${g.phase_count}`}
+            <span className={`role-pill ${role === 'spieler' ? 'spieler' : role === 'zuschauer' ? 'zuschauer' : 'hunter'}`} style={{ padding: '1px 8px', marginRight: 6 }}>{roleLabel}</span>
+            {g.name}{g.is_test ? ' · Probelauf' : ''}{(g.phase_count ?? 0) > 1 && g.config.zone.shrink_every_minutes > 0 && ` · Phase ${g.phase}/${g.phase_count}`}
           </div>
           <div className="headline">{headline}</div>
         </div>
@@ -211,7 +186,7 @@ export default function PlayPage() {
         <div className="overlay" role="dialog" aria-label="Notfall melden" onClick={() => setSosAsk(false)}>
           <div className="card stack emergency-card" style={{ maxWidth: 440, width: '100%', background: 'var(--surface)' }} onClick={(e) => e.stopPropagation()}>
             <strong style={{ fontSize: 20 }}>🚨 Notfall melden?</strong>
-            <span className="small">Alle Hunter und die Spielleitung werden sofort alarmiert und sehen deinen Standort und Notfallkontakt. Die Jagd auf dich wird ausgesetzt. Bei einem Versehen kannst du den Notfall danach wieder beenden.</span>
+            <span className="small">Alle Hunter werden sofort alarmiert und sehen deinen Standort und Notfallkontakt. Die Jagd auf dich wird ausgesetzt, das Spiel läuft für die anderen weiter. Bei einem Versehen kannst du den Notfall danach wieder beenden.</span>
             <button className="danger block big" onClick={() => {
               setSosAsk(false);
               void act(() => api.emergency(g.id, pos?.lat, pos?.lng), 'Notfall gemeldet. Bei Gefahr: 117 (Polizei) oder 112 anrufen.');
@@ -232,8 +207,6 @@ export default function PlayPage() {
         ))}
       </div>
 
-      {g.paused && <div className="notice error" style={{ marginBottom: 8 }}><strong>Spiel pausiert.</strong> {g.pause_reason}</div>}
-      {g.quiet && <div className="notice" style={{ marginBottom: 8 }}>Jagdfreie Zeit: keine Pings, keine Speedhunts, keine Fänge.</div>}
       {tracking && tracker.status !== 'ok' && (
         <div className="notice error" style={{ marginBottom: 8 }}>
           {tracker.status === 'verweigert' ? 'Standort ist blockiert. Erlaube den Standort in den Browser-Einstellungen, sonst kannst du nicht mitspielen.'
@@ -258,31 +231,34 @@ export default function PlayPage() {
             ))}
           </nav>
           <div style={{ display: tab === 'karte' ? 'block' : 'none' }}>
-            {pick && (
-              <div className="notice" style={{ marginBottom: 8 }}>
-                {pick.kind === 'fake' ? 'Tippe auf die Karte: dort erscheint dein nächster Ping.' : pick.kind === 'zone' ? 'Tippe auf die Karte: dort entsteht eine Sperrzone (60 m).' : 'Tippe auf den Ort der Challenge.'}
-                {' '}<button className="small ghost" onClick={() => setPick(null)}>Abbrechen</button>
-              </div>
-            )}
-            <div className="map-box"><MapView zones={zones} markers={markers} onClick={pick ? mapClick : undefined} fitKey={g.id} height="62dvh" showDay={g.phase ?? g.current_day} /></div>
+            <div className="map-box"><MapView zones={zones} markers={markers} fitKey={g.id} height="62dvh" showDay={g.phase ?? g.current_day} /></div>
             <div className="row small" style={{ marginTop: 8 }}>
               {role === 'spieler' && s.me.next_ping_at && <span className="badge">Nächster Ping {clock(s.me.next_ping_at)}</span>}
-              {s.next_silent_ping_at && role !== 'spieler' && <span className="badge">Nächster Silent-Ping {clock(s.next_silent_ping_at)}</span>}
+              {s.next_silent_ping_at && role !== 'spieler' && <span className="badge">Nächster Ping {clock(s.next_silent_ping_at)}</span>}
               <span className="badge">{s.free_players}/{players.length} Spieler frei</span>
-              {s.speedhunts.some((x) => x.status === 'laeuft') && <span className="badge red pulse">Speedhunt</span>}
+              {s.speedhunts.some((x) => x.status === 'laeuft') && <span className="badge red pulse">Blitzjagd</span>}
               {tracker.last && <span className="badge">GPS ±{tracker.last.acc} m</span>}
             </div>
           </div>
 
           <div style={{ display: tab === 'aktionen' ? 'block' : 'none' }}>
-            {role === 'spieler' && <PlayerPanel s={s} now={now} act={act} pos={pos} pickFake={(itemId) => { setPick({ kind: 'fake', itemId }); setTab('karte'); }} />}
+            {role === 'spieler' && <PlayerPanel s={s} now={now} act={act} pos={pos} />}
             {(role === 'hunter' || role === 'zentrale') && <HunterPanel s={s} now={now} act={act} pos={pos} />}
-            {role === 'gm' && (
-              <GmPanel s={s} now={now} act={act} pos={pos}
-                pickZone={() => { setPick({ kind: 'zone' }); setTab('karte'); }}
-                pickChallenge={(cb) => { setPick({ kind: 'challenge', cb }); setTab('karte'); }} />
-            )}
             {role === 'zuschauer' && <div className="card muted">Du schaust zu. Positionen siehst du mit {g.config.spectator.delay_minutes} min Verzögerung.</div>}
+            {g.host && (
+              <Section title="Spiel steuern" badge={g.is_test ? <span className="badge">Probelauf</span> : undefined}>
+                <div className="muted small">Du hast das Spiel erstellt. Es läuft am Stück bis {clock(g.ends_at, g.timezone)} ({countdown(g.ends_at, now)}).</div>
+                {g.is_test && live && (
+                  <>
+                    <div className="muted small">Probelauf: Spielzeit vorspulen (Timer laufen sofort ab).</div>
+                    <div className="row">
+                      {[1, 5, 15, 60].map((m) => <button key={m} className="small" onClick={() => act(() => api.advance(g.id, m))}>+{m} min</button>)}
+                    </div>
+                  </>
+                )}
+                <Confirm className="ghost" disabled={!live} label="Spiel abbrechen" confirm="Spiel jetzt für alle beenden?" onYes={() => act(() => api.endGame(g.id))} />
+              </Section>
+            )}
             <details className="acc">
               <summary>
                 <span className="ico" aria-hidden="true">📖</span>

@@ -70,7 +70,7 @@ export default function ProfilePage() {
           <input required maxLength={40} value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
         </label>
         <div className="section-title" style={{ marginBottom: 0 }}>Notfallkontakt</div>
-        <p className="muted small" style={{ margin: 0 }}>Wird nur bei einem Notfall an die Spielleitung und die Hunter gezeigt.</p>
+        <p className="muted small" style={{ margin: 0 }}>Wird nur bei einem Notfall an die Hunter gezeigt.</p>
         <label className="field">
           Name
           <input required value={contactName} onChange={(e) => setContactName(e.target.value)} />

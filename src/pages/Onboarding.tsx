@@ -96,7 +96,7 @@ export default function OnboardingPage() {
         </label>
 
         <div className="section-title" style={{ marginBottom: 0 }}>Notfallkontakt</div>
-        <p className="muted small">Nur die Spielleitung deines laufenden Spiels sieht ihn, und bei einem Notfall auch die Hunter.</p>
+        <p className="muted small">Nur bei einem Notfall sehen ihn die Hunter deines Spiels.</p>
         <label className="field">
           Name
           <input required maxLength={80} value={contactName} onChange={(e) => setContactName(e.target.value)} />

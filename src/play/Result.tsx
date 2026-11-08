@@ -5,8 +5,8 @@ import { errorText } from '../lib/supabase';
 import { colorFor, nameOf } from './common';
 
 const REASONS: Record<string, string> = {
-  zeit_abgelaufen: 'Die Zeit ist abgelaufen.', alle_gefangen: 'Alle Spieler wurden gefangen.', alle_im_ziel_oder_gefangen: 'Alle sind am Exit oder gefangen.',
-  letzter_ueberlebender: 'Nur noch eine Person ist frei.', alle_ausgeschieden: 'Alle Spieler sind ausgeschieden.', abgebrochen: 'Die Spielleitung hat das Spiel beendet.',
+  zeit_abgelaufen: 'Die Zeit ist abgelaufen.', alle_gefangen: 'Alle Spieler wurden gefangen.', alle_im_ziel_oder_gefangen: 'Alle sind am Fluchtpunkt oder gefangen.',
+  letzter_ueberlebender: 'Nur noch eine Person ist frei.', alle_ausgeschieden: 'Alle Spieler sind ausgeschieden.', abgebrochen: 'Das Spiel wurde abgebrochen.',
 };
 
 export default function Result({ s, zones }: { s: GameState; zones: MapFeature[] }) {
@@ -63,9 +63,9 @@ export default function Result({ s, zones }: { s: GameState; zones: MapFeature[]
     <div className="stack">
       <div className="card stack" style={{ textAlign: 'center' }}>
         <div className="brand">Spielende</div>
-        <h1 style={{ margin: 0 }}>{winners.size ? `Sieger: ${[...winners].map((w) => nameOf(s, w)).join(', ')}` : 'Die Taskforce gewinnt'}</h1>
+        <h1 style={{ margin: 0 }}>{winners.size ? `Sieger: ${[...winners].map((w) => nameOf(s, w)).join(', ')}` : 'Die Hunter gewinnen'}</h1>
         <div className="muted">{REASONS[r?.reason ?? ''] ?? ''}</div>
-        {r && <div className="small">{r.hours} h · {r.catches} Fänge · {r.speedhunts} Speedhunts · {r.pings} Pings</div>}
+        {r && <div className="small">{r.hours} h · {r.catches} Fänge · {r.speedhunts} Blitzjagden · {r.pings} Pings</div>}
         {s.game.config.win.prize && winners.size > 0 && <div className="badge green" style={{ alignSelf: 'center' }}>Preis: {s.game.config.win.prize}</div>}
       </div>
       <div className="card">

@@ -73,7 +73,6 @@ const WORDS: Record<string, string> = {
   faehre: 'Fähre',
   naechste: 'nächste',
   qr: 'QR-Code',
-  gm: 'Spielleitung',
   touch: 'Berühren',
   confirm: '+ bestätigen',
   nfc: 'NFC',
@@ -84,7 +83,7 @@ const WORDS: Record<string, string> = {
   penalty: 'Strafe',
   random: 'Zufall',
   auto: 'automatisch',
-  taskforce: 'Taskforce',
+  taskforce: 'Hunter',
   regeneration: 'Regeneration',
   hunter: 'Hunter',
   erfragen: 'erfragen',
@@ -95,11 +94,10 @@ const WORDS: Record<string, string> = {
   tag: 'Tag',
   ausflug: 'Ausflug',
   dauer: 'Dauer',
-  exit: 'Exit',
+  exit: 'Fluchtpunkt',
   helfer: 'Helfer',
   zuschauer: 'Zuschauer',
   spieler: 'Spieler',
-  spielleitung: 'Spielleitung',
   person: 'Person',
   bus: 'Bus',
   bahn: 'Bahn',
@@ -111,8 +109,18 @@ const WORDS: Record<string, string> = {
   punkte: 'Punkte',
 };
 
-/** Lesbarer Name eines Auswahlwerts, z. B. "silent_zaehlt_als_abfrage" -> "Silent zählt als Abfrage". */
+/** Ganze Auswahlwerte mit eigenem Namen. */
+const OPTIONS: Record<string, string> = {
+  silent_zaehlt_als_abfrage: 'Ping zählt als Abfrage',
+  pro_tag: 'Insgesamt',
+  pro_ausflug: 'Pro Ausflug',
+  gewonnen_ohne_exit: 'Gewonnen ohne Fluchtpunkt',
+  hunter_helfer: 'Hunter-Helfer',
+};
+
+/** Lesbarer Name eines Auswahlwerts, z. B. "alle_ueberlebenden" -> "Alle Überlebenden". */
 export function optionLabel(value: string): string {
+  if (OPTIONS[value]) return OPTIONS[value];
   const text = value
     .split('_')
     .map((w) => WORDS[w] ?? w)

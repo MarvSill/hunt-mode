@@ -16,7 +16,7 @@ export default function PrivacyPage() {
         <ul style={{ margin: 0, paddingLeft: 20 }}>
           <li>Konto: E-Mail-Adresse und Passwort (verschlüsselt).</li>
           <li>Profil: Benutzername, Anzeigename, Altersbestätigung.</li>
-          <li>Notfallkontakt: Name und Telefonnummer. Sichtbar nur für die Spielleitung deines laufenden Spiels und bei einem Notfall für die Hunter.</li>
+          <li>Notfallkontakt: Name und Telefonnummer. Sichtbar nur bei einem Notfall, für die Hunter deines Spiels.</li>
           <li>Standort: nur während eines laufenden Spiels und nur solange die App offen ist. Nach Spielende werden die Standortdaten automatisch gelöscht; übrig bleibt höchstens die Wiederholung des Spiels für die Teilnehmenden.</li>
           <li>Spielinhalte: Chat-Nachrichten, Meldungen, Fänge und Ergebnisse deiner Spiele.</li>
         </ul>
@@ -27,7 +27,7 @@ export default function PrivacyPage() {
         <strong>Löschen</strong>
         <p style={{ margin: 0 }}>Unter Profil &gt; Konto löschen entfernst du dein Konto mit allen Daten sofort und endgültig. Spiele, die du erstellt hast, werden mitgelöscht.</p>
         <strong>Kontakt</strong>
-        <p style={{ margin: 0 }}>Fragen zum Datenschutz: über die Projektseite github.com/MarvSill/manhunt-app.</p>
+        <p style={{ margin: 0 }}>Fragen zum Datenschutz: über die Projektseite github.com/MarvSill/hunt-mode.</p>
       </div>
     </div>
   );

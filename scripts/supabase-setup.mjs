@@ -8,7 +8,7 @@ const API = process.env.SUPABASE_API || 'https://api.supabase.com';
 const TOKEN = process.env.SUPABASE_ACCESS_TOKEN;
 const NAME = process.env.SUPABASE_PROJECT_NAME || 'hunt-mode';
 const REGION = process.env.SUPABASE_REGION || 'eu-central-1'; // Frankfurt
-const SITE_URL = process.env.SITE_URL; // z. B. https://marvsill.github.io/manhunt-app/
+const SITE_URL = process.env.SITE_URL; // z. B. https://marvsill.github.io/hunt-mode/
 const DIR = 'supabase/migrations';
 
 if (!TOKEN) {

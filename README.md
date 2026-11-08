@@ -1,24 +1,24 @@
 # Hunt Mode
 
-Web-App (PWA) für ein urbanes Verfolgungsspiel nach dem Vorbild der Serie Manhunt:
-Spieler fliehen durch die Stadt, eine Taskforce jagt sie. Grundlage ist die
-Spezifikation „Manhunt App“ (v1.1). Arbeitstitel „Hunt Mode“, weil der Name
-„Manhunt“ der Serie gehört (Spezifikation Kapitel 16).
+Web-App (PWA) für ein Verfolgungsspiel in der Stadt: Spieler verstecken sich und
+fliehen durch die Stadt, die Hunter jagen sie als Team. Das Spiel läuft am Stück,
+ohne Pause und ohne Spielleitung: die App regelt alles selbst.
 
 ## Was die App kann
 
 - Konten mit E-Mail und Passwort, Profil mit Notfallkontakt, Gruppen (Crews) mit Einladungslink und Chat
-- Vollständiges Regelwerk (Kapitel 8) mit 6 Presets, Regel-Prüfung (Kapitel 25), Regel-Editor mit Protokoll
-- Spiel erstellen, per Code/Link beitreten, Live-Lobby, Rollen, Gerätecheck
-- **Karten-Editor**: Spielfeld (auch pro Spieltag), Sektionen, Center/Kern/Aussen mit eigenem Ping-Intervall,
-  Sperrzonen, sichere Zonen, Exit-Kandidaten, HQ; Ortssuche, GeoJSON-Import/-Export, automatische Verkleinerung
+- Vollständiges, einstellbares Regelwerk mit 3 Vorlagen (Schnell 90 min, Stadtabend 3 h, Wochenende 24 h),
+  Regel-Prüfung und Regel-Editor mit Protokoll
+- Spiel erstellen, per Code/Link beitreten, Live-Lobby, Rollen (auch für den Host), Gerätecheck
+- **Karten-Editor**: Spielfeld, das alle X Minuten kleiner werden kann, Sektionen, Center/Kern/Aussen mit
+  eigenem Ping-Intervall, Sperrzonen, sichere Zonen, Fluchtpunkt-Kandidaten, HQ; Ortssuche, GeoJSON-Import/-Export
 - **Spiel-Engine auf dem Server** (läuft alle 15 s, auch wenn niemand die App offen hat):
-  Vorsprung, Spieltage, Silent-Pings mit Frische-Regel, Speedhunts mit allen Einschränkungen, LEO,
+  Vorsprung, Pings mit Frische-Regel, Blitzjagden mit allen Einschränkungen,
   Fang per rotierendem QR-Code oder Bestätigung, Ausserhalb-Zeit, Sperrzonen, ÖV-Pflicht und Erkennung,
-  Verschanzen, Teambildungs-Alarm, Budget mit Kauf-Ping, Joker und Boni (inkl. Fake-Ping, Hotel),
-  Challenges, Verstösse mit Eskalation, Notfall, Pause, Exitpoint, Spielende und Sieger
-- **Ansichten** für Spieler, Taskforce (Hunter/Zentrale), Spielleitung und Zuschauer: Live-Karte,
-  Meldungen mit Ton/Vibration, Chat-Kanäle
+  Verschanzen, Nähe-Alarm, Budget mit Kauf-Ping, Joker mit Freischaltzeit (Regeneration, Hunter-Standorte,
+  Schutzschild), Verstösse mit Eskalation, Notfall, Fluchtpunkt, Spielende und Sieger
+- **Ansichten** für Spieler, Hunter (inkl. Zentrale) und Zuschauer: Live-Karte, Meldungen mit Ton/Vibration,
+  Chat (Spieler ↔ Hunter, Hunter-Team; Spieler untereinander nie)
 - **Probelauf**: Spiel mit Vorspul-Knöpfen (+1/+5/+15/+60 min), um alles in wenigen Minuten auszuprobieren
 - Ergebnis-Bildschirm mit Wiederholung (Zeitschieber über alle Spuren und Pings)
 
@@ -42,7 +42,7 @@ Von Hand nötig sind nur:
    **New repository secret**, Name `SUPABASE_ACCESS_TOKEN`.
 
 Danach unter **Actions** > **App veröffentlichen** > **Run workflow**. Die App ist dann unter
-`https://<github-name>.github.io/manhunt-app/` erreichbar. Auf dem Handy öffnen und
+`https://<github-name>.github.io/hunt-mode/` erreichbar. Auf dem Handy öffnen und
 „Zum Home-Bildschirm hinzufügen“: dann läuft sie wie eine App.
 
 Konten brauchen keine Bestätigungsmail: Der Gratis-Mailversand von Supabase erreicht nur
@@ -74,10 +74,10 @@ Bestätigungs-Mails landen dann in Mailpit unter http://127.0.0.1:54324.
 
 | Ordner | Inhalt |
 | --- | --- |
-| `src/shared/` | Regelwerk ohne UI: Konfigurationsschema, Presets, Prüfungen, Rollenverteilung (mit Tests) |
+| `src/shared/` | Regelwerk ohne UI: Konfigurationsschema, Vorlagen, Prüfungen, Rollenverteilung (mit Tests) |
 | `src/lib/` | Supabase-Anbindung, Anmeldung, Spiel-Aktionen |
 | `src/pages/`, `src/components/` | Bildschirme (Start, Lobby, Regeln, Karten-Editor, Gruppen) |
-| `src/play/` | Laufendes Spiel: Karte, Spieler-, Taskforce- und Spielleitungs-Ansicht, Chat, Ergebnis |
+| `src/play/` | Laufendes Spiel: Karte, Spieler- und Hunter-Ansicht, Chat, Notfall, Ergebnis |
 | `supabase/migrations/` | Datenbank: Tabellen, Rechte (RLS), Spiel-Engine (`0004`), Aktionen (`0005`), Spielstand je Rolle (`0006`), Zeitplan (`0007`) |
 
 ## Auf dem Laptop mit VS Code und Claude Code
@@ -86,5 +86,3 @@ Bestätigungs-Mails landen dann in Mailpit unter http://127.0.0.1:54324.
 2. `npm install`, dann `npm run dev`: die App läuft unter http://localhost:5173 mit der Live-Datenbank.
 3. In Claude Code einfach auf Deutsch sagen, was geändert werden soll. `CLAUDE.md` erklärt Claude das Projekt.
 4. Änderungen kommen über einen Pull Request auf `main`; danach ist die App automatisch aktualisiert.
-
-Die Spezifikation liegt in `docs/`.

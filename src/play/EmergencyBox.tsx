@@ -21,23 +21,22 @@ export function CallButtons() {
   );
 }
 
-/** Offene Notfälle: eigene (mit Abbrechen) und die anderer (für Hunter und Spielleitung). */
+/** Offene Notfälle: eigene (mit Abbrechen) und die anderer (für alle Hunter und wer das Spiel erstellt hat). */
 export default function EmergencyBox({ s, act, showMap }: {
   s: GameState; act: (fn: () => Promise<unknown>, ok?: string) => Promise<unknown>; showMap: () => void;
 }) {
   const [contact, setContact] = useState<Record<string, string>>({});
   const role = s.me.role;
-  const helper = role === 'hunter' || role === 'zentrale' || role === 'gm';
+  const helper = role === 'hunter' || role === 'zentrale' || s.game.host;
   const mine = s.emergencies.find((e) => e.participant_id === s.me.id && e.status === 'offen');
   const others = helper ? s.emergencies.filter((e) => e.participant_id !== s.me.id && e.status === 'offen') : [];
-  const hasGm = s.participants.some((p) => p.role === 'gm');
   if (!mine && others.length === 0) return null;
   return (
     <div className="stack" style={{ marginBottom: 12 }}>
       {mine && (
         <div className="card stack emergency-card">
           <strong>🚨 Dein Notfall ist gemeldet</strong>
-          <span className="small">Alle Hunter{hasGm ? ' und die Spielleitung' : ''} sind alarmiert und sehen deinen Standort. Die Jagd auf dich ist ausgesetzt.</span>
+          <span className="small">Alle Hunter sind alarmiert und sehen deinen Standort. Die Jagd auf dich ist ausgesetzt.</span>
           <span className="small">Bei Gefahr sofort anrufen:</span>
           <CallButtons />
           <Confirm className="block" label="Fehlalarm / Notfall beenden" confirm="Notfall wirklich beenden? Alle bekommen die Meldung, dass alles in Ordnung ist."
@@ -57,7 +56,7 @@ export default function EmergencyBox({ s, act, showMap }: {
                 setContact((prev) => ({ ...prev, [e.participant_id]: c ? `${c.name} ${c.phone}` : 'nicht hinterlegt' }));
               })}>Notfallkontakt zeigen</button>
             )}
-            {role === 'gm' && <button className="small primary" onClick={() => act(() => api.emergencyResolve(e.id), 'Notfall erledigt.')}>Erledigt</button>}
+            {s.game.host && <button className="small primary" onClick={() => act(() => api.emergencyResolve(e.id), 'Notfall erledigt.')}>Erledigt</button>}
           </div>
           <CallButtons />
         </div>

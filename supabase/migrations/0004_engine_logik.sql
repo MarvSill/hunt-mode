@@ -380,7 +380,7 @@ begin
   if p_status = 'laeuft' and not p_is_penalty and v_min_after > 0 then
     select last_silent_ping_at into v_last from public.participants where id = p_target;
     if v_last is not null and v_last > p_now - make_interval(mins => v_min_after) then
-      v_used := 1; -- Wien: Silent-Ping zählt als erste Abfrage
+      v_used := 1; -- Der letzte Ping zählt als erste Abfrage
     end if;
   end if;
   insert into public.speedhunts (game_id, target_id, day_index, triggered_by, is_penalty, status, queries_total, queries_used,
@@ -907,7 +907,7 @@ declare
   v_kind text;
   v_repeat int := public.cfg_int(v_cfg, 'transport', 'violation_repeat_minutes', 10);
 begin
-  -- Fahrzeug in verbotener Zone (Bangkok: center) – alle violation_repeat_minutes ein neuer Verstoss.
+  -- Fahrzeug in verbotener Zone (z. B. center) – alle violation_repeat_minutes ein neuer Verstoss.
   if (v_in_transit or v_fast) and jsonb_array_length(v_forbidden) > 0 then
     select kind into v_kind from public.zones where game_id = p_game.id and v_forbidden ? kind and ST_Covers(geom, p_point) limit 1;
   end if;
