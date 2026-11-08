@@ -1,14 +1,13 @@
 import type { GameConfig } from '../shared/config';
 import { db } from './supabase';
 
-export type Role = 'offen' | 'spieler' | 'hunter' | 'zentrale' | 'gm' | 'zuschauer';
+export type Role = 'offen' | 'spieler' | 'hunter' | 'zentrale' | 'zuschauer';
 
 export const ROLE_LABELS: Record<Role, string> = {
   offen: 'Noch offen',
   spieler: 'Spieler',
   hunter: 'Hunter',
   zentrale: 'Einsatzzentrale',
-  gm: 'Spielleitung',
   zuschauer: 'Zuschauer',
 };
 

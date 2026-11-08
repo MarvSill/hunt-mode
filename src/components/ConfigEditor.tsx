@@ -4,7 +4,13 @@ import { configSections, optionLabel, type FieldMeta } from '../shared/schemaMet
 import { timeLimits } from '../shared/timeRules';
 
 /** Felder, die nicht mehr einstellbar sind (fest geregelt). */
-const HIDDEN = new Set(['communication.player_to_player', 'out_of_bounds.live_visible']);
+const HIDDEN = new Set([
+  'out_of_bounds.live_visible',
+  // Das Spiel läuft am Stück: diese Werte setzt die App selbst.
+  'game.days', 'game.day_length_minutes',
+  // Joker-Liste hat eine eigene Eingabe in den Schnell-Einstellungen.
+  'joker.types',
+]);
 
 interface Props {
   config: GameConfig;
@@ -40,7 +46,7 @@ export default function ConfigEditor({ config, baseline, readOnly, problemPaths,
     <div>
       <input
         type="search"
-        placeholder="Regel suchen, z. B. Ping, Speedhunt, Joker"
+        placeholder="Regel suchen, z. B. Ping, Blitzjagd, Joker"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         style={{ marginBottom: 12 }}

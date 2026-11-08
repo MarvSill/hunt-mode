@@ -2,7 +2,7 @@ import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 
-// Unterpfad, z. B. /manhunt-app/ auf GitHub Pages.
+// Unterpfad, z. B. /hunt-mode/ auf GitHub Pages.
 const base = process.env.VITE_BASE || '/';
 
 export default defineConfig({
@@ -27,7 +27,7 @@ export default defineConfig({
       manifest: {
         name: 'Hunt Mode',
         short_name: 'Hunt Mode',
-        description: 'Manhunt mit Freunden: Spieler verstecken sich in der Stadt, die Taskforce jagt sie.',
+        description: 'Verstecken in der Stadt mit Freunden: Spieler verstecken sich, die Hunter jagen sie.',
         lang: 'de',
         theme_color: '#0d1117',
         background_color: '#0d1117',

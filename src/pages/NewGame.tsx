@@ -17,12 +17,9 @@ const PRESET_ART: Record<string, string> = {
   schnell_90min: '⚡',
   stadtabend_3h: '🌆',
   wochenende_24h: '🏕️',
-  original_wien: '🎡',
-  original_bangkok: '🛺',
-  original_new_york: '🗽',
 };
 /** Kurze Spiele zuerst: die meisten Gruppen fangen klein an. */
-const ORDER = ['schnell_90min', 'stadtabend_3h', 'wochenende_24h', 'original_wien', 'original_bangkok', 'original_new_york'];
+const ORDER = ['schnell_90min', 'stadtabend_3h', 'wochenende_24h'];
 
 function presetConfig(id: string): GameConfig {
   const c = configFromPreset(id);
@@ -33,7 +30,7 @@ function presetConfig(id: string): GameConfig {
 const GUIDE: GuideStep[] = [
   { title: 'Willkommen!', text: 'In drei Schritten ist dein Spiel bereit. Du kannst den Helfer jederzeit schliessen und über "?" wieder öffnen.' },
   { target: 'name', title: '1. Name', text: 'Gib dem Spiel einen Namen, z. B. den Ort. Den sehen alle, die mitspielen.' },
-  { target: 'presets', title: '2. Spielart', text: 'Wähle eine Vorlage. Sie stellt alle Regeln passend ein: Dauer, Pings, Speedhunts, Joker. Für den Anfang ist "Schnell 90 min" oder "Stadtabend 3 h" ideal.' },
+  { target: 'presets', title: '2. Spielart', text: 'Wähle eine Vorlage. Sie stellt alle Regeln passend ein: Dauer, Pings, Blitzjagden, Joker. Für den Anfang ist "Schnell 90 min" oder "Stadtabend 3 h" ideal.' },
   { target: 'adjust', title: '3. Anpassen (freiwillig)', text: 'Tippe einen Bereich an, um ihn zu ändern, z. B. die Anzahl Spieler oder wie oft gepingt wird. Alle Zeiten passt die App automatisch an die Spieldauer an.' },
   { target: 'create', title: 'Fertig', text: 'Danach kommst du in die Lobby: dort zeichnest du die Karte, lädst Freunde mit dem Code ein und startest.' },
 ];
@@ -142,9 +139,9 @@ export default function NewGamePage() {
           <span>⏱️ {formatMinutes(c.game.duration_minutes)}</span>
           <span>👥 {c.roles.players_max} Spieler · {c.roles.hunters_max} Hunter</span>
           <span>📍 Ping alle {formatMinutes(c.ping.interval_minutes)}</span>
-          <span>⚡ {c.speedhunt.enabled ? `${c.speedhunt.quota_per_day[0] ?? 0} Speedhunt/Tag` : 'ohne Speedhunt'}</span>
+          <span>⚡ {c.speedhunt.enabled ? `${c.speedhunt.quota_per_day[0] ?? 0} Blitzjagden` : 'ohne Blitzjagd'}</span>
           {c.joker.enabled && <span>🃏 Joker</span>}
-          {c.exit.enabled && <span>🏁 Exitpoint</span>}
+          {c.exit.enabled && <span>🏁 Fluchtpunkt</span>}
           {changed && <span style={{ borderColor: 'var(--yellow)', color: 'var(--yellow)' }}>✏️ angepasst</span>}
         </div>
 

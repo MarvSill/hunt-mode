@@ -12,7 +12,7 @@ const ids = (n: number) => Array.from({ length: n }, (_, i) => `p${i}`);
 const count = (r: Record<string, string>, role: string) => Object.values(r).filter((x) => x === role).length;
 
 describe('Rollenverteilung', () => {
-  it('NY-Verhältnis 9:7 mit 16 Personen', () => {
+  it('Verhältnis 9:7 mit 16 Personen', () => {
     const r = distributeRoles(ids(16), { players_max: 9, hunters_max: 7 }, seeded(1));
     expect(count(r, 'hunter')).toBe(7);
     expect(count(r, 'spieler')).toBe(9);

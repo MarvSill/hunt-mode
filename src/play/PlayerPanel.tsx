@@ -4,10 +4,7 @@ import { formatMinutes } from '../shared/format';
 import CatchCode from './CatchCode';
 import { Confirm, nameOf, Section, type PanelProps } from './common';
 
-const PROOF_LABELS: Record<string, string> = { geofence: 'am Ort sein', code: 'Code eingeben', foto: 'Foto', spielleitung: 'Spielleitung entscheidet' };
-const REWARD_LABELS: Record<string, string> = { bonus_fake_ping: 'Fake-Ping', bonus_hotel: 'Hotel', budget: 'Budget', joker: 'Catch-Free-Joker' };
-
-export default function PlayerPanel({ s, now, act, pickFake }: PanelProps & { pickFake: (itemId: string) => void }) {
+export default function PlayerPanel({ s, now, act }: PanelProps) {
   const cfg = s.game.config;
   const me = s.me;
   const g = s.game;
@@ -22,12 +19,10 @@ export default function PlayerPanel({ s, now, act, pickFake }: PanelProps & { pi
   const [note, setNote] = useState('');
   const [receipt, setReceipt] = useState<File | null>(null);
   const [explain, setExplain] = useState<Record<string, string>>({});
-  const [codes, setCodes] = useState<Record<string, string>>({});
   const active = ['aktiv', 'ausserhalb'].includes(me.state);
   const running = ['laeuft', 'finale'].includes(g.status) && !g.paused;
   const pendingCatch = s.catches.find((c) => c.runner_id === me.id && c.status === 'wartet_auf_bestaetigung');
   const openViolations = s.violations.filter((v) => v.participant_id === me.id && v.status === 'offen');
-  const challenges = s.challenges.filter((c) => ['angekuendigt', 'laeuft'].includes(c.status));
   const shOnMe = s.speedhunts.some((x) => x.status === 'laeuft' && x.target_id === me.id);
   const shRunning = s.speedhunts.filter((x) => x.status === 'laeuft');
 
@@ -36,7 +31,7 @@ export default function PlayerPanel({ s, now, act, pickFake }: PanelProps & { pi
       <Section title={me.state === 'im_ziel' ? 'Geschafft!' : me.state === 'notfall' ? 'Notfall gemeldet' : 'Du bist raus'}>
         <p className="muted">
           {me.state === 'gefangen' && 'Du wurdest gefangen. Du kannst weiter zuschauen.'}
-          {me.state === 'im_ziel' && 'Du hast den Exitpoint erreicht. Warte auf das Spielende.'}
+          {me.state === 'im_ziel' && 'Du hast den Fluchtpunkt erreicht. Warte auf das Spielende.'}
           {me.state === 'notfall' && 'Alle Hunter sind informiert. Die Jagd auf dich ist ausgesetzt. Beenden kannst du den Notfall oben.'}
           {['disqualifiziert', 'aufgegeben', 'verloren'].includes(me.state) && 'Du nimmst nicht mehr am Spiel teil.'}
         </p>
@@ -76,14 +71,14 @@ export default function PlayerPanel({ s, now, act, pickFake }: PanelProps & { pi
 
       {me.state === 'ausserhalb' && (
         <div className="notice error">
-          <strong>Du bist ausserhalb des Spielfelds!</strong> Die Taskforce sieht dich live. Zeit draussen: {formatMinutes(Math.floor(me.out_accum_s / 60))} von {formatMinutes(cfg.out_of_bounds.max_minutes)}.
+          <strong>Du bist ausserhalb des Spielfelds!</strong> Die Hunter sehen dich live. Zeit draussen: {formatMinutes(Math.floor(me.out_accum_s / 60))} von {formatMinutes(cfg.out_of_bounds.max_minutes)}.
         </div>
       )}
       {me.in_restricted && <div className="notice error"><strong>Sperrzone!</strong> Sofort verlassen.</div>}
 
       {shRunning.length > 0 && (
         <div className="notice error pulse">
-          <strong>SPEEDHUNT läuft{shOnMe ? ' auf DICH' : ''}!</strong>{' '}
+          <strong>BLITZJAGD läuft{shOnMe ? ' auf DICH' : ''}!</strong>{' '}
           {shRunning.map((x) => `Abfrage ${x.queries_used}/${x.queries_total}`).join(' · ')}
         </div>
       )}
@@ -100,10 +95,9 @@ export default function PlayerPanel({ s, now, act, pickFake }: PanelProps & { pi
           )}
           {me.live && <div><div className="muted small">Sichtbarkeit</div><div className="big-num red">LIVE</div></div>}
         </div>
-        {me.effects.filter((e) => e.type !== 'fake_ping' && e.type !== 'hunter_snapshot').map((e) => (
-          <div key={e.id} className="badge green">{ITEM_LABELS[e.type] ?? (e.type === 'leo' ? 'LEO-Schutz' : e.type)} bis {clock(e.ends_at)}</div>
+        {me.effects.filter((e) => e.type !== 'fake_ping' && e.type !== 'hunter_snapshot' && e.type !== 'leo').map((e) => (
+          <div key={e.id} className="badge green">{ITEM_LABELS[e.type] ?? e.type} bis {clock(e.ends_at)}</div>
         ))}
-        {me.effects.filter((e) => e.type === 'fake_ping').map((e) => <div key={e.id} className="badge">Fake-Ping scharf</div>)}
         {cfg.hideout.enabled && cfg.hideout.detection !== 'automatisch' && !me.hideout?.inside && running && (
           <button className="small" onClick={() => act(() => api.hideout(g.id, true), 'Verschanzen gemeldet.')}>Ich bin verschanzt (Haus/Wohnung)</button>
         )}
@@ -111,16 +105,14 @@ export default function PlayerPanel({ s, now, act, pickFake }: PanelProps & { pi
       </Section>
 
       {(me.inventory.length > 0) && (
-        <Section title="Joker und Boni">
+        <Section title="Joker">
           {me.inventory.map((i) => (
             <div key={i.id} className="row">
               <span className="spacer">
-                {ITEM_LABELS[i.type] ?? i.type}{i.minutes ? ` (${formatMinutes(i.minutes)})` : ''} <span className="muted small">{i.kind === 'joker' ? 'Joker' : 'Bonus'}</span>
+                {ITEM_LABELS[i.type] ?? i.type}{i.minutes ? ` (${formatMinutes(i.minutes)})` : ''}
                 {ITEM_HELP[i.type] && <span className="muted tiny" style={{ display: 'block' }}>{ITEM_HELP[i.type]}</span>}
               </span>
-              {i.type === 'fake_ping' ? (
-                <button className="small" disabled={!running} onClick={() => pickFake(i.id)}>Ort wählen</button>
-              ) : i.type === 'wahl' ? (
+              {i.type === 'wahl' ? (
                 <select aria-label="Joker wählen" disabled={!running} defaultValue="" onChange={(e) => e.target.value && act(() => api.useItem(i.id, { type: e.target.value }), 'Joker aktiv.')}>
                   <option value="">Einsetzen …</option>
                   {cfg.joker.types.map((t) => <option key={t.type} value={t.type}>{ITEM_LABELS[t.type]}</option>)}
@@ -137,7 +129,7 @@ export default function PlayerPanel({ s, now, act, pickFake }: PanelProps & { pi
         <Section title="Transport" badge={me.transit ? <span className="badge red">unterwegs</span> : undefined}>
           {me.transit ? (
             <>
-              <div>{TRANSPORT_LABELS[me.transit.mode]} {me.transit.line} seit {clock(me.transit.started_at)}. Die Taskforce sieht dich live.</div>
+              <div>{TRANSPORT_LABELS[me.transit.mode]} {me.transit.line} seit {clock(me.transit.started_at)}. Die Hunter sehen dich live.</div>
               {me.transit.mode === 'faehre' && (
                 <input type="number" min={0} placeholder="Anzahl Stationen" value={stops} onChange={(e) => setStops(e.target.value)} />
               )}
@@ -175,43 +167,9 @@ export default function PlayerPanel({ s, now, act, pickFake }: PanelProps & { pi
             const ok = await act(async () => {
               const path = receipt ? await uploadProof(g.id, receipt, receipt.name) : null;
               return api.purchase(g.id, +amount, cat, note, path);
-            }, 'Kauf gemeldet. Die Taskforce bekommt deinen Standort.');
+            }, 'Kauf gemeldet. Die Hunter bekommen deinen Standort.');
             if (ok) { setAmount(''); setNote(''); setReceipt(null); }
           }}>Kauf melden</button>
-        </Section>
-      )}
-
-      {challenges.length > 0 && (
-        <Section title="Challenges">
-          {challenges.map((c) => {
-            const mine = c.entries.find((e) => e.participant_id === me.id);
-            return (
-              <div key={c.id} className="stack sub">
-                <strong>{c.title}</strong>
-                <span className="small">{c.description}</span>
-                <span className="muted small">{clock(c.starts_at)}–{clock(c.ends_at)} · Beweis: {PROOF_LABELS[c.proof_type] ?? c.proof_type} · Belohnung: {REWARD_LABELS[c.reward_type] ?? c.reward_type}</span>
-                {mine?.result === 'erfolgreich' ? <span className="badge green">Geschafft</span> : mine?.result === 'eingereicht' ? <span className="badge">Eingereicht, wird geprüft</span> : (
-                  <div className="row">
-                    {!mine && <button className="small" onClick={() => act(() => api.challengeJoin(c.id), 'Angemeldet.')}>Teilnehmen</button>}
-                    {c.status === 'laeuft' && c.proof_type === 'code' && (
-                      <input placeholder="Code" value={codes[c.id] ?? ''} onChange={(e) => setCodes({ ...codes, [c.id]: e.target.value })} style={{ width: 120 }} />
-                    )}
-                    {c.status === 'laeuft' && c.proof_type === 'foto' && (
-                      <label className="button small">Foto senden<input type="file" accept="image/*,video/*" capture="environment" hidden onChange={(e) => {
-                        const f = e.target.files?.[0];
-                        if (f) void act(async () => api.challengeSubmit(c.id, null, await uploadProof(g.id, f, f.name)), 'Eingereicht.');
-                      }} /></label>
-                    )}
-                    {c.status === 'laeuft' && c.proof_type !== 'foto' && (
-                      <button className="small primary" onClick={() => act(() => api.challengeSubmit(c.id, codes[c.id] ?? null, null), 'Eingereicht.')}>
-                        {c.proof_type === 'geofence' ? 'Ich bin da' : 'Abschliessen'}
-                      </button>
-                    )}
-                  </div>
-                )}
-              </div>
-            );
-          })}
         </Section>
       )}
 
@@ -229,7 +187,7 @@ export default function PlayerPanel({ s, now, act, pickFake }: PanelProps & { pi
       ))}
 
       {g.exit_revealed && cfg.exit.confirm !== 'geofence' && (
-        <button className="block" onClick={() => act(() => api.confirmExit(g.id), 'Am Exitpoint!')}>Ich bin am Exitpoint</button>
+        <button className="block" onClick={() => act(() => api.confirmExit(g.id), 'Am Fluchtpunkt!')}>Ich bin am Fluchtpunkt</button>
       )}
 
       <Confirm className="ghost block" label="Aufgeben" confirm="Wirklich aufgeben?" onYes={() => act(() => api.giveUp(g.id))} />

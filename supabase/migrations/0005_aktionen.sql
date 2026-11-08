@@ -730,7 +730,7 @@ begin
   v_now := public.engine_now(p_game_id);
   select * into v_t from public.transit_sessions where participant_id = v_me.id and ended_at is null;
   if v_t.id is null then raise exception 'Keine laufende Fahrt.' using errcode = 'P0001'; end if;
-  -- Nachlauf wächst mit jeder Fahrt am Tag (Bangkok).
+  -- Nachlauf wächst mit jeder Fahrt.
   v_after := public.cfg_int(v_cfg, 'transport', 'live_after_base_minutes', 10)
     + public.cfg_int(v_cfg, 'transport', 'live_after_increment_minutes', 5) * greatest(v_me.rides_today - 1, 0);
   update public.transit_sessions set ended_at = v_now, stops = p_stops, live_after_minutes = v_after where id = v_t.id;

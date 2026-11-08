@@ -645,7 +645,7 @@ export default function MapEditorPage() {
     const meet = autoMeet();
     autoHq(meet);
     if (config?.exit.enabled) autoExits(3, meet);
-    setMsg({ ok: true, text: 'Treffpunkt, HQ' + (config?.exit.enabled ? ' und 3 Exit-Kandidaten' : '') + ' gesetzt. Zum Verschieben antippen und ziehen.' });
+    setMsg({ ok: true, text: 'Treffpunkt, HQ' + (config?.exit.enabled ? ' und 3 Fluchtpunkt-Kandidaten' : '') + ' gesetzt. Zum Verschieben antippen und ziehen.' });
     setStepIdx(config?.exit.enabled ? 4 : 3);
   }
 
@@ -672,7 +672,7 @@ export default function MapEditorPage() {
     players, durationMinutes: config.game.duration_minutes,
   });
   const sticking = field1 ? items.filter((it) => INSIDE_FIELD.includes(it.feature.properties.kind) && isArea(it.feature) && outsideShare(asArea(it.feature), field1) > 0.01) : [];
-  const unitLabel = config.zone.shrink_every_minutes > 0 ? 'Phase' : 'Spieltag';
+  const unitLabel = 'Phase';
   const limits = timeLimits(config);
   const draw = (p: Pending) => () => startDraw(p);
   const others: ZoneKind[] = ['sicher', 'kern', 'aussen', 'center', 'sektion', 'startzone'];
@@ -680,7 +680,7 @@ export default function MapEditorPage() {
     { id: 'feld', icon: '🟩', title: 'Spielfeld', text: 'Der Bereich, in dem gespielt wird. Alle anderen Zonen liegen darin.', done: !!field1 },
     { id: 'treff', icon: '📍', title: 'Treffpunkt', text: 'Hier sammeln sich alle vor dem Start. Muss im Spielfeld liegen.', done: has('treffpunkt') },
     { id: 'hq', icon: '🚓', title: 'HQ', text: `Hier warten die Hunter während des Vorsprungs. Mindestens ${config.start.hq_min_distance_m} m vom Treffpunkt entfernt.`, done: has('hq') },
-    ...(config.exit.enabled ? [{ id: 'exit', icon: '🏁', title: 'Exit', text: 'Mehrere Kandidaten möglich. Einer wird zufällig gewählt und erst gegen Schluss verraten.', done: has('exit') }] : []),
+    ...(config.exit.enabled ? [{ id: 'exit', icon: '🏁', title: 'Fluchtpunkt', text: 'Mehrere Kandidaten möglich. Einer wird zufällig gewählt und erst gegen Schluss verraten.', done: has('exit') }] : []),
     { id: 'klein', icon: '⏳', title: 'Kleiner werden', text: 'Soll das Spielfeld im Lauf des Spiels kleiner werden? Neue Grenzen werden vorher angekündigt und gestrichelt gezeigt.', done: shrink !== 'aus', optional: true },
     { id: 'gefahr', icon: '⚠️', title: 'Gefahren', text: 'Orte, die nie betreten werden dürfen: Autobahn, Gleise, Gewässer, Schulen, Baustellen. Sie werden rot schraffiert mit Warnsymbol gezeigt, und Spieler werden beim Annähern gewarnt.', done: has('sperrzone'), optional: true },
     { id: 'mehr', icon: '🧩', title: 'Mehr Zonen', text: 'Schutzzonen, Kern-Gebiete und mehr. Alle liegen im Spielfeld; was hinausragt, wird abgeschnitten.', done: others.some(has), optional: true },
@@ -704,7 +704,7 @@ export default function MapEditorPage() {
         <h1>Karte</h1>
         {editable && <button className="primary small" onClick={save} disabled={busy || !dirty || !loaded}>{busy ? 'Speichere …' : dirty ? 'Speichern' : 'Gespeichert'}</button>}
       </div>
-      {!editable && <div className="notice">Das Spiel läuft: die Karte ist gesperrt. Die Spielleitung kann im Spiel Sperrzonen ergänzen.</div>}
+      {!editable && <div className="notice">Das Spiel läuft: die Karte ist gesperrt.</div>}
 
       {editable && (
         <div className="row" style={{ marginBottom: 8 }}>
@@ -781,7 +781,7 @@ export default function MapEditorPage() {
 
           {cur.id === 'treff' && (
             <>
-              <button className="primary" onClick={autoPoints} disabled={!field1}>✨ Treffpunkt, HQ{config.exit.enabled ? ' und Exits' : ''} automatisch setzen</button>
+              <button className="primary" onClick={autoPoints} disabled={!field1}>✨ Treffpunkt, HQ{config.exit.enabled ? ' und Fluchtpunkte' : ''} automatisch setzen</button>
               <button onClick={draw({ kind: 'treffpunkt', tool: 'Marker' })} disabled={!field1}>📍 Treffpunkt selbst antippen</button>
             </>
           )}
@@ -795,8 +795,8 @@ export default function MapEditorPage() {
 
           {cur.id === 'exit' && (
             <>
-              <button className="primary" onClick={() => autoExits(3)} disabled={!field1}>✨ 3 Exit-Kandidaten automatisch setzen</button>
-              <button onClick={draw({ kind: 'exit', tool: 'Marker' })} disabled={!field1}>🏁 Exit-Kandidat selbst antippen</button>
+              <button className="primary" onClick={() => autoExits(3)} disabled={!field1}>✨ 3 Fluchtpunkt-Kandidaten automatisch setzen</button>
+              <button onClick={draw({ kind: 'exit', tool: 'Marker' })} disabled={!field1}>🏁 Fluchtpunkt-Kandidat selbst antippen</button>
               <div className="muted small">{features.filter((f) => f.properties.kind === 'exit').length} Kandidaten gesetzt.</div>
             </>
           )}
@@ -810,37 +810,21 @@ export default function MapEditorPage() {
             </div>
             {shrink !== 'aus' && (
               <>
-                <div className="field">
-                  <span>Wann wird es kleiner?</span>
-                  <div className="chips">
-                    {config.game.days > 1 && (
-                      <button type="button" className={`chip${config.zone.shrink_every_minutes === 0 ? ' on' : ''}`} onClick={() => setZone('shrink_every_minutes', 0)}>
-                        Jeden Spieltag ({config.game.days})
-                      </button>
-                    )}
-                    <button type="button" className={`chip${config.zone.shrink_every_minutes > 0 ? ' on' : ''}`}
-                      onClick={() => setZone('shrink_every_minutes', config.zone.shrink_every_minutes || Math.max(10, Math.round(config.game.duration_minutes / 4 / 5) * 5))}>
-                      {config.game.days > 1 ? 'Alle paar Minuten' : `Alle paar Minuten (Spiel dauert ${durationText(config.game.duration_minutes)})`}
-                    </button>
-                  </div>
-                </div>
-                {config.zone.shrink_every_minutes > 0 && (
-                  <NumberRow label="Alle (Minuten)" value={config.zone.shrink_every_minutes} min={5} max={limits['zone.shrink_every_minutes']?.max ?? 1440} step={5} onChange={(v) => setZone('shrink_every_minutes', v)} />
-                )}
-                <div className="muted small">{phases} {unitLabel === 'Phase' ? 'Phasen' : 'Spieltage'} → das Spielfeld ändert sich {Math.max(0, phases - 1)}-mal.</div>
+                <NumberRow label={`Kleiner alle (Minuten, Spiel dauert ${durationText(config.game.duration_minutes)})`} value={config.zone.shrink_every_minutes} min={5} max={limits['zone.shrink_every_minutes']?.max ?? 1440} step={5} onChange={(v) => setZone('shrink_every_minutes', v)} />
+                <div className="muted small">{phases} Phasen → das Spielfeld ändert sich {Math.max(0, phases - 1)}-mal.</div>
                 {shrink === 'auto' && (
                   <NumberRow label="Kleiner um (% Fläche je Schritt)" value={config.zone.auto_shrink_percent} min={1} max={80} step={5} onChange={(v) => setZone('auto_shrink_percent', v)} />
                 )}
                 <NumberRow label="Vorher ankündigen (Minuten)" value={config.zone.shrink_announce_minutes} min={0} max={limits['zone.shrink_announce_minutes']?.max ?? 1440} step={5} onChange={(v) => setZone('shrink_announce_minutes', v)} />
                 <NumberRow label="Zeit zum Rauslaufen (Minuten)" value={config.zone.shrink_grace_minutes} min={0} max={limits['zone.shrink_grace_minutes']?.max ?? 120} step={1} onChange={(v) => setZone('shrink_grace_minutes', v)} />
-                {shrink === 'auto' && <div className="muted small">Es wird Richtung Exitpoint kleiner (ohne Exit Richtung Mitte).</div>}
+                {shrink === 'auto' && <div className="muted small">Es wird Richtung Fluchtpunkt kleiner (ohne Fluchtpunkt Richtung Mitte).</div>}
                 {shrink === 'manuell' && phases > 1 && (
                   <div className="stack">
                     {Array.from({ length: phases - 1 }, (_, i) => i + 2).map((p) => {
                       const own = features.some((f) => f.properties.kind === 'spielfeld' && f.properties.day_index === p);
                       return (
                         <div key={p} className="phase-row">
-                          <span className="spacer">{own ? '✓' : '○'} {unitLabel} {p}</span>
+                          <span className="spacer">{own ? '✓' : '○'} Phase {p}</span>
                           <button className="small" onClick={() => copyShrunk(p, 25)}>Vorherige −25 %</button>
                           <button className="small" onClick={draw({ kind: 'spielfeld', tool: 'Polygon', phase: p })}>✎ Zeichnen</button>
                         </div>

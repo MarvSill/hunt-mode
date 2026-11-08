@@ -12,7 +12,7 @@ export default function HunterPanel({ s, now, act, pos }: PanelProps) {
   const players = s.participants.filter((p) => p.role === 'spieler');
   const free = players.filter((p) => ['aktiv', 'ausserhalb', 'notfall'].includes(p.state));
   const running = s.speedhunts.filter((x) => x.status === 'laeuft');
-  const waiting = s.speedhunts.filter((x) => x.status === 'wartet_auf_freigabe' || x.status === 'aufgeschoben');
+  const waiting = s.speedhunts.filter((x) => x.status === 'aufgeschoben');
   const live = ['laeuft', 'finale'].includes(g.status) && !g.paused;
   const myProof = s.catches.filter((c) => c.hunter_id === s.me.id && c.status === 'wartet_auf_beweis');
   const myPending = s.catches.filter((c) => c.hunter_id === s.me.id && c.status === 'wartet_auf_bestaetigung');
@@ -47,11 +47,11 @@ export default function HunterPanel({ s, now, act, pos }: PanelProps) {
       ))}
       {myPending.map((c) => <div key={c.id} className="notice">Warte auf Bestätigung von {nameOf(s, c.runner_id)} (bis {clock(c.expires_at)}).</div>)}
 
-      <Section title="Speedhunt" badge={<span className="badge">{g.speedhunts_left} übrig heute</span>}>
+      <Section title="Blitzjagd" badge={<span className="badge">{g.speedhunts_left} übrig</span>}>
         {running.map((sh) => (
           <div key={sh.id} className="stack sub">
             <div className="row">
-              <strong className="spacer">{sh.is_penalty ? 'Straf-Speedhunt' : 'Speedhunt'}: {nameOf(s, sh.target_id)}</strong>
+              <strong className="spacer">{sh.is_penalty ? 'Straf-Blitzjagd' : 'Blitzjagd'}: {nameOf(s, sh.target_id)}</strong>
               <span className="badge red">{sh.queries_used}/{sh.queries_total}</span>
             </div>
             <div className="muted small">Endet spätestens in {countdown(sh.deadline_at, now)}</div>
@@ -60,17 +60,17 @@ export default function HunterPanel({ s, now, act, pos }: PanelProps) {
             </button>
           </div>
         ))}
-        {waiting.map((sh) => <div key={sh.id} className="muted small">{sh.status === 'aufgeschoben' ? 'Aufgeschoben' : 'Wartet auf Freigabe'}: {nameOf(s, sh.target_id)}</div>)}
+        {waiting.map((sh) => <div key={sh.id} className="muted small">Aufgeschoben: {nameOf(s, sh.target_id)}</div>)}
         {canTrigger ? (
           <div className="row">
             <select aria-label="Ziel" value={target} onChange={(e) => setTarget(e.target.value)} style={{ flex: 1 }}>
               <option value="">Ziel wählen …</option>
               {free.map((p) => <option key={p.id} value={p.id} disabled={!!p.protected}>{p.name}{p.protected ? ' (geschützt)' : ''}</option>)}
             </select>
-            <Confirm className="primary" disabled={!live || !target || g.speedhunts_left <= 0} label="Starten" confirm="Speedhunt starten?"
-              onYes={() => act(() => api.speedhuntStart(g.id, target), 'Speedhunt läuft.')} />
+            <Confirm className="primary" disabled={!live || !target || g.speedhunts_left <= 0} label="Starten" confirm="Blitzjagd starten?"
+              onYes={() => act(() => api.speedhuntStart(g.id, target), 'Blitzjagd läuft.')} />
           </div>
-        ) : <div className="muted small">Speedhunts startet {cfg.speedhunt.trigger_mode === 'random' ? 'der Zufall' : 'die Spielleitung'}.</div>}
+        ) : cfg.speedhunt.enabled ? <div className="muted small">Blitzjagden startet in diesem Spiel der Zufall.</div> : <div className="muted small">In diesem Spiel gibt es keine Blitzjagden.</div>}
       </Section>
 
       <Section title={`Spieler (${free.length} frei)`}>
@@ -82,7 +82,7 @@ export default function HunterPanel({ s, now, act, pos }: PanelProps) {
             return (
               <li key={p.id}>
                 <div className="spacer">
-                  <div>{p.name} {p.catch_free && <span className="badge">Catch-Free</span>} {p.protected && <span className="badge">geschützt</span>} {livePos && <span className="badge red">LIVE</span>}</div>
+                  <div>{p.name} {p.catch_free && <span className="badge">Schutzschild</span>} {p.protected && <span className="badge">geschützt</span>} {livePos && <span className="badge red">LIVE</span>}</div>
                   <div className="muted small">
                     {STATE_LABELS[p.state] ?? p.state}
                     {last && ` · ${SOURCE_LABELS[last.source] ?? last.source} ${clock(last.at)}${last.stale_seconds ? ` (${Math.round(last.stale_seconds / 60)} min alt)` : ''}`}
@@ -99,12 +99,9 @@ export default function HunterPanel({ s, now, act, pos }: PanelProps) {
         </ul>
       </Section>
 
-      {cfg.taskforce.daily_briefing && !s.me.briefing_done && (
-        <button onClick={() => act(() => api.briefing(g.id), 'Briefing bestätigt.')}>Einsatzbesprechung erledigt</button>
-      )}
       <div className="card small">
-        <div>Kopfgeld: <strong>{s.me.bounty}</strong></div>
-        {s.next_silent_ping_at && <div>Nächster Silent-Ping: {clock(s.next_silent_ping_at)} (in {countdown(s.next_silent_ping_at, now)})</div>}
+        {cfg.taskforce.bounty_per_catch > 0 && <div>Deine Punkte: <strong>{s.me.bounty}</strong></div>}
+        {s.next_silent_ping_at && <div>Nächster Ping: {clock(s.next_silent_ping_at)} (in {countdown(s.next_silent_ping_at, now)})</div>}
       </div>
     </div>
   );

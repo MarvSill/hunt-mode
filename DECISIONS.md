@@ -27,9 +27,6 @@ Abweichungen von der Spezifikation und Annahmen, wo sie nichts festlegt.
 ## Annahmen zum Regelwerk
 
 - `ping.align_to_full_hour` (Hinweis in Kapitel 9) ist nicht im Parameterkatalog; es gilt `time.align_to_full_hour`.
-- Presets mit „Kontingent danach: GM“ (Wien, Bangkok, NY): `speedhunt.quota_default` ist mit dem Wert von Tag 1
-  bzw. dem Katalog-Standard vorbelegt; die Spielleitung ändert ihn live (ab Schritt 7).
-- „Schnell 90 min: Joker 1 gesamt“ hat keinen eigenen Parameter. Umgesetzt als 1 Joker pro Tag, max. 1 im Besitz.
 - Kurze Presets: Werte, die länger als ein Spieltag wären (Challenge-Ankündigung, Zonen-Ankündigung,
   Verschanzen-Erkennung), wurden auf passende Werte verkürzt.
 - „Nicht 2x gleiches Ziel / parallel 2: aus“ = `no_consecutive_same_target` aus und `max_parallel` 1.
@@ -102,3 +99,14 @@ Abweichungen von der Spezifikation und Annahmen, wo sie nichts festlegt.
 - Spielansicht: Tabs unten wie in einer App, SOS-Knopf oben rechts mit Bestätigung und Notrufnummern, nur eine Meldung gleichzeitig. Kein waagrechtes Scrollen mehr.
 - Untere Leiste nur auf den Hauptseiten (Start, Beitreten, Gruppen, Profil).
 - Play Store: Konto löschen (`delete_my_account`, eigene Spiele werden mitgelöscht, Gruppen gehen an das älteste Mitglied), öffentliche Seite `/datenschutz`, PNG-Icons (192, 512, maskable) im Manifest. Für den Store selbst fehlen noch: Google-Play-Entwicklerkonto (einmalig 25 USD) und das Verpacken als TWA (z. B. mit PWABuilder), inklusive `assetlinks.json` auf der Domain.
+
+## Runde 5: eigenständiges Spiel (Migration 0012)
+- Kein erkennbarer Bezug zu anderen Spielen oder Serien: keine Vorlagen nach Städten, keine solchen Texte. Übrig bleiben die Vorlagen Schnell 90 min, Stadtabend 3 h und Wochenende 24 h. Gespeicherte Spiele mit alten Vorlagen gelten als `eigenes`.
+- Eigene Begriffe: Hunter-Team (statt Taskforce), Blitzjagd (statt Speedhunt), Ping, Fluchtpunkt (statt Exitpoint), Schutzschild (Joker, nicht fangbar). Intern heissen Tabellen und Felder weiter `speedhunt`, `taskforce`, `exit`, `catch_free`.
+- Keine Spielleitung mehr (Rolle `gm` entfernt). Der Host wählt in der Lobby selbst eine Rolle und gilt immer als bereit. Strafen und bestrittene Fänge entscheidet immer die App. Funktionen der Spielleitung (Pause, Freigaben, Sonder-Ping, Joker vergeben, Live-Regeln) sind auf dem Server gesperrt. Der Host kann das Spiel abbrechen und im Probelauf vorspulen.
+- Das Spiel läuft am Stück: keine Spieltage (intern immer `game.days = 1`), keine jagdfreien Zeiten, keine Pause. Blitzjagden und Budget gelten fürs ganze Spiel, das Spielfeld wird alle X Minuten kleiner.
+- Notfall: geht an alle Hunter und an den Host. Nur die Jagd auf die betroffene Person wird ausgesetzt, das Spiel läuft weiter. Den Notfallkontakt sehen Hunter und Host nur bei einem offenen Notfall.
+- Challenges, Boni (Fake-Ping, Hotel) und die Schonzeit nach einer Blitzjagd sind entfernt. Ebenso Filmpflicht, Gegenstände-Limit und tägliche Einsatzbesprechung.
+- Joker: beim Erstellen eine Liste, pro Eintrag Art, Wirkdauer und Freischaltzeit (`joker.types[].after_minutes`). Zu dieser Spielzeit bekommt jeder freie Spieler den Joker einmal; vergebene Einträge merkt sich `games.state_json.jokers_granted`.
+- Chat: `sp:<spieler>` ist das Gespräch eines Spielers mit allen Huntern, `spieler` schreiben die Hunter an alle Spieler, `taskforce` ist der Kanal der Hunter. Spieler schreiben nie mit anderen Spielern. Ankündigungen schreibt niemand mehr; automatische Meldungen kommen unter "Meldungen". Neue Nachrichten lösen eine kurze Meldung beim Empfänger aus.
+- Repository und Adresse heissen `hunt-mode`. Die Spezifikation liegt nur noch lokal in `docs/` (nicht auf GitHub), weil sie sich auf eine Vorlage bezieht.

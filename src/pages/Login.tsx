@@ -54,9 +54,9 @@ export default function LoginPage() {
       <div className="hero">
         <div className="row"><div className="logo"><Icon name="target" size={26} /></div><span className="brand">Hunt Mode</span></div>
         <h1>Flucht durch die Stadt.</h1>
-        <p>Spieler verstecken sich, die Taskforce jagt sie. Wie Manhunt, mit deinen Freunden.</p>
+        <p>Spieler verstecken sich, die Hunter jagen sie. Mitten in der Stadt, mit deinen Freunden.</p>
         <div className="summary-line" style={{ marginTop: 14 }}>
-          <span>🏃 Verstecken</span><span>📍 Pings</span><span>⚡ Speedhunts</span><span>🏁 Exit</span>
+          <span>🏃 Verstecken</span><span>📍 Pings</span><span>⚡ Blitzjagden</span><span>🏁 Fluchtpunkt</span>
         </div>
       </div>
 

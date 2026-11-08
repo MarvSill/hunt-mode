@@ -5,15 +5,35 @@ import { PRESETS, configFromPreset } from './presets';
 import { validateConfig } from './validation';
 
 describe('Konfiguration', () => {
-  it('Standardwerte entsprechen Original New York', () => {
+  it('Standardwerte: 3 h am Stück, ein Abschnitt', () => {
     const c = defaultConfig();
-    expect(c.game.duration_minutes).toBe(5760);
-    expect(c.ping.interval_minutes).toBe(120);
-    expect(c.ping.zone_overrides).toEqual({ kern: 60 });
-    expect(c.speedhunt.quota_per_day).toEqual([3]);
-    expect(c.speedhunt.queries).toBe(4);
-    expect(c.budget.daily_amount).toBe(30);
+    expect(c.game.duration_minutes).toBe(180);
+    expect(c.game.days).toBe(1);
+    expect(c.game.day_length_minutes).toBe(180);
+    expect(c.ping.interval_minutes).toBe(15);
+    expect(c.speedhunt.quota_per_day).toEqual([2]);
+    expect(c.budget.currency).toBe('CHF');
     expect(c.transport.allowed_modes).not.toContain('eigenes_fahrzeug');
+  });
+
+  it('alte Spiele mit mehreren Spieltagen laufen jetzt am Stück', () => {
+    const c = parseConfig({ game: { duration_minutes: 1440, days: 4, day_length_minutes: 360 }, speedhunt: { quota_per_day: [2, 1, 1] } });
+    expect(c.game.days).toBe(1);
+    expect(c.game.day_length_minutes).toBe(1440);
+    expect(c.speedhunt.quota_per_day).toEqual([2]);
+  });
+
+  it('entfernte Einstellungen (Spielleitung, Schonzeit, Challenges) werden ignoriert', () => {
+    const c = parseConfig({ roles: { gm_mode: 'mensch' }, leo: { enabled: true }, challenge: { enabled: true }, game: { quiet_hours: [{ from: '23:00', to: '07:00' }] } });
+    expect('gm_mode' in c.roles).toBe(false);
+    expect('leo' in c).toBe(false);
+    expect('challenge' in c).toBe(false);
+    expect('quiet_hours' in c.game).toBe(false);
+  });
+
+  it('Joker ohne Freischaltzeit kommen ab Jagdbeginn', () => {
+    const c = parseConfig({ joker: { enabled: true, types: [{ type: 'catch_free', minutes: 10 }] } });
+    expect(c.joker.types[0].after_minutes).toBe(0);
   });
 
   it('ergänzt fehlende Felder einer gespeicherten Konfiguration', () => {
@@ -32,20 +52,13 @@ describe('Konfiguration', () => {
     const c = mergeConfig(defaultConfig(), { ping: { zone_overrides: {} }, speedhunt: { quota_per_day: [1] } });
     expect(c.ping.zone_overrides).toEqual({});
     expect(c.speedhunt.quota_per_day).toEqual([1]);
-    expect(c.ping.interval_minutes).toBe(120);
+    expect(c.ping.interval_minutes).toBe(15);
   });
 });
 
-describe('Presets', () => {
-  it('bietet die sechs Pflicht-Presets an', () => {
-    expect(PRESETS.map((p) => p.id)).toEqual([
-      'original_new_york',
-      'original_wien',
-      'original_bangkok',
-      'wochenende_24h',
-      'stadtabend_3h',
-      'schnell_90min',
-    ]);
+describe('Vorlagen', () => {
+  it('bietet drei Vorlagen an', () => {
+    expect(PRESETS.map((p) => p.id)).toEqual(['wochenende_24h', 'stadtabend_3h', 'schnell_90min']);
   });
 
   it.each(PRESETS.map((p) => [p.id, p] as const))('%s ist gültig und startbar', (_id, preset) => {
@@ -57,20 +70,25 @@ describe('Presets', () => {
     expect(result.config.roles.hunters_max).toBe(preset.suggested.hunters);
   });
 
-  it('Spieltage x Länge ergeben die Spieldauer', () => {
+  it('alle Vorlagen laufen am Stück', () => {
     for (const p of PRESETS) {
       const c = configFromPreset(p.id);
-      expect(c.game.days * c.game.day_length_minutes).toBe(c.game.duration_minutes);
+      expect(c.game.days).toBe(1);
+      expect(c.game.day_length_minutes).toBe(Math.min(1440, c.game.duration_minutes));
     }
   });
 
-  it('Wien: 45-Minuten-Regel, LEO, Silent-Pings im Speedhunt ausgesetzt', () => {
-    const c = configFromPreset('original_wien');
-    expect(c.speedhunt.min_minutes_after_silent_ping).toBe(45);
-    expect(c.leo.enabled).toBe(true);
-    expect(c.ping.during_speedhunt).toBe('aussetzen');
-    expect(c.speedhunt.queries).toBe(5);
-    expect(c.zone.sections_per_player).toBe(true);
+  it('Joker kommen in der Reihenfolge ihrer Freischaltzeit und vor Spielende', () => {
+    for (const p of PRESETS) {
+      const c = configFromPreset(p.id);
+      const after = c.joker.types.map((j) => j.after_minutes);
+      expect(after).toEqual([...after].sort((a, b) => a - b));
+      for (const a of after) expect(a).toBeLessThan(c.game.duration_minutes);
+    }
+  });
+
+  it('Vorlagen heissen nach ihrer Dauer', () => {
+    for (const p of PRESETS) expect(p.name).toMatch(/\d+ (min|h)$/);
   });
 
   it('kurze Presets zählen ab Spielstart statt auf volle Stunden', () => {
@@ -79,17 +97,17 @@ describe('Presets', () => {
     }
   });
 
-  it('Schnell 90 min: 3 Spieltage à 30 min, Pings alle 10 min (Akzeptanztest 22)', () => {
+  it('Schnell 90 min: am Stück, Pings alle 10 min, 3 Blitzjagden', () => {
     const c = configFromPreset('schnell_90min');
-    expect(c.game.days).toBe(3);
-    expect(c.game.day_length_minutes).toBe(30);
+    expect(c.game.duration_minutes).toBe(90);
     expect(c.ping.interval_minutes).toBe(10);
+    expect(c.speedhunt.quota_per_day).toEqual([3]);
   });
 });
 
-describe('Validierung (Kapitel 25)', () => {
-  it('Akzeptanztest 40 (ergänzt): Intervall 240 bei Spieldauer 180 wird automatisch angepasst', () => {
-    const c = mergeConfig(defaultConfig(), { game: { duration_minutes: 180, days: 1 }, ping: { interval_minutes: 240 } });
+describe('Validierung', () => {
+  it('Intervall 240 bei Spieldauer 180 wird automatisch angepasst', () => {
+    const c = mergeConfig(defaultConfig(), { game: { duration_minutes: 180 }, ping: { interval_minutes: 240 } });
     const r = validateConfig(c);
     expect(r.config.ping.interval_minutes).toBeLessThan(180);
     expect(r.issues.some((i) => i.level === 'autofix' && i.paths.includes('ping.interval_minutes'))).toBe(true);
@@ -101,14 +119,13 @@ describe('Validierung (Kapitel 25)', () => {
     expect(validateConfig(defaultConfig(), { players: 3, hunters: 2 }).canStart).toBe(true);
   });
 
-  it('Speedhunt länger als Spieltag wird gekürzt', () => {
-    const c = mergeConfig(defaultConfig(), { game: { day_length_minutes: 60 }, speedhunt: { max_duration_minutes: 90 } });
+  it('Blitzjagd länger als das Spiel wird gekürzt', () => {
+    const c = mergeConfig(defaultConfig(), { game: { duration_minutes: 60 }, ping: { interval_minutes: 10 }, speedhunt: { max_duration_minutes: 90 } });
     expect(validateConfig(c).config.speedhunt.max_duration_minutes).toBe(60);
   });
 
-  it('Speedhunt durch Spielleitung ohne menschliche Spielleitung ist ein Fehler', () => {
-    const c = mergeConfig(defaultConfig(), { speedhunt: { trigger_mode: 'gm' }, roles: { gm_mode: 'auto' } });
-    expect(validateConfig(c).canStart).toBe(false);
+  it('Blitzjagden löst nur das Hunter-Team oder der Zufall aus', () => {
+    expect(gameConfigSchema.safeParse({ speedhunt: { trigger_mode: 'gm' } }).success).toBe(false);
   });
 
   it('schaltet "Zentrale besetzt" bei nur einem Hunter automatisch aus', () => {
@@ -124,23 +141,18 @@ describe('Validierung (Kapitel 25)', () => {
     expect(validateConfig(c, { hasMinors: false }).canStart).toBe(true);
   });
 
-  it('Exit-Bekanntgabe vor Spielbeginn wird angepasst', () => {
+  it('Bekanntgabe des Fluchtpunkts vor Spielbeginn wird angepasst', () => {
     const c = mergeConfig(defaultConfig(), { game: { duration_minutes: 60 }, ping: { interval_minutes: 10 }, exit: { reveal_minutes_before_end: 120 } });
     expect(validateConfig(c).config.exit.reveal_minutes_before_end).toBe(60);
   });
 
-  it('warnt bei kurzen Spieltagen mit Ausrichtung auf volle Stunden', () => {
-    const c = mergeConfig(defaultConfig(), { game: { day_length_minutes: 60 }, speedhunt: { max_duration_minutes: 30 } });
-    const issue = validateConfig(c).issues.find((i) => i.code === 'align_short_days');
+  it('warnt bei kurzen Spielen mit Ausrichtung auf volle Stunden', () => {
+    const c = mergeConfig(defaultConfig(), { game: { duration_minutes: 60 }, time: { align_to_full_hour: true }, ping: { interval_minutes: 10 }, speedhunt: { max_duration_minutes: 30 } });
+    const issue = validateConfig(c).issues.find((i) => i.code === 'align_short_game');
     expect(issue?.level).toBe('warning');
   });
 
-  it('warnt bei Ruhezeiten über der Hälfte der Spieldauer', () => {
-    const c = mergeConfig(defaultConfig(), { game: { quiet_hours: [{ from: '20:00', to: '09:00' }] } });
-    expect(validateConfig(c).issues.some((i) => i.code === 'quiet_hours_long')).toBe(true);
-  });
-
-  it('warnt: letzter Überlebender ignoriert den Exitpoint', () => {
+  it('warnt: letzter Überlebender ignoriert den Fluchtpunkt', () => {
     const c = mergeConfig(defaultConfig(), { win: { mode: 'letzter_ueberlebender' } });
     expect(validateConfig(c).issues.some((i) => i.code === 'exit_ignored')).toBe(true);
   });
@@ -166,12 +178,12 @@ describe('Zeitlogik', () => {
 
   it('90 min Spiel: Verkleinerung, Pings und Meldungen passen in die Spieldauer', () => {
     const c = mergeConfig(defaultConfig(), {
-      game: { duration_minutes: 90, days: 1, day_length_minutes: 90 },
+      game: { duration_minutes: 90 },
       zone: { shrink_mode: 'auto', shrink_every_minutes: 0, shrink_announce_minutes: 180 },
       ping: { interval_minutes: 120, first_ping_delay_minutes: 100 },
       speedhunt: { max_duration_minutes: 200 },
       exit: { reveal_minutes_before_end: 120 },
-      joker: { enabled: true, available_after_minutes: 300, types: [{ type: 'regeneration', minutes: 240 }] },
+      joker: { enabled: true, types: [{ type: 'regeneration', minutes: 240, after_minutes: 300 }] },
     });
     const { config: f, fixes } = fitTimes(c);
     expect(f.zone.shrink_every_minutes).toBeGreaterThan(0);
@@ -180,7 +192,7 @@ describe('Zeitlogik', () => {
     expect(f.ping.first_ping_delay_minutes + f.ping.interval_minutes).toBeLessThan(90);
     expect(f.speedhunt.max_duration_minutes).toBeLessThanOrEqual(90);
     expect(f.exit.reveal_minutes_before_end).toBeLessThanOrEqual(90);
-    expect(f.joker.available_after_minutes).toBeLessThan(90);
+    expect(f.joker.types[0].after_minutes).toBeLessThan(90);
     expect(f.joker.types[0].minutes).toBeLessThanOrEqual(90);
     expect(fixes.length).toBeGreaterThan(5);
     // Nochmals anwenden ändert nichts mehr.
