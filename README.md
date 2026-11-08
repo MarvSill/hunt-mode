@@ -79,3 +79,12 @@ Bestätigungs-Mails landen dann in Mailpit unter http://127.0.0.1:54324.
 | `src/pages/`, `src/components/` | Bildschirme (Start, Lobby, Regeln, Karten-Editor, Gruppen) |
 | `src/play/` | Laufendes Spiel: Karte, Spieler-, Taskforce- und Spielleitungs-Ansicht, Chat, Ergebnis |
 | `supabase/migrations/` | Datenbank: Tabellen, Rechte (RLS), Spiel-Engine (`0004`), Aktionen (`0005`), Spielstand je Rolle (`0006`), Zeitplan (`0007`) |
+
+## Auf dem Laptop mit VS Code und Claude Code
+
+1. Ordner in VS Code öffnen (`code .`), die empfohlenen Erweiterungen installieren (Claude Code ist dabei).
+2. `npm install`, dann `npm run dev`: die App läuft unter http://localhost:5173 mit der Live-Datenbank.
+3. In Claude Code einfach auf Deutsch sagen, was geändert werden soll. `CLAUDE.md` erklärt Claude das Projekt.
+4. Änderungen kommen über einen Pull Request auf `main`; danach ist die App automatisch aktualisiert.
+
+Die Spezifikation liegt in `docs/`.
