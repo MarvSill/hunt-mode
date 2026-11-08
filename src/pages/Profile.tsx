@@ -1,4 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { Link } from 'react-router-dom';
+import Icon from '../components/Icon';
 import { useAuth } from '../lib/auth';
 import { db, errorText } from '../lib/supabase';
 
@@ -8,6 +10,19 @@ export default function ProfilePage() {
   const [contactName, setContactName] = useState('');
   const [contactPhone, setContactPhone] = useState('');
   const [msg, setMsg] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
+  const [delAsk, setDelAsk] = useState(false);
+  const [delText, setDelText] = useState('');
+  const [delError, setDelError] = useState<string | null>(null);
+
+  async function deleteAccount() {
+    setDelError(null);
+    const { error } = await db().rpc('delete_my_account');
+    if (error) {
+      setDelError(errorText(error));
+      return;
+    }
+    await db().auth.signOut();
+  }
 
   useEffect(() => {
     db()
@@ -54,7 +69,8 @@ export default function ProfilePage() {
           Anzeigename
           <input required maxLength={40} value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
         </label>
-        <h2>Notfallkontakt</h2>
+        <div className="section-title" style={{ marginBottom: 0 }}>Notfallkontakt</div>
+        <p className="muted small" style={{ margin: 0 }}>Wird nur bei einem Notfall an die Spielleitung und die Hunter gezeigt.</p>
         <label className="field">
           Name
           <input required value={contactName} onChange={(e) => setContactName(e.target.value)} />
@@ -66,11 +82,33 @@ export default function ProfilePage() {
         {msg && <div className={`notice ${msg.kind}`}>{msg.text}</div>}
         <button className="primary block">Speichern</button>
       </form>
-      <h2>Konto</h2>
+      <div className="section-title">Hilfe</div>
+      <Link to="/hilfe" className="game-card"><Icon name="help" /><span className="spacer">So funktioniert Hunt Mode</span><Icon name="chevron" /></Link>
+      <Link to="/datenschutz" className="game-card"><Icon name="shield" /><span className="spacer">Datenschutz</span><Icon name="chevron" /></Link>
+
+      <div className="section-title">Konto</div>
       <button className="block" onClick={() => db().auth.signOut()}>
         Abmelden
       </button>
-      <p className="muted small">Konto löschen und Datenexport folgen in einem späteren Schritt.</p>
+      {!delAsk ? (
+        <button className="ghost block" style={{ marginTop: 8, color: 'var(--red)' }} onClick={() => setDelAsk(true)}>
+          Konto löschen
+        </button>
+      ) : (
+        <div className="card stack" style={{ marginTop: 12, borderColor: 'var(--red)' }}>
+          <strong>Konto endgültig löschen?</strong>
+          <span className="small muted">Dein Profil, dein Notfallkontakt, deine Teilnahmen und alle Spiele, die du erstellt hast, werden sofort gelöscht. Das kann man nicht rückgängig machen.</span>
+          <label className="field">
+            Zum Bestätigen LÖSCHEN eingeben
+            <input value={delText} onChange={(e) => setDelText(e.target.value)} autoCapitalize="characters" />
+          </label>
+          {delError && <div className="notice error">{delError}</div>}
+          <div className="row">
+            <button className="ghost" onClick={() => { setDelAsk(false); setDelText(''); }}>Abbrechen</button>
+            <button className="primary spacer" disabled={delText.trim().toUpperCase() !== 'LÖSCHEN'} onClick={deleteAccount}>Endgültig löschen</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

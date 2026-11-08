@@ -5,9 +5,11 @@ interface Props {
   rules: string[];
   readOnly?: boolean;
   onChange?: (rules: string[]) => void;
+  /** Ohne eigene Karte und Titel (z. B. in einem aufklappbaren Bereich). */
+  bare?: boolean;
 }
 
-export default function ExtraRules({ rules, readOnly, onChange }: Props) {
+export default function ExtraRules({ rules, readOnly, onChange, bare }: Props) {
   const [draft, setDraft] = useState('');
   function add() {
     const t = draft.trim();
@@ -16,8 +18,8 @@ export default function ExtraRules({ rules, readOnly, onChange }: Props) {
     setDraft('');
   }
   return (
-    <div className="card stack">
-      <h2 style={{ margin: 0 }}>Eigene Zusatzregeln</h2>
+    <div className={bare ? 'stack' : 'card stack'}>
+      {!bare && <h2 style={{ margin: 0 }}>Eigene Zusatzregeln</h2>}
       {!readOnly && <p className="muted small" style={{ margin: 0 }}>Alles, was die App nicht kennt, z. B. „Kein Taxi nach 22 Uhr“ oder „Hunter tragen Warnweste“. Alle sehen diese Regeln in der Lobby und im Spiel.</p>}
       {rules.length > 0 ? (
         <ol className="extra-rules">
@@ -35,10 +37,10 @@ export default function ExtraRules({ rules, readOnly, onChange }: Props) {
       )}
       {!readOnly && onChange && (
         <div className="row">
-          <input className="spacer" placeholder="Neue Regel" maxLength={300} value={draft}
+          <input className="spacer" style={{ minWidth: 0 }} placeholder="Neue Regel" maxLength={300} value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add(); } }} />
-          <button type="button" onClick={add} disabled={!draft.trim() || rules.length >= 30}>+ Hinzufügen</button>
+          <button type="button" onClick={add} disabled={!draft.trim() || rules.length >= 30}>+ Dazu</button>
         </div>
       )}
     </div>

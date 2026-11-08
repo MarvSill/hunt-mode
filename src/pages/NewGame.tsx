@@ -1,16 +1,28 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import ConfigEditor from '../components/ConfigEditor';
 import Guide, { type GuideStep } from '../components/Guide';
 import ExtraRules from '../components/ExtraRules';
+import Icon from '../components/Icon';
 import IssueList from '../components/IssueList';
 import QuickSettings from '../components/QuickSettings';
-import { createGame } from '../lib/games';
+import { createGame, diffConfig } from '../lib/games';
 import { db, errorText } from '../lib/supabase';
 import { gameConfigSchema, type GameConfig } from '../shared/config';
+import { formatMinutes } from '../shared/format';
 import { PRESETS, configFromPreset } from '../shared/presets';
 import { validateConfig } from '../shared/validation';
-import { formatMinutes } from '../shared/format';
+
+const PRESET_ART: Record<string, string> = {
+  schnell_90min: '⚡',
+  stadtabend_3h: '🌆',
+  wochenende_24h: '🏕️',
+  original_wien: '🎡',
+  original_bangkok: '🛺',
+  original_new_york: '🗽',
+};
+/** Kurze Spiele zuerst: die meisten Gruppen fangen klein an. */
+const ORDER = ['schnell_90min', 'stadtabend_3h', 'wochenende_24h', 'original_wien', 'original_bangkok', 'original_new_york'];
 
 function presetConfig(id: string): GameConfig {
   const c = configFromPreset(id);
@@ -18,38 +30,21 @@ function presetConfig(id: string): GameConfig {
   return c;
 }
 
-function guideSteps(custom: boolean): GuideStep[] {
-  return [
-    { title: 'Willkommen!', text: 'Ich zeige dir Schritt für Schritt, wie du ein Spiel erstellst. Du kannst den Helfer jederzeit schliessen und später über "❓ Helfer" wieder öffnen.' },
-    { target: 'mode', title: 'Vorlage oder alles selbst', text: '"Vorlage" nimmt fertige Regeln (z. B. 3 Stunden in der Stadt). Mit "Alles selbst einstellen" wählst du Spieler, Hunter, Zeiten, Pings und Joker selbst.' },
-    { target: 'name', title: 'Name', text: 'Gib dem Spiel einen Namen, z. B. den Ort. Den sehen alle, die mitspielen.' },
-    { target: 'start', title: 'Startzeit', text: 'Freiwillig. Gestartet wird das Spiel später von dir in der Lobby, wenn alle bereit sind.' },
-    ...(custom
-      ? [
-          { target: 'q-Spieler und Hunter', title: 'Spieler und Hunter', text: 'Wie viele Spieler sich verstecken und wie viele Hunter jagen. Die Spielleitung kann automatisch (App) oder ein Mensch sein.' },
-          { target: 'q-Zeiten', title: 'Zeiten', text: 'Spieldauer, Vorsprung und jagdfreie Zeiten. Alles andere (Verkleinerung, Pings, Joker …) passt die App automatisch an die Spieldauer an.' },
-          { target: 'q-Pings (Standort der Spieler)', title: 'Pings', text: 'Wie oft die Hunter sehen, wo die Spieler sind. Kürzer = schwerer für die Spieler.' },
-          { target: 'q-Speedhunt (Live-Jagd)', title: 'Speedhunt', text: 'Kurze Live-Jagden auf einen Spieler. Mit wenigen Speedhunts pro Tag bleibt es spannend.' },
-          { target: 'q-Joker für die Spieler', title: 'Joker', text: 'Wähle, welche Joker es gibt, wie viele pro Tag und ab wann sie verfügbar sind. Die Spieler setzen sie im Spiel unter "Aktionen" ein.' },
-          { target: 'issues', title: 'Prüfung', text: 'Hier steht, was die App automatisch angepasst hat und ob noch etwas fehlt.' },
-        ]
-      : [
-          { target: 'presets', title: 'Vorlage wählen', text: 'Tippe eine Vorlage an. Darunter siehst du die wichtigsten Zeiten. Mit dem ⓘ und "Alle Regeln anpassen" kannst du alles ändern.' },
-          { target: 'issues', title: 'Prüfung', text: 'Hier steht, was die App automatisch angepasst hat und ob noch etwas fehlt.' },
-        ]),
-    { target: 'create', title: 'Spiel erstellen', text: 'Danach kommst du in die Lobby: dort zeichnest du die Karte (mit Assistent), schickst den Code an deine Freunde, verteilst die Rollen und startest.' },
-  ];
-}
+const GUIDE: GuideStep[] = [
+  { title: 'Willkommen!', text: 'In drei Schritten ist dein Spiel bereit. Du kannst den Helfer jederzeit schliessen und über "?" wieder öffnen.' },
+  { target: 'name', title: '1. Name', text: 'Gib dem Spiel einen Namen, z. B. den Ort. Den sehen alle, die mitspielen.' },
+  { target: 'presets', title: '2. Spielart', text: 'Wähle eine Vorlage. Sie stellt alle Regeln passend ein: Dauer, Pings, Speedhunts, Joker. Für den Anfang ist "Schnell 90 min" oder "Stadtabend 3 h" ideal.' },
+  { target: 'adjust', title: '3. Anpassen (freiwillig)', text: 'Tippe einen Bereich an, um ihn zu ändern, z. B. die Anzahl Spieler oder wie oft gepingt wird. Alle Zeiten passt die App automatisch an die Spieldauer an.' },
+  { target: 'create', title: 'Fertig', text: 'Danach kommst du in die Lobby: dort zeichnest du die Karte, lädst Freunde mit dem Code ein und startest.' },
+];
 
 export default function NewGamePage() {
   const navigate = useNavigate();
-  const custom = useLocation().pathname.endsWith('/eigenes');
   const [name, setName] = useState('');
   const [presetId, setPresetId] = useState('stadtabend_3h');
   const [baseline, setBaseline] = useState(() => presetConfig('stadtabend_3h'));
   const [config, setConfig] = useState(baseline);
   const [startAt, setStartAt] = useState('');
-  const [showRules, setShowRules] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [editError, setEditError] = useState<string | null>(null);
@@ -66,6 +61,7 @@ export default function NewGamePage() {
     () => new Set(result.issues.filter((i) => i.level !== 'autofix').flatMap((i) => i.paths)),
     [result],
   );
+  const changed = useMemo(() => diffConfig(baseline, result.config).length > 0, [baseline, result.config]);
 
   function pickPreset(id: string) {
     const c = presetConfig(id);
@@ -91,7 +87,7 @@ export default function NewGamePage() {
     try {
       const game = await createGame(
         name.trim(),
-        custom ? 'eigenes' : presetId,
+        changed ? 'eigenes' : presetId,
         result.config,
         startAt ? new Date(startAt).toISOString() : null,
       );
@@ -107,110 +103,107 @@ export default function NewGamePage() {
     }
   }
 
+  const presets = ORDER.map((id) => PRESETS.find((p) => p.id === id)).filter((p): p is (typeof PRESETS)[number] => !!p);
+  const c = result.config;
+
   return (
     <div className="app">
       <div className="topbar">
-        <Link to="/" className="button ghost small">←</Link>
-        <h1>{custom ? 'Eigenes Spiel' : 'Spiel erstellen'}</h1>
-        <button type="button" className="small help-btn" onClick={() => setGuide(true)}>❓ Helfer</button>
+        <Link to="/" className="button ghost back" aria-label="Zurück"><Icon name="back" /></Link>
+        <h1>Neues Spiel</h1>
+        <button type="button" className="ghost icon-btn" aria-label="Helfer" onClick={() => setGuide(true)}><Icon name="help" /></button>
       </div>
-      {guide && <Guide steps={guideSteps(custom)} onClose={() => setGuide(false)} />}
-      <div className="mode-switch" data-guide="mode" style={{ marginBottom: 12 }}>
-        <Link to="/neu" replace className={`button${custom ? '' : ' primary'}`}>Vorlage</Link>
-        <Link to="/neu/eigenes" replace className={`button${custom ? ' primary' : ''}`}>Alles selbst einstellen</Link>
-      </div>
-      <form className="stack" onSubmit={submit}>
+      {guide && <Guide steps={GUIDE} onClose={() => setGuide(false)} />}
+
+      <form onSubmit={submit}>
+        <div className="step-head"><span className="n">1</span><h2>Wie heisst euer Spiel?</h2></div>
         <label className="field" data-guide="name">
-          Name des Spiels
-          <input required maxLength={60} value={name} onChange={(e) => setName(e.target.value)} placeholder="z. B. Zürich Altstadt" />
-        </label>
-        <label className="field" data-guide="start">
-          Geplanter Start (optional)
-          <input type="datetime-local" value={startAt} onChange={(e) => setStartAt(e.target.value)} />
+          <input required maxLength={60} value={name} onChange={(e) => setName(e.target.value)} placeholder="z. B. Zürich Altstadt" aria-label="Name des Spiels" />
         </label>
 
-        {groups.length > 0 && (
-          <label className="field">
-            Gruppe (optional)
-            <select value={groupId} onChange={(e) => setGroupId(e.target.value)}>
-              <option value="">Keine</option>
-              {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
-            </select>
-          </label>
-        )}
-
-        {custom ? (
-          <>
-            <p className="muted small" style={{ margin: 0 }}>Startwerte von der Vorlage unten, alles lässt sich ändern.</p>
-            <label className="field">
-              Startwerte von
-              <select value={presetId} onChange={(e) => pickPreset(e.target.value)}>
-                {PRESETS.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </select>
-            </label>
-            <QuickSettings config={result.config} onChange={edit} />
-            <ExtraRules rules={config.extras.rules} onChange={(rules) => edit({ ...config, extras: { ...config.extras, rules } })} />
-            <div data-guide="issues"><IssueList issues={result.issues} /></div>
-            <details className="section">
-              <summary>Alle weiteren Regeln ({'>'}150 Einstellungen)</summary>
-              <div>
-                {editError && <div className="notice error">{editError}</div>}
-                <ConfigEditor config={result.config} baseline={baseline} problemPaths={problemPaths} onChange={edit} />
-              </div>
-            </details>
-          </>
-        ) : (
-          <>
-          <h2>Voreinstellung</h2>
-          <div className="stack" data-guide="presets">
-            {PRESETS.map((p) => (
-              <button
-                type="button"
-                key={p.id}
-                className={`card preset${p.id === presetId ? ' selected' : ''}`}
-                onClick={() => pickPreset(p.id)}
-                aria-pressed={p.id === presetId}
-              >
-                <div className="row">
-                  <strong className="spacer">{p.name}</strong>
-                  <span className="badge">
-                    {p.suggested.players} Spieler / {p.suggested.hunters} Hunter
-                  </span>
-                </div>
-                <div className="muted small">{p.description}</div>
+        <div className="step-head"><span className="n">2</span><h2>Spielart wählen</h2></div>
+        <div className="preset-grid" data-guide="presets">
+          {presets.map((p) => {
+            const pc = presetConfig(p.id);
+            return (
+              <button type="button" key={p.id} className={`preset-card${p.id === presetId ? ' on' : ''}`} aria-pressed={p.id === presetId} onClick={() => pickPreset(p.id)}>
+                <span className="emoji" aria-hidden="true">{PRESET_ART[p.id] ?? '🎯'}</span>
+                <strong>{p.name}</strong>
+                <span className="muted">{p.description}</span>
+                <span className="facts">
+                  <span>{formatMinutes(pc.game.duration_minutes)}</span>
+                  <span>{p.suggested.players + p.suggested.hunters} Pers.</span>
+                </span>
               </button>
-            ))}
-          </div>
+            );
+          })}
+        </div>
+        <div className="summary-line" style={{ marginTop: 12 }}>
+          <span>⏱️ {formatMinutes(c.game.duration_minutes)}</span>
+          <span>👥 {c.roles.players_max} Spieler · {c.roles.hunters_max} Hunter</span>
+          <span>📍 Ping alle {formatMinutes(c.ping.interval_minutes)}</span>
+          <span>⚡ {c.speedhunt.enabled ? `${c.speedhunt.quota_per_day[0] ?? 0} Speedhunt/Tag` : 'ohne Speedhunt'}</span>
+          {c.joker.enabled && <span>🃏 Joker</span>}
+          {c.exit.enabled && <span>🏁 Exitpoint</span>}
+          {changed && <span style={{ borderColor: 'var(--yellow)', color: 'var(--yellow)' }}>✏️ angepasst</span>}
+        </div>
 
-          <div className="card small">
-            <div>Dauer: {formatMinutes(result.config.game.duration_minutes)} ({result.config.game.days} Spieltage à {formatMinutes(result.config.game.day_length_minutes)})</div>
-            <div>Vorsprung: {formatMinutes(result.config.start.head_start_minutes)} · Ping alle {formatMinutes(result.config.ping.interval_minutes)}</div>
-            <div>
-              Speedhunts: {result.config.speedhunt.enabled ? `${result.config.speedhunt.quota_per_day.join('/')} am Tag 1, danach ${result.config.speedhunt.quota_default}, je ${result.config.speedhunt.queries} Abfragen` : 'aus'}
+        <div className="step-head"><span className="n">3</span><h2>Anpassen <span className="muted small" style={{ fontWeight: 400 }}>(freiwillig)</span></h2></div>
+        <div data-guide="adjust">
+          <QuickSettings config={c} onChange={edit} />
+          <details className="acc">
+            <summary>
+              <span className="ico" aria-hidden="true">📌</span>
+              <span className="spacer"><span className="t">Eigene Zusatzregeln</span><span className="s" style={{ display: 'block' }}>{config.extras.rules.length ? `${config.extras.rules.length} Regeln` : 'z. B. „Kein Taxi“'}</span></span>
+              <Icon name="chevron" className="chev" />
+            </summary>
+            <div className="body">
+              <ExtraRules bare rules={config.extras.rules} onChange={(rules) => edit({ ...config, extras: { ...config.extras, rules } })} />
             </div>
-          </div>
-
-          <div data-guide="issues"><IssueList issues={result.issues} /></div>
-
-          <button type="button" data-guide="rules" onClick={() => setShowRules((s) => !s)}>
-            {showRules ? 'Regeln ausblenden' : 'Alle Regeln anpassen'}
-          </button>
-          {showRules && (
-            <>
+          </details>
+          <details className="acc">
+            <summary>
+              <span className="ico" aria-hidden="true">📅</span>
+              <span className="spacer"><span className="t">Termin{groups.length > 0 && ' und Gruppe'}</span><span className="s" style={{ display: 'block' }}>{startAt ? new Date(startAt).toLocaleString('de-CH', { dateStyle: 'medium', timeStyle: 'short' }) : 'Start später in der Lobby'}</span></span>
+              <Icon name="chevron" className="chev" />
+            </summary>
+            <div className="body">
+              <label className="field">
+                Geplanter Start (nur zur Info, gestartet wird in der Lobby)
+                <input type="datetime-local" value={startAt} onChange={(e) => setStartAt(e.target.value)} />
+              </label>
+              {groups.length > 0 && (
+                <label className="field">
+                  Gruppe
+                  <select value={groupId} onChange={(e) => setGroupId(e.target.value)}>
+                    <option value="">Keine</option>
+                    {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+                  </select>
+                </label>
+              )}
+            </div>
+          </details>
+          <details className="acc">
+            <summary>
+              <span className="ico" aria-hidden="true">🧰</span>
+              <span className="spacer"><span className="t">Expertenmodus</span><span className="s" style={{ display: 'block' }}>Alle 150 Einstellungen einzeln</span></span>
+              <Icon name="chevron" className="chev" />
+            </summary>
+            <div className="body">
               {editError && <div className="notice error">{editError}</div>}
-              <ConfigEditor config={result.config} baseline={baseline} problemPaths={problemPaths} onChange={edit} />
-            </>
-          )}
-          </>
-        )}
+              <ConfigEditor config={c} baseline={baseline} problemPaths={problemPaths} onChange={edit} />
+            </div>
+          </details>
+        </div>
 
-        {error && <div className="notice error">{error}</div>}
-        <button className="primary block" data-guide="create" disabled={busy || !name.trim()}>
-          Spiel erstellen
-        </button>
-        {!result.canStart && (
-          <p className="muted small">Du kannst das Spiel trotz Fehlern anlegen; starten lässt es sich erst, wenn sie behoben sind.</p>
-        )}
+        <div style={{ marginTop: 12 }} data-guide="issues"><IssueList issues={result.issues} compact /></div>
+
+        <div className="sticky-cta">
+          {error && <div className="notice error" style={{ marginBottom: 8 }}>{error}</div>}
+          <button className="primary block big" data-guide="create" disabled={busy || !name.trim()}>
+            {busy ? 'Erstelle …' : name.trim() ? 'Spiel erstellen' : 'Erst einen Namen eingeben'}
+          </button>
+        </div>
       </form>
     </div>
   );

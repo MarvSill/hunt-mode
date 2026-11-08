@@ -2,7 +2,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import ConfigEditor from '../components/ConfigEditor';
 import ExtraRules from '../components/ExtraRules';
+import Icon from '../components/Icon';
 import IssueList from '../components/IssueList';
+import QuickSettings from '../components/QuickSettings';
+import RulesSummary from '../components/RulesSummary';
 import { useAuth } from '../lib/auth';
 import { diffConfig, getGame, updateConfig, type Game } from '../lib/games';
 import { errorText } from '../lib/supabase';
@@ -82,21 +85,48 @@ export default function RulesPage() {
   return (
     <div className="app">
       <div className="topbar">
-        <Link to={`/spiel/${game.id}`} className="button ghost small">←</Link>
+        <Link to={`/spiel/${game.id}`} className="button ghost back" aria-label="Zurück"><Icon name="back" /></Link>
         <h1>Regeln</h1>
       </div>
-      {!editable && <div className="notice info" style={{ marginBottom: 12 }}>Nur der Host kann die Regeln vor dem Start ändern.</div>}
-      <IssueList issues={result.issues} />
-      <div style={{ height: 12 }} />
-      <ExtraRules rules={config.extras.rules} readOnly={!editable}
-        onChange={(rules) => edit({ ...config, extras: { ...config.extras, rules } })} />
-      <div style={{ height: 12 }} />
-      <ConfigEditor config={result.config} baseline={baseline} readOnly={!editable} problemPaths={problemPaths} onChange={edit} />
+      {!editable && (
+        <div className="card">
+          <RulesSummary config={config} />
+        </div>
+      )}
+      {editable && (
+        <>
+          <p className="muted small" style={{ marginTop: 0 }}>Tippe einen Bereich an, um ihn zu ändern. Zeiten passt die App automatisch an die Spieldauer an.</p>
+          <QuickSettings config={result.config} onChange={edit} />
+          <details className="acc">
+            <summary>
+              <span className="ico" aria-hidden="true">📌</span>
+              <span className="spacer"><span className="t">Eigene Zusatzregeln</span><span className="s" style={{ display: 'block' }}>{config.extras.rules.length ? `${config.extras.rules.length} Regeln` : 'keine'}</span></span>
+              <Icon name="chevron" className="chev" />
+            </summary>
+            <div className="body">
+              <ExtraRules bare rules={config.extras.rules} onChange={(rules) => edit({ ...config, extras: { ...config.extras, rules } })} />
+            </div>
+          </details>
+        </>
+      )}
+      <details className="acc">
+        <summary>
+          <span className="ico" aria-hidden="true">🧰</span>
+          <span className="spacer"><span className="t">{editable ? 'Expertenmodus' : 'Alle Einstellungen'}</span><span className="s" style={{ display: 'block' }}>Jede Einstellung einzeln</span></span>
+          <Icon name="chevron" className="chev" />
+        </summary>
+        <div className="body">
+          <ConfigEditor config={result.config} baseline={baseline} readOnly={!editable} problemPaths={problemPaths} onChange={edit} />
+        </div>
+      </details>
+      <div style={{ marginTop: 12 }}><IssueList issues={result.issues} compact /></div>
       {msg && <div className={`notice ${msg.kind}`} style={{ margin: '12px 0' }}>{msg.text}</div>}
       {editable && (
-        <button className="primary block" disabled={busy || changes.length === 0} onClick={save}>
-          {changes.length === 0 ? 'Keine Änderungen' : `${changes.length} Änderung(en) speichern`}
-        </button>
+        <div className="sticky-cta">
+          <button className="primary block" disabled={busy || changes.length === 0} onClick={save}>
+            {changes.length === 0 ? 'Keine Änderungen' : `${changes.length} Änderung(en) speichern`}
+          </button>
+        </div>
       )}
     </div>
   );

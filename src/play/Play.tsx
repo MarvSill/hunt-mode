@@ -1,20 +1,23 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import Icon, { type IconName } from '../components/Icon';
 import MapView, { type Marker } from '../components/MapView';
+import RulesSummary from '../components/RulesSummary';
 import { api, clock, countdown, SOURCE_LABELS, type MapFeature, type Notification } from '../lib/engine';
-import { STATUS_LABELS } from '../lib/games';
 import { errorText } from '../lib/supabase';
 import { useTracker } from '../lib/tracker';
 import { useGameState, useNow } from '../lib/useGame';
 import Chat from './Chat';
 import EmergencyBox from './EmergencyBox';
-import { colorFor, Confirm, nameOf } from './common';
+import { colorFor, nameOf } from './common';
+import { CallButtons } from './EmergencyBox';
 import GmPanel from './GmPanel';
 import HunterPanel from './HunterPanel';
 import PlayerPanel from './PlayerPanel';
 import Result from './Result';
 
 type Tab = 'karte' | 'aktionen' | 'meldungen' | 'chat';
+const TABS: [Tab, string, IconName][] = [['karte', 'Karte', 'map'], ['aktionen', 'Aktionen', 'bolt'], ['meldungen', 'Meldungen', 'bell'], ['chat', 'Chat', 'chat']];
 type Pick = { kind: 'fake'; itemId: string } | { kind: 'zone' } | { kind: 'challenge'; cb: (lat: number, lng: number) => void } | null;
 
 function beep(critical: boolean) {
@@ -42,9 +45,11 @@ export default function PlayPage() {
   const [pick, setPick] = useState<Pick>(null);
   const [notifPerm, setNotifPerm] = useState(typeof Notification !== 'undefined' ? Notification.permission : 'denied');
   const mapVersion = useRef<number | null>(null);
+  const [sosAsk, setSosAsk] = useState(false);
+  const [seenNotes, setSeenNotes] = useState(0);
 
   const onNew = useCallback((list: Notification[]) => {
-    setToasts((t) => [...[...list].reverse(), ...t].slice(0, 2));
+    setToasts((t) => [...[...list].reverse(), ...t].slice(0, 4));
     const crit = list.some((n) => n.priority === 'kritisch');
     const high = list.some((n) => n.priority !== 'normal');
     if (high) {
@@ -180,20 +185,48 @@ export default function PlayPage() {
     : g.status === 'finale' ? `Exit bis ${clock(g.deadline_at, g.timezone)} · ${countdown(g.deadline_at, now)}`
     : ended ? 'Spiel beendet' : `Ende in ${countdown(g.ends_at, now)}`;
 
+  const roleLabel = role === 'spieler' ? 'Spieler' : role === 'gm' ? 'Spielleitung' : role === 'zuschauer' ? 'Zuschauer' : 'Taskforce';
+  const canSos = !ended && role !== 'zuschauer' && s.me.state !== 'notfall';
+  const unseen = tab === 'meldungen' ? 0 : s.notifications.length - seenNotes;
+  function openTab(t: Tab) {
+    setTab(t);
+    if (t === 'meldungen' && s) setSeenNotes(s.notifications.length);
+  }
+
   return (
     <div className="app wide play">
       <div className="topbar">
-        <Link to="/" className="button ghost small">←</Link>
-        <div className="spacer">
-          <div className="small muted">{g.name} · {STATUS_LABELS[g.status]}{g.is_test ? ' · Probelauf' : ''}{g.current_day > 0 && ` · Tag ${g.current_day}/${g.config.game.days}`}{(g.phase_count ?? 0) > 1 && g.config.zone.shrink_every_minutes > 0 && ` · Phase ${g.phase}/${g.phase_count}`}</div>
+        <Link to="/" className="button ghost back" aria-label="Zur Startseite"><Icon name="back" /></Link>
+        <div className="spacer play-head">
+          <div className="sub-line">
+            <span className={`role-pill ${role === 'spieler' ? 'spieler' : role === 'gm' ? 'gm' : role === 'zuschauer' ? 'zuschauer' : 'hunter'}`} style={{ padding: '1px 8px', marginRight: 6 }}>{roleLabel}</span>
+            {g.name}{g.is_test ? ' · Probelauf' : ''}{g.current_day > 0 && ` · Tag ${g.current_day}/${g.config.game.days}`}{(g.phase_count ?? 0) > 1 && g.config.zone.shrink_every_minutes > 0 && ` · Phase ${g.phase}/${g.phase_count}`}
+          </div>
           <div className="headline">{headline}</div>
         </div>
-        <span className={`badge ${role === 'spieler' ? 'green' : role === 'gm' ? '' : 'red'}`}>{role === 'spieler' ? 'Spieler' : role === 'gm' ? 'Spielleitung' : role === 'zuschauer' ? 'Zuschauer' : 'Taskforce'}</span>
+        {canSos && <button className="sos" aria-label="NOTFALL" onClick={() => setSosAsk(true)}>SOS</button>}
       </div>
 
+      {sosAsk && (
+        <div className="overlay" role="dialog" aria-label="Notfall melden" onClick={() => setSosAsk(false)}>
+          <div className="card stack emergency-card" style={{ maxWidth: 440, width: '100%', background: 'var(--surface)' }} onClick={(e) => e.stopPropagation()}>
+            <strong style={{ fontSize: 20 }}>🚨 Notfall melden?</strong>
+            <span className="small">Alle Hunter und die Spielleitung werden sofort alarmiert und sehen deinen Standort und Notfallkontakt. Die Jagd auf dich wird ausgesetzt. Bei einem Versehen kannst du den Notfall danach wieder beenden.</span>
+            <button className="danger block big" onClick={() => {
+              setSosAsk(false);
+              void act(() => api.emergency(g.id, pos?.lat, pos?.lng), 'Notfall gemeldet. Bei Gefahr: 117 (Polizei) oder 112 anrufen.');
+            }}>Ja, Notfall melden</button>
+            <div className="muted small">Bei Gefahr direkt anrufen:</div>
+            <CallButtons />
+            <button className="ghost block" onClick={() => setSosAsk(false)}>Abbrechen</button>
+          </div>
+        </div>
+      )}
+
       <div className="toasts">
-        {toasts.map((n) => (
-          <div key={n.id} className={`toast ${n.priority}`} onClick={() => setToasts((t) => t.filter((x) => x.id !== n.id))}>
+        {toasts.slice(0, 1).map((n) => (
+          <div key={n.id} className={`toast ${n.priority}`} role="status" onClick={() => setToasts((t) => t.filter((x) => x.id !== n.id))}>
+            {toasts.length > 1 && <span className="more">+{toasts.length - 1}</span>}
             <strong>{n.title}</strong>{n.body && <div className="small">{n.body}</div>}
           </div>
         ))}
@@ -216,14 +249,14 @@ export default function PlayPage() {
       {ended ? <Result s={s} zones={zones} /> : (
         <>
           <EmergencyBox s={s} act={act} showMap={() => setTab('karte')} />
-          <div className="tabs">
-            {(['karte', 'aktionen', 'meldungen', 'chat'] as Tab[]).map((t) => (
-              <button key={t} className={tab === t ? 'active' : ''} onClick={() => setTab(t)}>
-                {t === 'karte' ? 'Karte' : t === 'aktionen' ? 'Aktionen' : t === 'meldungen' ? 'Meldungen' : 'Chat'}
+          <nav className="tabbar">
+            {TABS.map(([t, label, icon]) => (
+              <button key={t} className={tab === t ? 'active' : ''} onClick={() => openTab(t)}>
+                <Icon name={icon} />{label}
+                {t === 'meldungen' && unseen > 0 && <span className="pip" aria-label={`${unseen} neu`} />}
               </button>
             ))}
-          </div>
-
+          </nav>
           <div style={{ display: tab === 'karte' ? 'block' : 'none' }}>
             {pick && (
               <div className="notice" style={{ marginBottom: 8 }}>
@@ -231,7 +264,7 @@ export default function PlayPage() {
                 {' '}<button className="small ghost" onClick={() => setPick(null)}>Abbrechen</button>
               </div>
             )}
-            <MapView zones={zones} markers={markers} onClick={pick ? mapClick : undefined} fitKey={g.id} height="62dvh" showDay={g.phase ?? g.current_day} />
+            <div className="map-box"><MapView zones={zones} markers={markers} onClick={pick ? mapClick : undefined} fitKey={g.id} height="62dvh" showDay={g.phase ?? g.current_day} /></div>
             <div className="row small" style={{ marginTop: 8 }}>
               {role === 'spieler' && s.me.next_ping_at && <span className="badge">Nächster Ping {clock(s.me.next_ping_at)}</span>}
               {s.next_silent_ping_at && role !== 'spieler' && <span className="badge">Nächster Silent-Ping {clock(s.next_silent_ping_at)}</span>}
@@ -242,12 +275,6 @@ export default function PlayPage() {
           </div>
 
           <div style={{ display: tab === 'aktionen' ? 'block' : 'none' }}>
-            {(g.config.extras?.rules?.length ?? 0) > 0 && (
-              <details className="section">
-                <summary>Zusatzregeln ({g.config.extras.rules.length})</summary>
-                <div><ol className="extra-rules">{g.config.extras.rules.map((r, i) => <li key={i}>{r}</li>)}</ol></div>
-              </details>
-            )}
             {role === 'spieler' && <PlayerPanel s={s} now={now} act={act} pos={pos} pickFake={(itemId) => { setPick({ kind: 'fake', itemId }); setTab('karte'); }} />}
             {(role === 'hunter' || role === 'zentrale') && <HunterPanel s={s} now={now} act={act} pos={pos} />}
             {role === 'gm' && (
@@ -256,6 +283,14 @@ export default function PlayPage() {
                 pickChallenge={(cb) => { setPick({ kind: 'challenge', cb }); setTab('karte'); }} />
             )}
             {role === 'zuschauer' && <div className="card muted">Du schaust zu. Positionen siehst du mit {g.config.spectator.delay_minutes} min Verzögerung.</div>}
+            <details className="acc">
+              <summary>
+                <span className="ico" aria-hidden="true">📖</span>
+                <span className="spacer"><span className="t">Spielregeln</span><span className="s" style={{ display: 'block' }}>Alles Wichtige in Kürze</span></span>
+                <Icon name="chevron" className="chev" />
+              </summary>
+              <div className="body"><RulesSummary config={g.config} /></div>
+            </details>
           </div>
 
           <div style={{ display: tab === 'meldungen' ? 'block' : 'none' }}>
@@ -277,12 +312,6 @@ export default function PlayPage() {
 
           {tab === 'chat' && <Chat s={s} />}
 
-          {role !== 'zuschauer' && s.me.state !== 'notfall' && (
-            <div style={{ marginTop: 16 }}>
-              <Confirm className="danger block" label="NOTFALL" confirm="Notfall melden? Alle Hunter und die Spielleitung werden sofort alarmiert. Falls es ein Versehen war, kannst du ihn danach wieder beenden."
-                onYes={() => act(() => api.emergency(g.id, pos?.lat, pos?.lng), 'Notfall gemeldet. Bei Gefahr: 117 (Polizei) oder 112 anrufen.')} />
-            </div>
-          )}
         </>
       )}
     </div>

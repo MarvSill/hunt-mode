@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
+import Icon from '../components/Icon';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { joinGame } from '../lib/games';
 import { errorText } from '../lib/supabase';
@@ -40,7 +41,7 @@ export default function JoinPage() {
   return (
     <div className="app">
       <div className="topbar">
-        <Link to="/" className="button ghost small">←</Link>
+        <Link to="/" className="button ghost back" aria-label="Zurück"><Icon name="back" /></Link>
         <h1>Spiel beitreten</h1>
       </div>
       <form className="stack" onSubmit={submit}>

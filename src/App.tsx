@@ -1,5 +1,6 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import Icon from './components/Icon';
 import { useAuth } from './lib/auth';
 import { supabase } from './lib/supabase';
 import GamePage from './pages/Game';
@@ -7,6 +8,8 @@ import HomePage from './pages/Home';
 import GroupPage from './pages/Group';
 import GroupsPage from './pages/Groups';
 import JoinPage from './pages/Join';
+import IntroPage, { introSeen } from './pages/Intro';
+import PrivacyPage from './pages/Privacy';
 
 import LoginPage from './pages/Login';
 import NewGamePage from './pages/NewGame';
@@ -23,7 +26,9 @@ const PlayPage = lazy(() => import('./play/Play'));
 export default function App() {
   const { loading, session, profile, hasEmergencyContact, recovering } = useAuth();
   const location = useLocation();
-  const inGame = /\/spiel\/[^/]+\/live/.test(location.pathname);
+  // Untere Leiste nur auf den Hauptseiten; in Spiel, Karte und Erstellen stört sie.
+  const showNav = ['/', '/beitreten', '/gruppen', '/profil'].includes(location.pathname) || /^\/gruppen\//.test(location.pathname);
+  const [introDone, setIntroDone] = useState(introSeen);
 
   if (!supabase) return <SetupMissingPage />;
   if (loading) return <div className="app center-screen muted">Lade …</div>;
@@ -32,11 +37,17 @@ export default function App() {
     return (
       <Routes>
         <Route path="/beitreten/:code" element={<LoginPage />} />
+        <Route path="/datenschutz" element={<PrivacyPage />} />
+        <Route path="/hilfe" element={<IntroPage />} />
         <Route path="*" element={<LoginPage />} />
       </Routes>
     );
   }
-  if (!profile || !profile.age_confirmed || !hasEmergencyContact) return <OnboardingPage />;
+  if (!profile || !profile.age_confirmed || !hasEmergencyContact) {
+    if (location.pathname === '/datenschutz') return <PrivacyPage />;
+    return <OnboardingPage />;
+  }
+  if (!introDone && !location.pathname.startsWith('/beitreten/')) return <IntroPage onDone={() => setIntroDone(true)} />;
 
   return (
     <>
@@ -55,14 +66,16 @@ export default function App() {
         <Route path="/gruppen/:id" element={<GroupPage />} />
         <Route path="/gruppe/:code" element={<GroupsPage />} />
         <Route path="/profil" element={<ProfilePage />} />
+        <Route path="/hilfe" element={<IntroPage />} />
+        <Route path="/datenschutz" element={<PrivacyPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       </Suspense>
-      {!inGame && <nav className="nav">
-        <NavLink to="/" end>Start</NavLink>
-        <NavLink to="/beitreten">Beitreten</NavLink>
-        <NavLink to="/gruppen">Gruppen</NavLink>
-        <NavLink to="/profil">Profil</NavLink>
+      {showNav && <nav className="nav">
+        <NavLink to="/" end><Icon name="home" />Start</NavLink>
+        <NavLink to="/beitreten"><Icon name="join" />Beitreten</NavLink>
+        <NavLink to="/gruppen"><Icon name="users" />Gruppen</NavLink>
+        <NavLink to="/profil"><Icon name="user" />Profil</NavLink>
       </nav>}
     </>
   );

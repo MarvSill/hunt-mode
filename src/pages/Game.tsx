@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import Icon from '../components/Icon';
 import IssueList from '../components/IssueList';
+import RulesSummary from '../components/RulesSummary';
 import { useAuth } from '../lib/auth';
 import {
   ROLE_LABELS,
@@ -38,13 +40,19 @@ export default function GamePage() {
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [starting, setStarting] = useState(false);
+  const [hasField, setHasField] = useState<boolean | null>(null);
 
   const load = useCallback(async () => {
     if (!id) return;
     try {
-      const [g, r] = await Promise.all([getGame(id), getRoster(id)]);
+      const [g, r, f] = await Promise.all([
+        getGame(id),
+        getRoster(id),
+        db().from('zones').select('id', { count: 'exact', head: true }).eq('game_id', id).eq('kind', 'spielfeld'),
+      ]);
       setGame(g);
       setRoster(r);
+      setHasField(f.error ? null : (f.count ?? 0) > 0);
     } catch (err) {
       setError(errorText(err));
     } finally {
@@ -161,104 +169,56 @@ export default function GamePage() {
   }
 
   const preset = game.preset_id ? getPreset(game.preset_id) : undefined;
+  const unassigned = roster.filter((r) => r.role === 'offen').length;
+  const notReady = roster.filter((r) => !r.ready).length;
+  const todos = [
+    { done: hasField === true, title: 'Karte zeichnen', text: hasField ? 'Spielfeld ist gesetzt.' : 'Spielfeld, Treffpunkt und HQ festlegen.', action: <Link to={`/spiel/${game.id}/karte`} className="button small">{hasField ? 'Ändern' : 'Zeichnen'}</Link> },
+    { done: checks.players > 0 && checks.hunters > 0, title: 'Freunde einladen', text: `${roster.length - 1} beigetreten · Code ${game.code}`, action: <button className="small" onClick={share}><Icon name="share" size={18} />Teilen</button> },
+    { done: roster.length > 1 && unassigned === 0, title: 'Rollen verteilen', text: `${checks.players} Spieler · ${checks.hunters} Hunter${unassigned ? ` · ${unassigned} offen` : ''}`, action: <button className="small" onClick={shuffleRoles}>Zufällig</button> },
+    { done: roster.length > 1 && notReady === 0, title: 'Alle bereit', text: notReady ? `${notReady} noch nicht bereit` : 'Alle haben die Regeln gelesen.', action: null },
+  ];
 
   return (
     <div className="app">
       <div className="topbar">
-        <Link to="/" className="button ghost small">←</Link>
+        <Link to="/" className="button ghost back" aria-label="Zurück"><Icon name="back" /></Link>
         <h1>{game.name}</h1>
         <span className="badge">{STATUS_LABELS[game.status] ?? game.status}</span>
       </div>
 
       {!inLobby && (
-        <Link to={`/spiel/${game.id}/live`} className="button primary block" style={{ marginBottom: 12 }}>
+        <Link to={`/spiel/${game.id}/live`} className="button primary block big" style={{ marginBottom: 12 }}>
           {game.status === 'beendet' ? 'Ergebnis und Wiederholung' : 'Zum laufenden Spiel'}
         </Link>
       )}
 
       {inLobby && (
-        <div className="card stack">
-          <div className="muted small" style={{ textAlign: 'center' }}>Beitritts-Code</div>
-          <div className="code-big">{game.code}</div>
-          <button onClick={share}>{copied ? 'Kopiert!' : 'Einladung teilen'}</button>
+        <div className="hero" style={{ textAlign: 'center' }}>
+          <div className="muted small">Mit diesem Code treten deine Freunde bei</div>
+          <div className="code-big" style={{ margin: '6px 0 12px' }}>{game.code}</div>
+          <button className="primary block" onClick={share}><Icon name="share" size={20} />{copied ? 'Link kopiert!' : 'Einladung teilen'}</button>
         </div>
       )}
 
-      <div className="card small">
-        <div>
-          {preset?.name ?? 'Eigene Regeln'} · {formatMinutes(config.game.duration_minutes)} · {config.game.days} {config.game.days === 1 ? 'Spieltag' : 'Spieltage'}
-        </div>
-        {game.start_at && (
-          <div>Start: {new Date(game.start_at).toLocaleString('de-CH', { dateStyle: 'medium', timeStyle: 'short' })}</div>
-        )}
-        <div className="row" style={{ marginTop: 8 }}>
-          <Link to={`/spiel/${game.id}/regeln`} className="button small">
-            {isHost && inLobby ? 'Regeln bearbeiten' : 'Regeln ansehen'}
-          </Link>
-          <Link to={`/spiel/${game.id}/karte`} className="button small">
-            {isHost && inLobby ? 'Karte zeichnen' : 'Karte ansehen'}
-          </Link>
-        </div>
-      </div>
-
-      {config.extras.rules.length > 0 && (
-        <div className="card small">
-          <strong>Zusatzregeln</strong>
-          <ol className="extra-rules">{config.extras.rules.map((r, i) => <li key={i}>{r}</li>)}</ol>
-        </div>
-      )}
-
-      <h2>
-        Teilnehmende ({roster.length}) · {checks.players}/{config.roles.players_max} Spieler · {checks.hunters}/{config.roles.hunters_max} Hunter
-      </h2>
-      <div className="card">
-        <ul className="list">
-          {roster.map((r) => (
-            <li key={r.participant_id}>
-              <div className="avatar">{r.display_name.charAt(0).toUpperCase()}</div>
-              <div className="spacer">
-                <div>
-                  {r.display_name} {r.user_id === game.host_id && <span className="badge">Host</span>}
-                </div>
-                <div className="muted small">
-                  @{r.username}
-                  {r.wished_role && ` · möchte ${ROLE_LABELS[r.wished_role]}`}
-                  {r.ready ? ' · bereit' : ' · nicht bereit'}
-                </div>
-              </div>
-              {isHost && inLobby ? (
-                <div className="stack" style={{ gap: 4, width: 150 }}>
-                  <select
-                    value={r.role}
-                    aria-label={`Rolle von ${r.display_name}`}
-                    onChange={(e) => run(() => setRole(r.participant_id, e.target.value as Role))}
-                  >
-                    {ASSIGNABLE.map((role) => (
-                      <option key={role} value={role}>
-                        {ROLE_LABELS[role]}
-                      </option>
-                    ))}
-                  </select>
-                  {r.user_id !== game.host_id && (
-                    <button className="small ghost" onClick={() => run(() => removeParticipant(r.participant_id))}>
-                      Entfernen
-                    </button>
-                  )}
-                </div>
-              ) : (
-                <span className={`badge${r.role === 'hunter' || r.role === 'zentrale' ? ' red' : r.role === 'spieler' ? ' green' : ''}`}>
-                  {ROLE_LABELS[r.role]}
-                </span>
-              )}
-            </li>
+      {inLobby && isHost && (
+        <div className="card">
+          <div className="row" style={{ marginBottom: 4 }}><strong className="spacer">Bereit zum Start?</strong><span className="muted small">{todos.filter((t) => t.done).length}/{todos.length}</span></div>
+          {todos.map((t) => (
+            <div key={t.title} className={`todo${t.done ? ' done' : ''}`}>
+              <span className="tick"><Icon name="check" size={16} /></span>
+              <div className="spacer"><div>{t.title}</div><div className="muted small">{t.text}</div></div>
+              {t.action}
+            </div>
           ))}
-        </ul>
-      </div>
+        </div>
+      )}
 
       {error && <div className="notice error" style={{ marginBottom: 12 }}>{error}</div>}
 
       {inLobby && me && !isHost && (
         <div className="card stack">
+          <div className="row"><strong className="spacer">Deine Rolle</strong><span className={`role-pill ${me.role}`}>{ROLE_LABELS[me.role]}</span></div>
+          {me.role === 'offen' && <p className="muted small" style={{ margin: 0 }}>Der Host verteilt die Rollen. Du kannst dir eine wünschen.</p>}
           <label className="field">
             Wunschrolle
             <select
@@ -275,35 +235,91 @@ export default function GamePage() {
           </label>
           <label className="check">
             <input type="checkbox" checked={me.ready} onChange={(e) => run(() => setReady(game.id, e.target.checked, null))} />
-            <span>Ich habe die Regeln gelesen und bin bereit.</span>
+            <span><strong>Ich bin bereit</strong><br /><span className="muted small">Ich habe die Regeln gelesen.</span></span>
           </label>
-          <button className="ghost" onClick={() => run(async () => { await removeParticipant(me.participant_id); navigate('/'); })}>
-            Spiel verlassen
-          </button>
         </div>
+      )}
+
+      <details className="acc" open={!isHost && inLobby}>
+        <summary>
+          <span className="ico" aria-hidden="true">📖</span>
+          <span className="spacer"><span className="t">So läuft das Spiel</span><span className="s" style={{ display: 'block' }}>{preset?.name ?? 'Eigene Regeln'} · {formatMinutes(config.game.duration_minutes)}</span></span>
+          <Icon name="chevron" className="chev" />
+        </summary>
+        <div className="body">
+          <RulesSummary config={config} />
+          <div className="row">
+            <Link to={`/spiel/${game.id}/regeln`} className="button small">{isHost && inLobby ? 'Regeln ändern' : 'Alle Regeln'}</Link>
+            <Link to={`/spiel/${game.id}/karte`} className="button small">Karte ansehen</Link>
+          </div>
+        </div>
+      </details>
+
+      <div className="section-title">Dabei ({roster.length})</div>
+      <div className="card" style={{ paddingTop: 4, paddingBottom: 4 }}>
+        {roster.map((r) => (
+          <div key={r.participant_id} className="person">
+            <div className="avatar">{r.display_name.charAt(0).toUpperCase()}</div>
+            <div className="spacer">
+              <div style={{ fontWeight: 600 }}>
+                {r.display_name} {r.user_id === game.host_id && <span className="badge">Host</span>}
+              </div>
+              <div className="muted tiny">
+                {r.ready ? '✓ bereit' : 'nicht bereit'}
+                {r.wished_role && r.wished_role !== r.role && ` · möchte ${ROLE_LABELS[r.wished_role]}`}
+              </div>
+            </div>
+            {isHost && inLobby ? (
+              <>
+                <select
+                  className={`role-pill ${r.role}`}
+                  value={r.role}
+                  aria-label={`Rolle von ${r.display_name}`}
+                  onChange={(e) => run(() => setRole(r.participant_id, e.target.value as Role))}
+                >
+                  {ASSIGNABLE.map((role) => (
+                    <option key={role} value={role}>
+                      {ROLE_LABELS[role]}
+                    </option>
+                  ))}
+                </select>
+                {r.user_id !== game.host_id && (
+                  <button className="ghost icon-btn" aria-label={`${r.display_name} entfernen`} onClick={() => run(() => removeParticipant(r.participant_id))}>
+                    <Icon name="trash" size={18} />
+                  </button>
+                )}
+              </>
+            ) : (
+              <span className={`role-pill ${r.role}`}>{ROLE_LABELS[r.role]}</span>
+            )}
+          </div>
+        ))}
+        {roster.length === 1 && inLobby && <p className="muted small">Noch niemand beigetreten. Teile den Code oben.</p>}
+      </div>
+      {inLobby && isHost && roster.some((r) => r.wished_role && r.wished_role !== r.role) && (
+        <button className="block" style={{ marginBottom: 12 }} onClick={applyWishes}>Wunschrollen übernehmen</button>
       )}
 
       {inLobby && me && <DeviceCheck gameId={game.id} minBattery={config.lobby.min_battery_percent} />}
 
       {inLobby && isHost && (
         <>
-          <div className="row" style={{ marginBottom: 12 }}>
-            <button onClick={shuffleRoles}>Rollen zufällig verteilen</button>
-            {roster.some((r) => r.wished_role) && <button onClick={applyWishes}>Wunschrollen übernehmen</button>}
+          <IssueList issues={checks.issues} compact />
+          <div className="sticky-cta">
+            <button className="primary block big" disabled={!checks.canStart || starting} onClick={() => startGame(false)}>
+              {starting ? 'Starte …' : 'Spiel starten'}
+            </button>
+            <button className="ghost block small" style={{ marginTop: 6 }} disabled={starting} onClick={() => startGame(true)}>
+              Probelauf mit Vorspulen (zum Ausprobieren)
+            </button>
           </div>
-          <h2>Startprüfung</h2>
-          <IssueList issues={checks.issues} />
-          <button className="primary block" style={{ marginTop: 12 }} disabled={!checks.canStart || starting}
-            onClick={() => startGame(false)}>
-            {starting ? 'Starte …' : 'Spiel starten'}
-          </button>
-          <button className="block" style={{ marginTop: 8 }} disabled={starting} onClick={() => startGame(true)}>
-            Probelauf starten (mit Vorspulen)
-          </button>
-          <p className="muted small">
-            Beim Start beginnt der Vorsprung der Spieler. Im Probelauf kann die Spielleitung die Zeit vorspulen, um alles auszuprobieren.
-          </p>
         </>
+      )}
+
+      {inLobby && me && !isHost && (
+        <button className="ghost block" style={{ marginTop: 8 }} onClick={() => run(async () => { await removeParticipant(me.participant_id); navigate('/'); })}>
+          Spiel verlassen
+        </button>
       )}
     </div>
   );

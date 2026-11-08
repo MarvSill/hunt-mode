@@ -93,3 +93,12 @@ Abweichungen von der Spezifikation und Annahmen, wo sie nichts festlegt.
 - Ausserhalb der Zone immer live (Option `out_of_bounds.live_visible` wird ignoriert und ist ausgeblendet).
 - Chat: Kanal "spieler" nur noch für die Spielleitung, Ankündigungen nur Spielleitung (oder ein nicht mitspielender Host). `communication.player_to_player` ist ausgeblendet.
 - Joker: `joker.available_after_minutes`; Vergabe einmal pro Spieltag über `state_json.joker_day` im Tick.
+
+## Runde 4: Übersicht und Play Store (Migration 0010)
+- Neues Design: Farbverlauf als Akzent, Icons in der unteren Leiste, Schalter statt Kästchen, aufklappbare Bereiche mit Kurzfassung.
+- Einführung (5 Seiten) beim ersten Start, später unter Start > ? oder Profil > So funktioniert Hunt Mode. Gemerkt in `localStorage` (`hm-intro-seen`).
+- Spiel erstellen ist eine Seite in drei Schritten: Name, Spielart (Vorlage), Anpassen (freiwillig, zugeklappt). "Eigenes Spiel" als eigener Einstieg entfällt; weicht die Konfiguration von der Vorlage ab, wird das Spiel als `eigenes` gespeichert.
+- Lobby: Code gross oben, für den Host eine Start-Checkliste (Karte, Einladen, Rollen, Bereit), Regeln in Klartext (`RulesSummary`).
+- Spielansicht: Tabs unten wie in einer App, SOS-Knopf oben rechts mit Bestätigung und Notrufnummern, nur eine Meldung gleichzeitig. Kein waagrechtes Scrollen mehr.
+- Untere Leiste nur auf den Hauptseiten (Start, Beitreten, Gruppen, Profil).
+- Play Store: Konto löschen (`delete_my_account`, eigene Spiele werden mitgelöscht, Gruppen gehen an das älteste Mitglied), öffentliche Seite `/datenschutz`, PNG-Icons (192, 512, maskable) im Manifest. Für den Store selbst fehlen noch: Google-Play-Entwicklerkonto (einmalig 25 USD) und das Verpacken als TWA (z. B. mit PWABuilder), inklusive `assetlinks.json` auf der Domain.

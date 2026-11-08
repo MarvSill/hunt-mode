@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import Icon from '../components/Icon';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
 import { STATUS_LABELS } from '../lib/games';
@@ -63,7 +64,7 @@ export default function GroupPage() {
   return (
     <div className="app">
       <div className="topbar">
-        <Link to="/gruppen" className="button ghost small">←</Link>
+        <Link to="/gruppen" className="button ghost back" aria-label="Zurück"><Icon name="back" /></Link>
         <h1>{g.name}</h1>
       </div>
       {err && <div className="notice error" style={{ marginBottom: 12 }}>{err}</div>}
