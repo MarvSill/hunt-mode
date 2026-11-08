@@ -52,10 +52,19 @@ export default function DeviceCheck({ gameId, minBattery }: { gameId: string; mi
   }
 
   const ok = (b: boolean) => (b ? '✓' : '✗');
+  const allOk = !!res && res.gps && (res.battery == null || res.battery >= minBattery) && res.notifications === 'granted'
+    && (res.clock_ms == null || Math.abs(res.clock_ms) < 30000);
   return (
     <div className="card stack">
-      <h2 style={{ margin: 0 }}>Gerätecheck</h2>
-      {res && (
+      <div className="row" style={{ flexWrap: 'nowrap' }}>
+        <span style={{ fontSize: 24 }} aria-hidden="true">{allOk ? '✅' : '📱'}</span>
+        <div className="spacer">
+          <strong>Handy-Check</strong>
+          <div className="muted small">{allOk ? 'Alles bereit: Standort, Akku und Benachrichtigungen.' : res ? 'Bitte die rot markierten Punkte beheben.' : 'Prüft Standort, Akku und Benachrichtigungen.'}</div>
+        </div>
+        <button className={res ? 'small' : 'small primary'} onClick={run} disabled={busy}>{busy ? 'Prüfe …' : res ? 'Nochmals prüfen' : 'Gerät prüfen'}</button>
+      </div>
+      {res && !allOk && (
         <ul className="list small">
           <li>{ok(res.gps)} Standort {res.gps ? `(±${res.accuracy} m)` : 'nicht erlaubt: bitte im Browser freigeben'}</li>
           <li>{ok(res.battery == null || res.battery >= minBattery)} Akku {res.battery != null ? `${res.battery} %` : 'unbekannt'}{res.battery != null && res.battery < minBattery && ` (mind. ${minBattery} % nötig)`}</li>
@@ -66,8 +75,7 @@ export default function DeviceCheck({ gameId, minBattery }: { gameId: string; mi
         </ul>
       )}
       {err && <div className="notice error">{err}</div>}
-      <button onClick={run} disabled={busy}>{busy ? 'Prüfe …' : res ? 'Nochmals prüfen' : 'Gerät prüfen'}</button>
-      <div className="muted small">Tipp: Während des Spiels die App offen lassen. Der Browser sendet den Standort nur, solange die App sichtbar ist.</div>
+      <div className="muted tiny">Während des Spiels die App offen lassen: der Standort wird nur gesendet, solange die App sichtbar ist.</div>
     </div>
   );
 }

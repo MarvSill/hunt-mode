@@ -1,4 +1,5 @@
 import '../lib/leafletGlobal';
+import Icon from '../components/Icon';
 import '@geoman-io/leaflet-geoman-free';
 import '@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css';
 import L from 'leaflet';
@@ -699,7 +700,7 @@ export default function MapEditorPage() {
   return (
     <div className="app wide map-editor">
       <div className="topbar">
-        <Link to={`/spiel/${id}`} className="button ghost small">←</Link>
+        <Link to={`/spiel/${id}`} className="button ghost back" aria-label="Zurück"><Icon name="back" /></Link>
         <h1>Karte</h1>
         {editable && <button className="primary small" onClick={save} disabled={busy || !dirty || !loaded}>{busy ? 'Speichere …' : dirty ? 'Speichern' : 'Gespeichert'}</button>}
       </div>

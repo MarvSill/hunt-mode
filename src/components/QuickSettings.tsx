@@ -3,7 +3,9 @@ import { CATCH_METHODS, JOKER_TYPES, type GameConfig } from '../shared/config';
 import { SETTING_HELP } from '../shared/help';
 import { optionLabel } from '../shared/schemaMeta';
 import { timeLimits } from '../shared/timeRules';
+import Icon from './Icon';
 import Info from './Info';
+import { formatMinutes } from '../shared/format';
 
 const JOKER_LABELS: Record<string, string> = {
   regeneration: 'Regeneration (keine Pings)',
@@ -64,8 +66,8 @@ export default function QuickSettings({ config, onChange }: Props) {
   }
 
   return (
-    <div className="stack">
-      <Box title="Spieler und Hunter" info={SETTING_HELP.roles}>
+    <div>
+      <Box title="Spieler und Hunter" icon="👥" summary={`${config.roles.players_max} Spieler · ${config.roles.hunters_max} Hunter · Spielleitung ${config.roles.gm_mode === 'auto' ? 'automatisch' : config.roles.gm_mode === 'mensch' ? 'Mensch' : 'beides'}`} info={SETTING_HELP.roles}>
         <Stepper label="Spieler" value={config.roles.players_max} min={1} max={100} onChange={(v) => set('roles', 'players_max', v)} />
         <Stepper label="Hunter" value={config.roles.hunters_max} min={1} max={50} onChange={(v) => set('roles', 'hunters_max', v)} />
         <Choice
@@ -83,7 +85,7 @@ export default function QuickSettings({ config, onChange }: Props) {
         <Toggle label="Ich spiele selbst mit" value={g.host_can_play} onChange={(v) => set('game', 'host_can_play', v)} />
       </Box>
 
-      <Box title="Zeiten" info={SETTING_HELP.times}>
+      <Box title="Zeiten" icon="⏱️" summary={`${formatMinutes(g.duration_minutes)}${multiDay ? ` · ${g.days} Spieltage` : ''} · ${formatMinutes(config.start.head_start_minutes)} Vorsprung`} info={SETTING_HELP.times}>
         <Duration label="Spieldauer insgesamt" value={g.duration_minutes} min={15} max={20160} onChange={setDuration} />
         <Stepper label="Spieltage" value={g.days} min={1} max={lim('game.days', 14)} onChange={setDays} />
         {multiDay && (
@@ -97,7 +99,7 @@ export default function QuickSettings({ config, onChange }: Props) {
         <QuietHours config={config} onChange={onChange} />
       </Box>
 
-      <Box title="Pings (Standort der Spieler)" info={SETTING_HELP.pings}>
+      <Box title="Pings" icon="📍" summary={`alle ${formatMinutes(config.ping.interval_minutes)}`} info={SETTING_HELP.pings}>
         <Duration label="Ping alle" value={config.ping.interval_minutes} min={1} max={lim('ping.interval_minutes', 720)}
           onChange={(v) => set('ping', 'interval_minutes', v)} />
         <Duration label="Im Kern-Gebiet alle" value={config.ping.zone_overrides.kern ?? config.ping.interval_minutes} min={1} max={Math.min(720, g.duration_minutes)}
@@ -111,7 +113,7 @@ export default function QuickSettings({ config, onChange }: Props) {
           onChange={(v) => set('ping', 'reveal_schedule_to_taskforce', v)} />
       </Box>
 
-      <Box title="Speedhunt (Live-Jagd)" info={SETTING_HELP.speedhunt}>
+      <Box title="Speedhunt" icon="⚡" summary={config.speedhunt.enabled ? `${config.speedhunt.quota_per_day[0] ?? 0} pro Tag · ${config.speedhunt.queries} Abfragen` : 'aus'} info={SETTING_HELP.speedhunt}>
         <Toggle label="Speedhunts erlaubt" value={config.speedhunt.enabled} onChange={(v) => set('speedhunt', 'enabled', v)} />
         {config.speedhunt.enabled && (
           <>
@@ -135,7 +137,7 @@ export default function QuickSettings({ config, onChange }: Props) {
         )}
       </Box>
 
-      <Box title="Fangen und Gewinnen" info={SETTING_HELP.catch}>
+      <Box title="Fangen und Gewinnen" icon="🏁" summary={`${config.catch.method.includes('qr') ? 'QR-Code' : 'Berühren'}${config.exit.enabled ? ' · mit Exitpoint' : ''}`} info={SETTING_HELP.catch}>
         <div className="field">
           <span>Wie wird gefangen?</span>
           <div className="chips">
@@ -156,7 +158,7 @@ export default function QuickSettings({ config, onChange }: Props) {
         <Toggle label="Exitpoint am Schluss (Spieler müssen hin)" value={config.exit.enabled} onChange={(v) => set('exit', 'enabled', v)} />
       </Box>
 
-      <Box title="Joker für die Spieler" info={SETTING_HELP.joker}>
+      <Box title="Joker" icon="🃏" summary={j.enabled ? `${j.types.length} Arten · ${j.per_day} pro Tag` : 'aus'} info={SETTING_HELP.joker}>
         <Toggle label="Joker im Spiel" value={j.enabled} onChange={(v) => set('joker', 'enabled', v)} />
         {j.enabled && (
           <>
@@ -197,7 +199,7 @@ export default function QuickSettings({ config, onChange }: Props) {
         )}
       </Box>
 
-      <Box title="Extras" info={SETTING_HELP.extras}>
+      <Box title="Extras" icon="✨" summary={[config.budget.enabled && 'Budget', config.bonus.enabled && 'Boni', config.challenge.enabled && 'Challenges', config.hideout.enabled && 'Verschanzen', config.spectator.enabled && 'Zuschauer'].filter(Boolean).join(' · ') || 'keine'} info={SETTING_HELP.extras}>
         <Toggle label="Budget für Spieler (Käufe verraten den Standort)" value={config.budget.enabled} onChange={(v) => set('budget', 'enabled', v)} />
         <Toggle label="Boni (z. B. Fake-Ping)" value={config.bonus.enabled} onChange={(v) => set('bonus', 'enabled', v)} />
         <Toggle label="Challenges" value={config.challenge.enabled} onChange={(v) => set('challenge', 'enabled', v)} />
@@ -209,12 +211,21 @@ export default function QuickSettings({ config, onChange }: Props) {
   );
 }
 
-function Box({ title, info, children }: { title: string; info?: { title: string; text: string }; children: ReactNode }) {
+function Box({ title, icon, summary, info, children }: {
+  title: string; icon: string; summary: string; info?: { title: string; text: string }; children: ReactNode;
+}) {
   return (
-    <div className="card stack" data-guide={`q-${title}`}>
-      <h2 style={{ margin: 0 }}>{title} {info && <Info title={info.title} text={info.text} />}</h2>
-      {children}
-    </div>
+    <details className="acc" data-guide={`q-${title}`}>
+      <summary>
+        <span className="ico" aria-hidden="true">{icon}</span>
+        <span className="spacer">
+          <span className="t">{title} {info && <Info title={info.title} text={info.text} />}</span>
+          <span className="s" style={{ display: 'block' }}>{summary}</span>
+        </span>
+        <Icon name="chevron" className="chev" />
+      </summary>
+      <div className="body">{children}</div>
+    </details>
   );
 }
 

@@ -11,7 +11,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['icon.svg'],
+      includeAssets: ['icon.svg', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png', 'apple-touch-icon.png'],
       workbox: {
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
         navigateFallbackDenylist: [/^\/auth/, /^\/rest/],
@@ -27,7 +27,7 @@ export default defineConfig({
       manifest: {
         name: 'Hunt Mode',
         short_name: 'Hunt Mode',
-        description: 'Urbanes Verfolgungsspiel: Spieler gegen Taskforce.',
+        description: 'Manhunt mit Freunden: Spieler verstecken sich in der Stadt, die Taskforce jagt sie.',
         lang: 'de',
         theme_color: '#0d1117',
         background_color: '#0d1117',
@@ -35,9 +35,13 @@ export default defineConfig({
         orientation: 'portrait',
         start_url: base,
         scope: base,
+        id: base,
+        categories: ['games', 'sports'],
         icons: [
+          { src: 'icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+          { src: 'icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
           { src: 'icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
-          { src: 'icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'maskable' },
         ],
       },
     }),

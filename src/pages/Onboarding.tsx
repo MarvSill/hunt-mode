@@ -63,10 +63,11 @@ export default function OnboardingPage() {
 
   return (
     <div className="app">
-      <div className="topbar">
+      <div className="hero">
+        <div className="brand" style={{ fontSize: 13 }}>Willkommen bei Hunt Mode</div>
         <h1>Dein Profil</h1>
+        <p>Nur einmal ausfüllen, dann kann es losgehen.</p>
       </div>
-      <p className="muted">Einmalig, bevor du mitspielen kannst.</p>
       <form className="stack" onSubmit={submit}>
         <label className="field">
           Benutzername (zum Finden und Einladen)
@@ -84,17 +85,17 @@ export default function OnboardingPage() {
           <input required maxLength={40} value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
         </label>
 
-        <h2>Alter</h2>
-        <label className="check">
+        <div className="section-title" style={{ marginBottom: 0 }}>Alter</div>
+        <label className="check box">
           <input type="checkbox" checked={ageOk} onChange={(e) => setAgeOk(e.target.checked)} />
           <span>Ich bin mindestens {minAge} Jahre alt.</span>
         </label>
-        <label className="check">
+        <label className="check box">
           <input type="checkbox" checked={adult} onChange={(e) => setAdult(e.target.checked)} />
           <span>Ich bin 18 oder älter. (Unter 18: bitte mit Einverständnis der Eltern spielen.)</span>
         </label>
 
-        <h2>Notfallkontakt</h2>
+        <div className="section-title" style={{ marginBottom: 0 }}>Notfallkontakt</div>
         <p className="muted small">Nur die Spielleitung deines laufenden Spiels sieht ihn, und bei einem Notfall auch die Hunter.</p>
         <label className="field">
           Name
@@ -113,11 +114,11 @@ export default function OnboardingPage() {
           />
         </label>
 
-        <h2>Regeln</h2>
-        <label className="check">
+        <div className="section-title" style={{ marginBottom: 0 }}>Regeln</div>
+        <label className="check box">
           <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
           <span>
-            Ich akzeptiere die Nutzungsbedingungen und den Datenschutz. Mein Standort wird nur während laufender Spiele
+            Ich akzeptiere die Nutzungsbedingungen und den <a href={`${import.meta.env.BASE_URL}datenschutz`} target="_blank" rel="noreferrer">Datenschutz</a>. Mein Standort wird nur während laufender Spiele
             erfasst und nach Spielende automatisch gelöscht. Teilnahme auf eigenes Risiko; Gesetze und Verkehrsregeln
             gelten immer.
           </span>

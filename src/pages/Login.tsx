@@ -1,4 +1,6 @@
 import { useState, type FormEvent } from 'react';
+import { Link } from 'react-router-dom';
+import Icon from '../components/Icon';
 import { appUrl, db, errorText } from '../lib/supabase';
 
 type Mode = 'login' | 'register' | 'forgot';
@@ -49,9 +51,13 @@ export default function LoginPage() {
 
   return (
     <div className="app center-screen">
-      <div>
-        <div className="brand">Hunt Mode</div>
-        <p className="muted">Flucht durch die Stadt. Die Taskforce ist dir auf den Fersen.</p>
+      <div className="hero">
+        <div className="row"><div className="logo"><Icon name="target" size={26} /></div><span className="brand">Hunt Mode</span></div>
+        <h1>Flucht durch die Stadt.</h1>
+        <p>Spieler verstecken sich, die Taskforce jagt sie. Wie Manhunt, mit deinen Freunden.</p>
+        <div className="summary-line" style={{ marginTop: 14 }}>
+          <span>🏃 Verstecken</span><span>📍 Pings</span><span>⚡ Speedhunts</span><span>🏁 Exit</span>
+        </div>
       </div>
 
       {mode !== 'forgot' && (
@@ -100,6 +106,9 @@ export default function LoginPage() {
           </button>
         )}
       </form>
+      <p className="muted small" style={{ textAlign: 'center' }}>
+        <Link to="/hilfe">So funktioniert’s</Link> · <Link to="/datenschutz">Datenschutz</Link>
+      </p>
     </div>
   );
 }
