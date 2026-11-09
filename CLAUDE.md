@@ -34,4 +34,6 @@ Live: https://marvsill.github.io/hunt-mode/ · Repo: github.com/MarvSill/hunt-mo
 - Nur ein Spielfeld (kann kleiner werden) plus Gefahrenzonen; keine weiteren Gebiete. Kein Budget.
 - Joker nur für Spieler (Regeneration, Hunter-Standorte): nach einer eingestellten Spielzeit freigeschaltet, wirken erst beim Einsetzen.
 - Bei jedem Ping und jeder Blitzjagd klingelt das Handy aller Spieler (Ton, Lautstärke, Vibration stellt jeder selbst ein).
-- Standort wird nur gesendet, solange die App offen ist (Browser-Grenze).
+- Keine Strafen. SOS unterbricht das ganze Spiel und alarmiert alle. Fluchtpunkt: min. 4 Kandidaten, Wahl erst bei Bekanntgabe, nur Spieler sehen ihn.
+- Fortbewegung nur erlaubt/verboten (ÖV/Taxi/Auto, Velo/Trottinett), kein Live-Standort.
+- Standort wird nur gesendet, solange die App offen ist (Browser-Grenze). Marvin will Hintergrund-Ortung (native App) – noch offen, immer wieder daran erinnern.

@@ -37,7 +37,6 @@ export const JOKER_TYPES = ['regeneration', 'hunter_erfragen'] as const;
 
 export const CATCH_METHODS = ['qr', 'touch_confirm', 'nfc', 'bluetooth', 'handcuffs'] as const;
 
-export const PENALTY_STEPS = ['verwarnung', 'live_standort', 'disqualifikation'] as const;
 
 /** Ein Joker: welche Art, wie lange er wirkt und nach wie viel Spielzeit er freigeschaltet wird. */
 const jokerTypeSchema = z.object({
@@ -95,7 +94,6 @@ export const gameConfigSchema = z.object({
       auto_shrink_percent: int(20, 1, 80, 'Verkleinerung pro Phase (%)'),
       shrink_every_minutes: int(0, 0, 1440, 'Verkleinerung alle (min)'),
       shrink_announce_minutes: int(180, 0, 1440, 'Vorankündigung Verkleinerung (min)'),
-      shrink_grace_minutes: int(0, 0, 120, 'Übergangsfrist (min)'),
       restricted_crossing_max_seconds: int(60, 0, 600, 'Gefahrenzone mit "Überqueren erlaubt": so lange (s)'),
     })
     .default({})
@@ -136,7 +134,7 @@ export const gameConfigSchema = z.object({
       no_consecutive_same_target: bool(true, 'Nicht zweimal hintereinander gleiches Ziel'),
       consecutive_allowed_when_players_left_le: int(2, 1, 10, 'Ausnahme ab so wenigen freien Spielern'),
       max_parallel: int(2, 1, 10, 'Gleichzeitig laufend'),
-      vehicle_live_seconds: int(60, 0, 600, 'Live bei Fahrzeug (s)'),
+      vehicle_live_seconds: int(0, 0, 600, 'Live bei Fahrzeug (s)'),
       catch_removes_one: bool(false, 'Fang streicht eine Blitzjagd'),
       reveal_target_to_target: bool(false, 'Ziel erfährt, dass es gejagt wird'),
       notify_each_query_to_players: bool(true, 'Spieler hören jede Abfrage'),
@@ -181,21 +179,14 @@ export const gameConfigSchema = z.object({
     .describe('Verschanzen'),
   transport: z
     .object({
-      allowed_modes: z
-        .array(z.enum(TRANSPORT_MODES))
-        .default(TRANSPORT_MODES.filter((m) => m !== 'eigenes_fahrzeug'))
-        .describe('Erlaubte Fortbewegung'),
-      checkin_required: bool(true, 'Anmeldepflicht'),
-      live_during: bool(true, 'Live während Fahrt'),
-      live_after_base_minutes: int(10, 0, 120, 'Nachlauf (min)'),
-      live_after_increment_minutes: int(5, 0, 60, 'Zuwachs je Fahrt (min)'),
-      ferry_max_stops_per_day: int(10, 0, 100, 'Fähren-Limit (Stationen)'),
-      violation_repeat_minutes: int(10, 1, 60, 'Wiederholungsverstoss (min)'),
-      speed_threshold_kmh: int(8, 5, 25, 'Erkennung ab (km/h)'),
-      detect_seconds: int(90, 30, 600, 'Erkennungsdauer (s)'),
+      motorized_allowed: bool(true, 'ÖV, Taxi und Auto erlaubt'),
+      bikes_allowed: bool(true, 'Velo und Trottinett erlaubt'),
+      // Intern: kein Anmelden und kein Live-Standort bei Fahrten (setzt die App selbst).
+      checkin_required: bool(false, 'Anmeldepflicht'),
+      live_during: bool(false, 'Live während Fahrt'),
     })
     .default({})
-    .describe('Fortbewegung und ÖV'),
+    .describe('Fortbewegung'),
   joker: z
     .object({
       enabled: bool(false, 'Joker aktiv'),
@@ -220,7 +211,7 @@ export const gameConfigSchema = z.object({
       distance_m: int(150, 10, 2000, 'Abstand (m)'),
       active_after_minutes: int(10, 0, 600, 'Aktiv ab Start (min)'),
       hysteresis_m: int(50, 0, 500, 'Hysterese (m)'),
-      repeat_minutes: int(0, 0, 120, 'Wiederholung (min)'),
+      warn_minutes: int(2, 0, 30, 'Zeit zum Auseinandergehen (min)'),
     })
     .default({})
     .describe('Nähe-Alarm'),
@@ -236,11 +227,9 @@ export const gameConfigSchema = z.object({
       enabled: bool(true, 'Fluchtpunkt aktiv'),
       radius_m: int(30, 5, 500, 'Radius (m)'),
       reveal_minutes_before_end: int(20, 0, 1440, 'Bekanntgabe vor Ende (min)'),
-      reveal_to_taskforce: choice(['gleichzeitig', 'verzoegert', 'nie'], 'gleichzeitig', 'Hunter erfahren den Fluchtpunkt'),
       arrival_deadline_offset_minutes: int(15, 0, 120, 'Ankunftsfrist nach Ende (min)'),
       confirm: choice(['geofence', 'qr'], 'geofence', 'Bestätigung'),
       missed_policy: choice(['verloren', 'gewonnen_ohne_exit'], 'verloren', 'Nicht angekommen'),
-      random_from_candidates: bool(true, 'Fluchtpunkt zufällig aus Kandidaten'),
     })
     .default({})
     .describe('Fluchtpunkt'),
@@ -251,21 +240,6 @@ export const gameConfigSchema = z.object({
     })
     .default({})
     .describe('Sieg'),
-  penalty: z
-    .object({
-      auto_apply_delay_seconds: int(60, 0, 600, 'Strafe nach (s)'),
-      // Frühere Stufe "Straf-Blitzjagd" gilt als "15 min live".
-      escalation: z
-        .preprocess(
-          (v) => (Array.isArray(v) ? v.map((x) => (x === 'straf_speedhunt' ? 'live_standort' : x)) : v),
-          z.array(z.enum(PENALTY_STEPS)),
-        )
-        .default(['verwarnung', 'live_standort', 'disqualifikation'])
-        .describe('Eskalation'),
-      after_game_end: bool(false, 'Nachträgliche Strafen'),
-    })
-    .default({})
-    .describe('Strafen'),
   safety: z
     .object({
       min_age: int(16, 0, 99, 'Mindestalter'),
@@ -321,6 +295,13 @@ export function normalizeConfig(c: GameConfig): GameConfig {
   c.game.days = 1;
   c.game.day_length_minutes = Math.min(1440, c.game.duration_minutes);
   c.speedhunt.quota_per_day = [c.speedhunt.quota_per_day[0] ?? 0];
+  // Keine Strafen und kein Live-Standort bei Fahrten: die Folge ist immer "gefangen".
+  c.speedhunt.vehicle_live_seconds = 0;
+  c.out_of_bounds.on_timeout = 'catch';
+  c.hideout.on_timeout = 'catch';
+  c.hideout.lockout_after_first_entry_minutes = 0;
+  c.transport.checkin_required = false;
+  c.transport.live_during = false;
   return c;
 }
 

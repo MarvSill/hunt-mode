@@ -113,6 +113,7 @@ export function ring(kind: AlarmKind, s: AlarmSettings = loadAlarm()) {
 /** Welche Meldungen einen Alarm auslösen. */
 export function alarmKindOf(kinds: string[]): AlarmKind | null {
   if (kinds.some((k) => k === 'speedhunt_start' || k === 'speedhunt_query' || k === 'outside_warning' || k === 'outside' || k === 'danger_warning' || k === 'danger_live')) return 'blitzjagd';
+  if (kinds.some((k) => k === 'proximity_self' || k === 'hunter_early')) return 'blitzjagd';
   if (kinds.some((k) => k === 'ping' || k === 'ping_self')) return 'ping';
   return null;
 }

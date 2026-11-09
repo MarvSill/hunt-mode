@@ -153,9 +153,21 @@ export default function QuickSettings({ config, onChange }: Props) {
         )}
       </Box>
 
+      <Box title="Fortbewegung" icon="🚌" summary={[config.transport.motorized_allowed && 'ÖV/Taxi/Auto', config.transport.bikes_allowed && 'Velo/Trottinett'].filter(Boolean).join(' · ') || 'nur zu Fuss'}>
+        <Toggle label="ÖV, Taxi und Auto erlaubt" value={config.transport.motorized_allowed} onChange={(v) => set('transport', 'motorized_allowed', v)} />
+        <Toggle label="Velo und Trottinett erlaubt" value={config.transport.bikes_allowed} onChange={(v) => set('transport', 'bikes_allowed', v)} />
+        <div className="muted small">Zu Fuss geht immer. Fahrten muss man nicht anmelden, und niemand wird dabei live gezeigt.</div>
+      </Box>
+
       <Box title="Extras" icon="✨" summary={[config.hideout.enabled && 'Verschanzen', config.proximity.enabled && 'Nähe-Alarm', config.spectator.enabled && 'Zuschauer'].filter(Boolean).join(' · ') || 'keine'} info={SETTING_HELP.extras}>
         <Toggle label="Verschanzen-Regel (nicht zu lange am selben Ort)" value={config.hideout.enabled} onChange={(v) => set('hideout', 'enabled', v)} />
         <Toggle label="Alarm, wenn Spieler zusammen laufen" value={config.proximity.enabled} onChange={(v) => set('proximity', 'enabled', v)} />
+        {config.proximity.enabled && (
+          <>
+            <Stepper label="Abstand für den Nähe-Alarm (m)" value={config.proximity.distance_m} min={10} max={2000} step={10} onChange={(v) => set('proximity', 'distance_m', v)} />
+            <Duration label="Zeit zum Auseinandergehen" value={config.proximity.warn_minutes} min={0} max={30} onChange={(v) => set('proximity', 'warn_minutes', v)} />
+          </>
+        )}
         <Toggle label="Zuschauer erlaubt" value={config.spectator.enabled} onChange={(v) => set('spectator', 'enabled', v)} />
       </Box>
     </div>

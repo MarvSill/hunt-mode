@@ -12,7 +12,8 @@ describe('Konfiguration', () => {
     expect(c.game.day_length_minutes).toBe(180);
     expect(c.ping.interval_minutes).toBe(15);
     expect(c.speedhunt.quota_per_day).toEqual([2]);
-    expect(c.transport.allowed_modes).not.toContain('eigenes_fahrzeug');
+    expect(c.transport.motorized_allowed).toBe(true);
+    expect(c.transport.checkin_required).toBe(false);
   });
 
   it('alte Spiele mit mehreren Spieltagen laufen jetzt am Stück', () => {
@@ -131,13 +132,14 @@ describe('Validierung', () => {
     expect('trigger_mode' in c.speedhunt).toBe(false);
   });
 
-  it('alte Spiele: Schutzschild-Joker und Straf-Blitzjagd werden umgewandelt', () => {
+  it('alte Spiele: Schutzschild-Joker weg, keine Strafen, zu lange draussen = gefangen', () => {
     const c = parseConfig({
       joker: { enabled: true, types: [{ type: 'catch_free', minutes: 10 }, { type: 'regeneration', minutes: 5 }] },
-      penalty: { escalation: ['verwarnung', 'straf_speedhunt', 'disqualifikation'] },
+      out_of_bounds: { on_timeout: 'disqualify' },
     });
     expect(c.joker.types.map((j) => j.type)).toEqual(['regeneration']);
-    expect(c.penalty.escalation).toEqual(['verwarnung', 'live_standort', 'disqualifikation']);
+    expect(c.out_of_bounds.on_timeout).toBe('catch');
+    expect('penalty' in c).toBe(false);
   });
 
   it('Handschellen mit Minderjährigen sind verboten', () => {

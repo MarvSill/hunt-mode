@@ -32,7 +32,6 @@ export const PRESETS: Preset[] = [
         queries: 4,
         no_consecutive_same_target: true,
         max_parallel: 2,
-        vehicle_live_seconds: 60,
         catch_removes_one: true,
       },
       out_of_bounds: { max_minutes: 30, on_timeout: 'catch' },
@@ -42,7 +41,6 @@ export const PRESETS: Preset[] = [
         lockout_after_first_entry_minutes: 120,
         stationary_minutes: 10,
       },
-      transport: { live_after_base_minutes: 5, live_after_increment_minutes: 2 },
       joker: {
         enabled: true,
         types: [
@@ -75,7 +73,6 @@ export const PRESETS: Preset[] = [
         queries: 3,
         no_consecutive_same_target: true,
         max_parallel: 2,
-        vehicle_live_seconds: 60,
         catch_removes_one: false,
       },
       out_of_bounds: { max_minutes: 5, on_timeout: 'catch' },
@@ -85,7 +82,6 @@ export const PRESETS: Preset[] = [
         lockout_after_first_entry_minutes: 30,
         stationary_minutes: 5,
       },
-      transport: { live_after_base_minutes: 2, live_after_increment_minutes: 1 },
       joker: {
         enabled: true,
         types: [
@@ -117,7 +113,6 @@ export const PRESETS: Preset[] = [
         queries: 3,
         no_consecutive_same_target: false,
         max_parallel: 1,
-        vehicle_live_seconds: 0,
         catch_removes_one: false,
       },
       out_of_bounds: { max_minutes: 3, on_timeout: 'catch' },
@@ -127,7 +122,7 @@ export const PRESETS: Preset[] = [
         lockout_after_first_entry_minutes: 0,
         stationary_minutes: 5,
       },
-      transport: { allowed_modes: ['zu_fuss'], checkin_required: false, live_during: false },
+      transport: { motorized_allowed: false, bikes_allowed: false },
       joker: {
         enabled: true,
         types: [

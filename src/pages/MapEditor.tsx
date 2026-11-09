@@ -638,8 +638,8 @@ export default function MapEditorPage() {
 
   function autoPoints() {
     const meet = autoMeet();
-    if (config?.exit.enabled) autoExits(3, meet);
-    setMsg({ ok: true, text: 'Startpunkt' + (config?.exit.enabled ? ' und 3 Fluchtpunkt-Kandidaten' : '') + ' gesetzt. Zum Verschieben antippen und ziehen.' });
+    if (config?.exit.enabled) autoExits(4, meet);
+    setMsg({ ok: true, text: 'Startpunkt' + (config?.exit.enabled ? ' und 4 Fluchtpunkt-Kandidaten' : '') + ' gesetzt. Zum Verschieben antippen und ziehen.' });
     setStepIdx(config?.exit.enabled ? 3 : 2);
   }
 
@@ -672,7 +672,7 @@ export default function MapEditorPage() {
   const steps: { id: string; icon: string; title: string; text: string; done: boolean; optional?: boolean }[] = [
     { id: 'feld', icon: '🟩', title: 'Spielfeld', text: 'Der Bereich, in dem gespielt wird. Alle anderen Zonen liegen darin.', done: !!field1 },
     { id: 'treff', icon: '📍', title: 'Startpunkt', text: 'Hier starten alle, Spieler und Hunter. Die Spieler laufen zuerst los, die Hunter warten hier, bis der Vorsprung vorbei ist. Muss im Spielfeld liegen.', done: has('treffpunkt') },
-    ...(config.exit.enabled ? [{ id: 'exit', icon: '🏁', title: 'Fluchtpunkt', text: 'Mehrere Kandidaten möglich. Einer wird zufällig gewählt und erst gegen Schluss verraten.', done: has('exit') }] : []),
+    ...(config.exit.enabled ? [{ id: 'exit', icon: '🏁', title: 'Fluchtpunkt', text: 'Setze mindestens 4 mögliche Fluchtpunkte. Erst kurz vor Schluss wählt die App zufällig einen davon und verrät ihn nur den Spielern. So weisst auch du nicht, welcher es wird.', done: features.filter((f) => f.properties.kind === 'exit').length >= 4 }] : []),
     { id: 'klein', icon: '⏳', title: 'Kleiner werden', text: 'Soll das Spielfeld im Lauf des Spiels kleiner werden? Neue Grenzen werden vorher angekündigt und gestrichelt gezeigt.', done: shrink !== 'aus', optional: true },
     { id: 'gefahr', icon: '⚠️', title: 'Gefahren', text: 'Orte, die nie betreten werden dürfen: Autobahn, Gleise, Gewässer, Schulen, Baustellen. Sie werden rot schraffiert mit Warnsymbol gezeigt, und Spieler werden beim Annähern gewarnt.', done: has('sperrzone'), optional: true },
     { id: 'fertig', icon: '✅', title: 'Prüfen', text: 'Hier siehst du, ob die Karte bereit ist.', done: !issues.some((i) => i.level === 'error') },
@@ -784,9 +784,9 @@ export default function MapEditorPage() {
 
           {cur.id === 'exit' && (
             <>
-              <button className="primary" onClick={() => autoExits(3)} disabled={!field1}>✨ 3 Fluchtpunkt-Kandidaten automatisch setzen</button>
+              <button className="primary" onClick={() => autoExits(4)} disabled={!field1}>✨ 4 Fluchtpunkt-Kandidaten automatisch setzen</button>
               <button onClick={draw({ kind: 'exit', tool: 'Marker' })} disabled={!field1}>🏁 Fluchtpunkt-Kandidat selbst antippen</button>
-              <div className="muted small">{features.filter((f) => f.properties.kind === 'exit').length} Kandidaten gesetzt.</div>
+              <div className="muted small">{features.filter((f) => f.properties.kind === 'exit').length} von mindestens 4 Kandidaten gesetzt.</div>
             </>
           )}
 
@@ -805,7 +805,6 @@ export default function MapEditorPage() {
                   <NumberRow label="Kleiner um (% Fläche je Schritt)" value={config.zone.auto_shrink_percent} min={1} max={80} step={5} onChange={(v) => setZone('auto_shrink_percent', v)} />
                 )}
                 <NumberRow label="Vorher ankündigen (Minuten)" value={config.zone.shrink_announce_minutes} min={0} max={limits['zone.shrink_announce_minutes']?.max ?? 1440} step={5} onChange={(v) => setZone('shrink_announce_minutes', v)} />
-                <NumberRow label="Zeit zum Rauslaufen (Minuten)" value={config.zone.shrink_grace_minutes} min={0} max={limits['zone.shrink_grace_minutes']?.max ?? 120} step={1} onChange={(v) => setZone('shrink_grace_minutes', v)} />
                 {shrink === 'auto' && <div className="muted small">Es wird Richtung Fluchtpunkt kleiner (ohne Fluchtpunkt Richtung Mitte).</div>}
                 {shrink === 'manuell' && phases > 1 && (
                   <div className="stack">

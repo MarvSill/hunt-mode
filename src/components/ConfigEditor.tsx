@@ -10,6 +10,9 @@ const HIDDEN = new Set([
   'game.days', 'game.day_length_minutes',
   // Joker-Liste hat eine eigene Eingabe in den Schnell-Einstellungen.
   'joker.types',
+  // Ohne Strafen und ohne Live bei Fahrten: diese Werte setzt die App selbst.
+  'speedhunt.vehicle_live_seconds', 'out_of_bounds.on_timeout', 'hideout.on_timeout', 'hideout.lockout_after_first_entry_minutes',
+  'transport.checkin_required', 'transport.live_during',
 ]);
 
 interface Props {

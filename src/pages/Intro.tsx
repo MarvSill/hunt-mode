@@ -47,7 +47,7 @@ const SLIDES: { art: string; title: string; lead: string; points: [string, strin
     title: 'Sicherheit geht vor',
     lead: 'Es ist ein Spiel. Verkehrsregeln und Gesetze gelten immer.',
     points: [
-      ['🚨', 'Notfall', 'Der rote SOS-Knopf alarmiert sofort alle Hunter.'],
+      ['🚨', 'Notfall', 'Der rote SOS-Knopf unterbricht das Spiel und alarmiert sofort alle.'],
       ['📞', 'Notrufe', '117 Polizei, 144 Sanität, 112 Notruf. Direkt aus der App anrufbar.'],
       ['🔒', 'Standort', 'Wird nur während eines Spiels geteilt und danach gelöscht.'],
     ],

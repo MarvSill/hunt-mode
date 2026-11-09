@@ -131,7 +131,7 @@ export function checkMap(i: MapCheckInput): MapIssue[] {
   const meet = pts('treffpunkt');
   const exits = pts('exit');
   if (meet.length === 0) out.push({ level: 'error', text: 'Setze den Startpunkt, an dem alle starten.' });
-  if (i.exitEnabled && exits.length === 0) out.push({ level: 'error', text: 'Setze mindestens einen Fluchtpunkt-Kandidaten oder schalte den Fluchtpunkt in den Regeln aus.' });
+  if (i.exitEnabled && exits.length < 4) out.push({ level: 'error', text: `Setze mindestens 4 Fluchtpunkt-Kandidaten (jetzt ${exits.length}) oder schalte den Fluchtpunkt in den Regeln aus.` });
   if (field1) {
     if (meet.some((p) => !pointInside(p, field1))) out.push({ level: 'error', text: 'Der Startpunkt liegt ausserhalb des Spielfelds.' });
     const lastField = i.autoShrink ? field1 : last ?? field1;
