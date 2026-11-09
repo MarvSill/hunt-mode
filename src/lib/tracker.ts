@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from './engine';
 import { t } from '../i18n';
+import { isNative, watchNative } from './native';
 
 // Standort-Erfassung (23.4): watchPosition, Puffer bei Funkloch, Senden im
 // Server-Takt (schneller bei Live-Fenster oder Standort-Anfrage), Wake Lock.
@@ -48,7 +49,7 @@ export function useTracker(gameId: string | undefined, enabled: boolean, kick = 
       setInfo((i) => ({ ...i, status: 'aus' }));
       return;
     }
-    if (!('geolocation' in navigator)) {
+    if (!isNative && !('geolocation' in navigator)) {
       setInfo((i) => ({ ...i, status: 'fehler', error: t('Dieses Gerät hat kein GPS im Browser.') }));
       return;
     }
@@ -105,29 +106,42 @@ export function useTracker(gameId: string | undefined, enabled: boolean, kick = 
 
     flushRef.current = flush;
     setInfo((i) => ({ ...i, status: 'warte' }));
-    const id = navigator.geolocation.watchPosition(
-      (p) => {
-        const s: Sample = {
+    const onSample = (s: Sample) => {
+      latest.current = s;
+      // Pro 5 s höchstens ein Punkt im Puffer.
+      const lastQ = queue.current[queue.current.length - 1];
+      if (!lastQ || s.t - lastQ.t >= 5000) queue.current.push(s);
+      setInfo((i) => ({ ...i, status: 'ok', last: s, queued: queue.current.length }));
+      void flush();
+    };
+    let stopWatch: () => void = () => undefined;
+    if (isNative) {
+      // Echte App: Standort auch im Hintergrund und bei gesperrtem Bildschirm.
+      void watchNative(
+        (f) => onSample({ ...f, battery: battery.current }),
+        (code, message) => setInfo((i) => ({ ...i, status: code === 'NOT_AUTHORIZED' ? 'verweigert' : 'fehler', error: message })),
+      ).then((stop) => {
+        if (stopped) stop();
+        else stopWatch = stop;
+      });
+    } else {
+      const id = navigator.geolocation.watchPosition(
+        (p) => onSample({
           lat: p.coords.latitude, lng: p.coords.longitude, acc: Math.round(p.coords.accuracy),
           speed: p.coords.speed, heading: p.coords.heading, t: p.timestamp || Date.now(), battery: battery.current,
-        };
-        latest.current = s;
-        // Pro 5 s höchstens ein Punkt im Puffer.
-        const lastQ = queue.current[queue.current.length - 1];
-        if (!lastQ || s.t - lastQ.t >= 5000) queue.current.push(s);
-        setInfo((i) => ({ ...i, status: 'ok', last: s, queued: queue.current.length }));
-        void flush();
-      },
-      (err) => {
-        setInfo((i) => ({ ...i, status: err.code === err.PERMISSION_DENIED ? 'verweigert' : 'fehler', error: err.message }));
-      },
-      { enableHighAccuracy: true, maximumAge: 5000, timeout: 30000 },
-    );
+        }),
+        (err) => {
+          setInfo((i) => ({ ...i, status: err.code === err.PERMISSION_DENIED ? 'verweigert' : 'fehler', error: err.message }));
+        },
+        { enableHighAccuracy: true, maximumAge: 5000, timeout: 30000 },
+      );
+      stopWatch = () => navigator.geolocation.clearWatch(id);
+    }
     const timer = setInterval(() => void flush(), 2500);
     return () => {
       stopped = true;
       flushRef.current = null;
-      navigator.geolocation.clearWatch(id);
+      stopWatch();
       clearInterval(timer);
       document.removeEventListener('visibilitychange', onVis);
       void lock?.release().catch(() => undefined);

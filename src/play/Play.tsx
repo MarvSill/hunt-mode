@@ -17,6 +17,7 @@ import HunterPanel from './HunterPanel';
 import PlayerPanel from './PlayerPanel';
 import Result from './Result';
 import { t, lazy } from '../i18n';
+import { isNative, nativeNotify, openAppSettings } from '../lib/native';
 
 type Tab = 'karte' | 'aktionen' | 'meldungen' | 'chat';
 const TABS: [Tab, string, IconName][] = lazy([['karte', 'Karte', 'map'], ['aktionen', 'Aktionen', 'bolt'], ['meldungen', 'Meldungen', 'bell'], ['chat', 'Chat', 'chat']]);
@@ -73,8 +74,12 @@ export default function PlayPage() {
       navigator.vibrate?.(crit ? [300, 100, 300, 100, 300] : [200]);
       beep(crit);
     }
-    // Hintergrund: Systembenachrichtigung über den Service Worker (solange die App offen ist).
-    if (document.visibilityState !== 'visible' && typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+    // Echte App im Hintergrund: Benachrichtigung des Handys (mit Ton und Vibration), auch bei gesperrtem Bildschirm.
+    if (isNative && document.visibilityState !== 'visible') {
+      for (const n of list) void nativeNotify(n.id, n.title, n.body);
+    }
+    // Web-App im Hintergrund: Systembenachrichtigung über den Service Worker (solange die App offen ist).
+    else if (document.visibilityState !== 'visible' && typeof Notification !== 'undefined' && Notification.permission === 'granted') {
       void navigator.serviceWorker?.getRegistration().then((reg) => {
         for (const n of list) {
           const kind = alarmKindOf([n.kind]);
@@ -236,7 +241,9 @@ export default function PlayPage() {
       )}
       {tracking && tracker.status !== 'ok' && (
         <div className="notice error" style={{ marginBottom: 8 }}>
-          {tracker.status === 'verweigert' ? t('Standort ist blockiert. Erlaube den Standort in den Browser-Einstellungen, sonst kannst du nicht mitspielen.')
+          {tracker.status === 'verweigert' && isNative ? (
+            <>{t('Standort ist blockiert. Erlaube den Standort für Hunt Mode auf „Immer“, sonst kannst du nicht mitspielen.')} <button className="small" onClick={openAppSettings}>{t('Einstellungen öffnen')}</button></>
+          ) : tracker.status === 'verweigert' ? t('Standort ist blockiert. Erlaube den Standort in den Browser-Einstellungen, sonst kannst du nicht mitspielen.')
             : tracker.status === 'warte' ? t('Warte auf GPS …') : t('GPS-Problem: {0}', { 0: tracker.error ?? '' })}
         </div>
       )}

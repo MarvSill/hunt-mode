@@ -86,3 +86,27 @@ Bestätigungs-Mails landen dann in Mailpit unter http://127.0.0.1:54324.
 2. `npm install`, dann `npm run dev`: die App läuft unter http://localhost:5173 mit der Live-Datenbank.
 3. In Claude Code einfach auf Deutsch sagen, was geändert werden soll. `CLAUDE.md` erklärt Claude das Projekt.
 4. Änderungen kommen über einen Pull Request auf `main`; danach ist die App automatisch aktualisiert.
+
+## Handy-App (Android und iPhone)
+
+Die Handy-App ist dieselbe App wie im Browser, aber der Standort wird auch im Hintergrund und bei gesperrtem
+Bildschirm geteilt. Sie liegt in `android/` und `ios/` (Capacitor, Einstellungen in `capacitor.config.ts`).
+
+**Android:** Bei jeder Veröffentlichung baut die GitHub Action die App und stellt sie unter
+**Releases > Android-App** bereit (`hunt-mode.apk`). Auf dem Handy herunterladen, öffnen, einmal
+„Installation aus unbekannten Quellen“ erlauben. Updates einfach über die alte App installieren.
+Signiert wird mit dem Schlüssel aus den Secrets `ANDROID_KEYSTORE_B64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`
+(ohne sie entsteht eine Test-Version, die sich nicht über eine signierte Version installieren lässt).
+
+**iPhone (per Kabel, gratis):**
+1. Xcode aus dem App Store installieren und einmal öffnen.
+2. Im Projektordner `npm run build:app`, dann `npx cap open ios`.
+3. In Xcode links „App“ wählen > **Signing & Capabilities** > Team: deine Apple-ID hinzufügen und wählen.
+   Bei „Bundle Identifier“ einen eigenen Namen setzen, z. B. `ch.huntmode.<deinname>`.
+4. iPhone per Kabel anschliessen, oben als Ziel wählen, auf ▶ drücken.
+5. Auf dem iPhone: Einstellungen > Datenschutz & Sicherheit > **Entwicklermodus** einschalten, und unter
+   Allgemein > VPN & Geräteverwaltung dem Entwickler vertrauen.
+6. Beim ersten Start Standort auf **„Immer“** erlauben.
+
+Mit einer kostenlosen Apple-ID läuft die App 7 Tage, danach Schritt 4 wiederholen. Mit dem Apple-Entwicklerkonto
+(99 USD pro Jahr) läuft sie ein Jahr und lässt sich über TestFlight ohne Kabel verteilen.

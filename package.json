@@ -9,9 +9,17 @@
     "preview": "vite preview",
     "test": "vitest run",
     "typecheck": "tsc -b",
-    "sql": "node scripts/sql-bundle.mjs"
+    "sql": "node scripts/sql-bundle.mjs",
+    "build:app": "VITE_NATIVE=1 VITE_BASE=/ vite build && cap sync",
+    "icons": "capacitor-assets generate --iconBackgroundColor \"#0d1117\" --iconBackgroundColorDark \"#0d1117\" --splashBackgroundColor \"#0d1117\" --splashBackgroundColorDark \"#0d1117\""
   },
   "dependencies": {
+    "@capacitor-community/background-geolocation": "^1.3.1",
+    "@capacitor/android": "^8.6.0",
+    "@capacitor/app": "^8.1.2",
+    "@capacitor/core": "^8.6.0",
+    "@capacitor/ios": "^8.6.0",
+    "@capacitor/local-notifications": "^8.3.1",
     "@geoman-io/leaflet-geoman-free": "^2.17.0",
     "@maplibre/maplibre-gl-leaflet": "^0.1.4",
     "@supabase/supabase-js": "^2.46.1",
@@ -26,6 +34,8 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@capacitor/assets": "^4.0.0",
+    "@capacitor/cli": "^8.6.0",
     "@types/leaflet": "^1.9.14",
     "@types/qrcode": "^1.5.5",
     "@types/react": "^18.3.12",

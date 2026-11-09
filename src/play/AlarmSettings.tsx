@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { loadAlarm, ring, saveAlarm, TONE_LABELS, unlockAudio, type AlarmSettings, type Tone } from '../lib/alarm';
 import { Section } from './common';
 import { t } from '../i18n';
+import { isNative } from '../lib/native';
 
 /** Jeder Spieler stellt seinen Alarm für Pings und Blitzjagden selbst ein. */
 export default function AlarmSettingsBox() {
@@ -12,7 +13,7 @@ export default function AlarmSettingsBox() {
   }
   return (
     <Section title={t('Alarm bei Ping und Blitzjagd')} badge={<span className="badge">{s.sound ? `${TONE_LABELS[s.tone]} · ${Math.round(s.volume * 100)} %` : t('Ton aus')}{s.vibrate ? t(' · Vibration') : ''}</span>}>
-      <div className="muted small">{t('Bei jedem Ping und jeder Blitzjagd klingelt und vibriert dein Handy, und die Meldung erscheint. Das gilt nur für dieses Handy und solange die App offen ist.')}</div>
+      <div className="muted small">{isNative ? t('Bei jedem Ping und jeder Blitzjagd klingelt und vibriert dein Handy, und die Meldung erscheint, auch wenn die App im Hintergrund ist.') : t('Bei jedem Ping und jeder Blitzjagd klingelt und vibriert dein Handy, und die Meldung erscheint. Das gilt nur für dieses Handy und solange die App offen ist.')}</div>
       <label className="check">
         <input type="checkbox" checked={s.sound} onChange={(e) => put({ ...s, sound: e.target.checked })} />
         <span>{t('Klingelton')}</span>

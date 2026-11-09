@@ -6,6 +6,7 @@ import { db, errorText } from '../lib/supabase';
 import { t } from '../i18n';
 import LanguagePicker from '../components/LanguagePicker';
 import MapSettingsBox from '../components/MapSettingsBox';
+import NativeAppBox from '../components/NativeAppBox';
 
 export default function ProfilePage() {
   const { session, profile, refresh } = useAuth();
@@ -74,6 +75,10 @@ export default function ProfilePage() {
       <div className="card stack">
         <strong>{t('Karte')}</strong>
         <MapSettingsBox />
+      </div>
+      <div className="card stack">
+        <strong>{t('Handy-App')}</strong>
+        <NativeAppBox />
       </div>
       <form className="stack" onSubmit={save}>
         <label className="field">

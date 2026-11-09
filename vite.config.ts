@@ -10,6 +10,8 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
+      // In der Handy-App kein Service Worker (die App hat ihre Dateien schon dabei).
+      disable: process.env.VITE_NATIVE === '1',
       registerType: 'autoUpdate',
       includeAssets: ['icon.svg', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png', 'apple-touch-icon.png'],
       workbox: {
