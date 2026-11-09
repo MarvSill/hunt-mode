@@ -1,3 +1,4 @@
+import NumberField from './NumberField';
 import type { ReactNode } from 'react';
 import { CATCH_METHODS, JOKER_TYPES, type GameConfig } from '../shared/config';
 import { QUICK_HELP, SETTING_HELP } from '../shared/help';
@@ -205,8 +206,7 @@ function Stepper({ label, value, min, max, step = 1, onChange }: {
       <span className="spacer">{label} <Hint label={label} /></span>
       <div className="stepper">
         <button type="button" aria-label={`${label} weniger`} disabled={value <= min} onClick={() => onChange(clamp(value - step, min, max))}>−</button>
-        <input type="number" inputMode="numeric" aria-label={label} value={value} min={min} max={max}
-          onChange={(e) => { const n = Number(e.target.value); if (Number.isFinite(n)) onChange(clamp(Math.round(n), min, max)); }} />
+        <NumberField label={label} value={value} min={min} max={max} onChange={onChange} />
         <button type="button" aria-label={`${label} mehr`} disabled={value >= max} onClick={() => onChange(clamp(value + step, min, max))}>+</button>
       </div>
     </div>
@@ -224,11 +224,9 @@ function Duration({ label, value, min, max, onChange }: {
     <div className="quick-row">
       <span className="spacer">{label} <Hint label={label} /></span>
       <div className="duration">
-        <input type="number" inputMode="numeric" aria-label={t('{0} Stunden', { 0: label })} min={0} value={h}
-          onChange={(e) => put(Math.max(0, Math.round(Number(e.target.value) || 0)), m)} />
+        <NumberField label={t('{0} Stunden', { 0: label })} value={h} min={0} max={Math.ceil(max / 60)} onChange={(v) => put(v, m)} />
         <span>h</span>
-        <input type="number" inputMode="numeric" aria-label={t('{0} Minuten', { 0: label })} min={0} max={59} step={5} value={m}
-          onChange={(e) => put(h, clamp(Math.round(Number(e.target.value) || 0), 0, 59))} />
+        <NumberField label={t('{0} Minuten', { 0: label })} value={m} min={0} max={59} onChange={(v) => put(h, v)} />
         <span>{t('min')}</span>
       </div>
     </div>
