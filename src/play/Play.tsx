@@ -11,7 +11,7 @@ import { alarmKindOf, ring, unlockAudio, VIBRATION } from '../lib/alarm';
 import AlarmSettingsBox from './AlarmSettings';
 import Chat from './Chat';
 import EmergencyBox from './EmergencyBox';
-import { colorFor, Confirm, nameOf, Section } from './common';
+import { colorFor, Confirm, nameOf, Section, tagOf } from './common';
 import { CallButtons } from './EmergencyBox';
 import HunterPanel from './HunterPanel';
 import PlayerPanel from './PlayerPanel';
@@ -132,7 +132,7 @@ export default function PlayPage() {
       if (role === 'spieler' && p.participant_id === s.me.id && p.source === 'proximity') continue;
       const age = now - new Date(p.at).getTime();
       const label = `${nameOf(s, p.participant_id)} · ${SOURCE_LABELS[p.source] ?? p.source}${p.n ? ` ${p.n}` : ''} · ${clock(p.at)}${p.stale_seconds ? t(' ({0} min alt)', { 0: Math.round(p.stale_seconds / 60) }) : ''}${p.is_fake ? t(' · FAKE') : ''}`;
-      list.push({ id: p.id, lat: p.lat, lng: p.lng, color: colorFor(s, p.participant_id), label, kind: 'ping', opacity: Math.max(0.3, 1 - age / Math.max(fade, 1)), accuracy: p.accuracy_m });
+      list.push({ id: p.id, lat: p.lat, lng: p.lng, color: colorFor(s, p.participant_id), label, kind: 'ping', opacity: Math.max(0.3, 1 - age / Math.max(fade, 1)), accuracy: p.accuracy_m, text: tagOf(s, p.participant_id) });
     }
     for (const x of s.positions) {
       const isMe = x.participant_id === s.me.id;
@@ -140,17 +140,17 @@ export default function PlayPage() {
       list.push({
         id: `pos${x.participant_id}`, lat: x.lat, lng: x.lng, accuracy: x.accuracy_m,
         color: isMe ? '#58a6ff' : colorFor(s, x.participant_id), kind: isMe ? 'me' : pp?.role === 'spieler' ? 'player' : 'hunter',
-        label: `${isMe ? t('Du') : pp?.name ?? '?'}${x.live && !isMe ? t(' (LIVE)') : ''} · ${clock(x.at)}`, pulse: x.live && tf && !isMe,
+        label: `${isMe ? t('Du') : pp?.name ?? '?'}${x.live && !isMe ? t(' (LIVE)') : ''} · ${clock(x.at)}`, pulse: x.live && tf && !isMe, text: pp?.tag ?? undefined,
       });
     }
     // Eigene Live-Position (schneller als der Server-Stand)
     if (pos && !s.positions.some((x) => x.participant_id === s.me.id)) {
-      list.push({ id: 'me', lat: pos.lat, lng: pos.lng, color: '#58a6ff', kind: 'me', label: t('Du'), accuracy: tracker.last?.acc });
+      list.push({ id: 'me', lat: pos.lat, lng: pos.lng, color: '#58a6ff', kind: 'me', label: t('Du'), accuracy: tracker.last?.acc, text: s.participants.find((q) => q.id === s.me.id)?.tag ?? undefined });
     }
     for (const e of s.me.effects) {
       if (e.type === 'hunter_snapshot') {
-        for (const h of (e.payload.hunters as { name: string; lat: number; lng: number; at?: string }[]) ?? []) {
-          list.push({ id: `hs${e.id}${h.name}`, lat: h.lat, lng: h.lng, color: '#f85149', kind: 'hunter', label: t('Hunter {0} · Ping {1} (nicht live)', { 0: h.name, 1: clock(h.at) }) });
+        for (const h of (e.payload.hunters as { name: string; tag?: string; lat: number; lng: number; at?: string }[]) ?? []) {
+          list.push({ id: `hs${e.id}${h.name}`, lat: h.lat, lng: h.lng, color: '#f85149', kind: 'hunter', label: t('Hunter {0} · Ping {1} (nicht live)', { 0: h.tag ? `${h.tag} ${h.name}` : h.name, 1: clock(h.at) }), text: h.tag });
         }
       }
     }

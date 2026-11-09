@@ -5,6 +5,7 @@ import { useAuth } from '../lib/auth';
 import { db, errorText } from '../lib/supabase';
 import { t } from '../i18n';
 import LanguagePicker from '../components/LanguagePicker';
+import MapSettingsBox from '../components/MapSettingsBox';
 
 export default function ProfilePage() {
   const { session, profile, refresh } = useAuth();
@@ -69,6 +70,10 @@ export default function ProfilePage() {
       <div className="card stack">
         <strong>{t('Sprache')}</strong>
         <LanguagePicker userId={session?.user.id} />
+      </div>
+      <div className="card stack">
+        <strong>{t('Karte')}</strong>
+        <MapSettingsBox />
       </div>
       <form className="stack" onSubmit={save}>
         <label className="field">

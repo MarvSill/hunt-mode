@@ -66,7 +66,7 @@ export default function HunterPanel({ s, now, act, pos }: PanelProps) {
           <div className="row">
             <select aria-label={t('Ziel')} value={target} onChange={(e) => setTarget(e.target.value)} style={{ flex: 1 }}>
               <option value="">{t('Ziel wählen …')}</option>
-              {free.map((p) => <option key={p.id} value={p.id} disabled={!!p.protected}>{p.name}{p.protected ? t(' (geschützt)') : ''}</option>)}
+              {free.map((p) => <option key={p.id} value={p.id} disabled={!!p.protected}>{p.tag ? `${p.tag} · ` : ''}{p.name}{p.protected ? t(' (geschützt)') : ''}</option>)}
             </select>
             <Confirm className="primary" disabled={!live || !target || g.speedhunts_left <= 0} label={t('Starten')} confirm={t('Blitzjagd starten?')}
               onYes={() => act(() => api.speedhuntStart(g.id, target), t('Blitzjagd läuft.'))} />
@@ -83,7 +83,7 @@ export default function HunterPanel({ s, now, act, pos }: PanelProps) {
             return (
               <li key={p.id}>
                 <div className="spacer">
-                  <div>{p.name} {p.protected && <span className="badge">{t('geschützt')}</span>} {livePos && <span className="badge red">{t('LIVE')}</span>}</div>
+                  <div>{p.tag && <span className="tag">{p.tag}</span>}{p.name} {p.protected && <span className="badge">{t('geschützt')}</span>} {livePos && <span className="badge red">{t('LIVE')}</span>}</div>
                   <div className="muted small">
                     {STATE_LABELS[p.state] ?? p.state}
                     {last && ` · ${SOURCE_LABELS[last.source] ?? last.source} ${clock(last.at)}${last.stale_seconds ? t(' ({0} min alt)', { 0: Math.round(last.stale_seconds / 60) }) : ''}`}

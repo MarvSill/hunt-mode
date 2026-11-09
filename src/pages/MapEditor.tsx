@@ -5,10 +5,13 @@ import '@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css';
 import L from 'leaflet';
 import { addMapButtons } from '../lib/mapControls';
 import 'leaflet/dist/leaflet.css';
+import { maplibreGL } from '@maplibre/maplibre-gl-leaflet';
+import 'maplibre-gl/dist/maplibre-gl.css';
+import { getMapSettings, resolveStyle } from '../lib/mapStyle';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import Info from '../components/Info';
-import { esc, pointIcon, zoneBadge, zoneStyle } from '../components/MapView';
+import { esc, pointIcon, zoneBadge, zoneStyle } from '../components/leafletZones';
 import { STEP_HELP, ZONE_HELP } from '../shared/help';
 import { api, ZONE_INFO, ZONE_KINDS, type MapFeature, type ZoneKind } from '../lib/engine';
 import {
@@ -184,7 +187,8 @@ export default function MapEditorPage() {
   useEffect(() => {
     if (!el.current || map.current || !gameId) return;
     const m = L.map(el.current).setView([47.3769, 8.5417], 13);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: t('&copy; OpenStreetMap') }).addTo(m);
+    // Grundkarte im gewählten Stil (flach, damit man genau zeichnen kann).
+    maplibreGL({ style: resolveStyle(getMapSettings().style).url, interactive: false } as Parameters<typeof maplibreGL>[0]).addTo(m);
     previewLayer.current = L.layerGroup().addTo(m);
     group.current = L.featureGroup().addTo(m);
     badges.current = L.layerGroup().addTo(m);

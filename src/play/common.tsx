@@ -20,6 +20,17 @@ export function nameOf(s: GameState, id: string | null | undefined) {
   return s.participants.find((p) => p.id === id)?.name ?? t('Unbekannt');
 }
 
+/** Nummer einer Person (Spieler "3", Hunter "H1"), falls schon vergeben. */
+export function tagOf(s: GameState, id: string | null | undefined): string | undefined {
+  return s.participants.find((p) => p.id === id)?.tag ?? undefined;
+}
+
+/** Name mit Nummer davor, z. B. "3 · Anna". */
+export function nameTag(s: GameState, id: string | null | undefined): string {
+  const tag = tagOf(s, id);
+  return tag ? `${tag} · ${nameOf(s, id)}` : nameOf(s, id);
+}
+
 export const PLAYER_COLORS = ['#3fb950', '#58a6ff', '#d29922', '#a371f7', '#db6d28', '#f778ba', '#56d4dd', '#e3b341', '#7ee787', '#79c0ff'];
 
 export function colorFor(s: GameState, id: string) {

@@ -74,13 +74,13 @@ export default function Result({ s, zones }: { s: GameState; zones: MapFeature[]
           {players.map((p) => (
             <li key={p.id}>
               <span className="dot" style={{ background: colorFor(s, p.id) }} />
-              <span className="spacer">{p.name}</span>
+              <span className="spacer">{p.tag && <span className="tag">{p.tag}</span>}{p.name}</span>
               <span className={`badge${winners.has(p.id) ? ' green' : ''}`}>{winners.has(p.id) ? tr('Sieg') : STATE_LABELS[p.state] ?? p.state}</span>
               {r?.mode === 'punkte' && <span className="badge">{r.scores[p.id] ?? 0} P</span>}
             </li>
           ))}
           {s.participants.filter((p) => p.role === 'hunter').map((p) => (
-            <li key={p.id}><span className="dot" style={{ background: '#f85149' }} /><span className="spacer">{p.name}</span><span className="badge red">{tr('Kopfgeld')} {p.bounty}</span></li>
+            <li key={p.id}><span className="dot" style={{ background: '#f85149' }} /><span className="spacer">{p.tag && <span className="tag hunter">{p.tag}</span>}{p.name}</span><span className="badge red">{tr('Kopfgeld')} {p.bounty}</span></li>
           ))}
         </ul>
       </div>

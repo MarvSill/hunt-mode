@@ -18,6 +18,12 @@ export default defineConfig({
         // Kartenkacheln für Funklöcher zwischenspeichern (Kapitel 23.6).
         runtimeCaching: [
           {
+            // Kartenstile und Vektor-Kacheln (OpenFreeMap, CARTO) für Funklöcher zwischenspeichern.
+            urlPattern: /^https:\/\/(tiles\.openfreemap\.org|basemaps\.cartocdn\.com|tiles\.basemaps\.cartocdn\.com)\/.*/,
+            handler: 'StaleWhileRevalidate',
+            options: { cacheName: 'map-tiles', expiration: { maxEntries: 4000, maxAgeSeconds: 14 * 24 * 3600 }, cacheableResponse: { statuses: [0, 200] } },
+          },
+          {
             urlPattern: /^https:\/\/[abc]\.tile\.openstreetmap\.org\/.*/,
             handler: 'CacheFirst',
             options: { cacheName: 'osm-tiles', expiration: { maxEntries: 2000, maxAgeSeconds: 14 * 24 * 3600 }, cacheableResponse: { statuses: [0, 200] } },
