@@ -8,8 +8,8 @@ import Info from './Info';
 import { formatMinutes } from '../shared/format';
 
 export const JOKER_LABELS: Record<string, string> = {
-  regeneration: 'Regeneration (keine Pings)',
-  hunter_erfragen: 'Hunter-Standorte sehen (5 min)',
+  regeneration: 'Regeneration (keine Pings, keine Blitzjagd auf ihn)',
+  hunter_erfragen: 'Hunter-Standorte (einmaliger Ping aller Hunter)',
 };
 
 /**

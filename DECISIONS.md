@@ -131,3 +131,5 @@ Abweichungen von der Spezifikation und Annahmen, wo sie nichts festlegt.
 - Spieler und Hunter starten am selben Startpunkt (Zone `treffpunkt`, angezeigt als "Startpunkt"). Ein eigenes HQ gibt es nicht mehr; `save_map` legt den Wartebereich der Hunter (`hq`, Radius `start.hq_radius_m`) automatisch an den Startpunkt. Dort warten die Hunter während des Vorsprungs. Der Startpunkt ist Pflicht.
 - Die Rolle "Zentrale" ist entfernt (wird zu Hunter). Alle Hunter jagen gemeinsam unterwegs. "Zentrale muss besetzt sein" entfällt.
 - Pings zeigen immer den genauen Ort: die Einstellung "Ungenauigkeit" (`ping.precision_blur_m`) ist entfernt.
+- Joker Regeneration: solange er wirkt, wird der Spieler nicht gepingt und keine Blitzjagd auf ihn ist möglich. Einsetzen geht nicht, solange irgendeine Blitzjagd läuft.
+- Joker Hunter-Standorte: beim Einsetzen einmaliger Ping aller Hunter (Standort in diesem Moment, nicht live). Die Punkte bleiben mit Uhrzeit bis Spielende auf der Karte des Spielers.

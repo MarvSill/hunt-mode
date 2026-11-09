@@ -3,6 +3,7 @@
 --   legt die Datenbank selbst an diesen Punkt; die Hunter warten dort während des Vorsprungs.
 -- * Die Rolle "Zentrale" gibt es nicht mehr: alle Hunter jagen gemeinsam unterwegs.
 -- * Pings zeigen immer den genauen Ort (keine Ungenauigkeit).
+-- * Joker Hunter-Standorte: einmaliger Ping aller Hunter im Moment des Einsetzens, bleibt mit Uhrzeit auf der Karte.
 
 -- Rolle Zentrale wird Hunter.
 update public.participants set role = 'hunter' where role = 'zentrale';
@@ -140,5 +141,126 @@ begin
   perform public.place_hunter_wait(p_game_id);
   perform public.log_game_event(p_game_id, 'map_saved', jsonb_build_object('zones', n));
   return n;
+end; $$;
+
+-- use_item: Hunter-Standorte als einmaliger Ping (zuletzt in 0012_ohne_spielleitung_am_stueck.sql)
+create or replace function public.use_item(p_item_id uuid, p_payload jsonb default '{}'::jsonb)
+returns jsonb language plpgsql security definer set search_path = public, extensions as $$
+declare
+  v_i public.inventory_items;
+  v_me public.participants;
+  g public.games;
+  v_cfg jsonb;
+  v_now timestamptz;
+  v_type text;
+  v_minutes int;
+  v_pos public.positions;
+  v_target extensions.geometry;
+  v_snapshot jsonb;
+begin
+  select * into v_i from public.inventory_items where id = p_item_id;
+  if v_i.id is null then raise exception 'Gegenstand nicht gefunden.' using errcode = 'P0001'; end if;
+  v_me := public.require_participant(v_i.game_id, array['spieler']);
+  if v_me.id <> v_i.participant_id then raise exception 'Nicht dein Gegenstand.' using errcode = '42501'; end if;
+  g := public.require_running(v_i.game_id);
+  v_cfg := g.config_json;
+  v_now := public.engine_now(g.id);
+  if v_i.used_at is not null or v_i.expired then raise exception 'Schon benutzt oder verfallen.' using errcode = 'P0001'; end if;
+  if v_me.state not in ('aktiv', 'ausserhalb') then raise exception 'Du bist nicht mehr im Spiel.' using errcode = 'P0001'; end if;
+  v_type := v_i.type;
+  v_minutes := v_i.minutes;
+  if v_type = 'wahl' then
+    -- Joker-Wahl: Typ aus den erlaubten wählen
+    select e ->> 'type', (e ->> 'minutes')::int into v_type, v_minutes
+    from jsonb_array_elements(coalesce(v_cfg -> 'joker' -> 'types', '[]')) e where e ->> 'type' = p_payload ->> 'type';
+    if v_type is null then raise exception 'Bitte einen Joker-Typ wählen.' using errcode = 'P0001'; end if;
+  end if;
+  select * into v_pos from public.positions where participant_id = v_me.id;
+
+  case v_type
+    when 'regeneration' then
+      -- Nicht während eines laufenden Speedhunts (auf irgendwen) (14.3, Regel 2).
+      if exists (select 1 from public.speedhunts where game_id = g.id and status = 'laeuft') then
+        raise exception 'Während einer Blitzjagd nicht möglich.' using errcode = 'P0001';
+      end if;
+      insert into public.active_effects (game_id, participant_id, type, starts_at, ends_at, source_item_id)
+      values (g.id, v_me.id, 'regeneration', v_now, v_now + make_interval(mins => coalesce(v_minutes, 240)), v_i.id);
+      perform public.notify(g.id, 'taskforce', null, 'joker', 'Joker: Regeneration', 'Ein Spieler ist für ' || coalesce(v_minutes, 240) || ' min nicht ortbar.', '{}', 'normal');
+    when 'catch_free' then
+      insert into public.active_effects (game_id, participant_id, type, starts_at, ends_at, source_item_id)
+      values (g.id, v_me.id, 'catch_free', v_now, v_now + make_interval(mins => coalesce(v_minutes, 180)), v_i.id);
+      perform public.notify(g.id, 'taskforce', null, 'joker', 'Joker: Schutzschild', public.pname(v_me.id) || ' kann ' || coalesce(v_minutes, 180) || ' min nicht gefangen werden.', '{}', 'hoch');
+    when 'hunter_erfragen' then
+      select coalesce(jsonb_agg(jsonb_build_object('name', public.pname(p.id), 'lat', pos.lat, 'lng', pos.lng, 'at', pos.at)), '[]') into v_snapshot
+      from public.participants p join public.positions pos on pos.participant_id = p.id
+      where p.game_id = g.id and p.role = 'hunter';
+      insert into public.active_effects (game_id, participant_id, type, starts_at, ends_at, payload, source_item_id)
+      values (g.id, v_me.id, 'hunter_snapshot', v_now, greatest(coalesce(g.deadline_at, g.ends_at), v_now + interval '5 minutes'), jsonb_build_object('hunters', v_snapshot), v_i.id);
+      perform public.notify(g.id, null, v_me.id, 'joker', 'Hunter-Standorte', 'Einmaliger Ping aller Hunter von ' || to_char(v_now at time zone g.timezone, 'HH24:MI') || ', nicht live. Auf der Karte eingezeichnet.', jsonb_build_object('hunters', v_snapshot), 'hoch');
+    when 'fake_ping' then
+      if (p_payload ->> 'lat') is null then raise exception 'Bitte einen Ort auf der Karte wählen.' using errcode = 'P0001'; end if;
+      v_target := public.pt((p_payload ->> 'lat')::double precision, (p_payload ->> 'lng')::double precision);
+      if v_pos.participant_id is not null and public.dist_m(v_pos.geom, v_target) > public.cfg_int(v_cfg, 'bonus', 'fake_ping_max_distance_m', 3000) then
+        raise exception 'Zu weit weg (max. % m).', public.cfg_int(v_cfg, 'bonus', 'fake_ping_max_distance_m', 3000) using errcode = 'P0001';
+      end if;
+      if not ST_DWithin(coalesce(public.allowed_area(g.id, v_me.id, g.current_day, public.cfg_bool(v_cfg, 'zone', 'sections_per_player', false)), v_target)::geography, v_target::geography, 1) then
+        raise exception 'Der Fake-Ping muss im Spielfeld liegen.' using errcode = 'P0001';
+      end if;
+      insert into public.active_effects (game_id, participant_id, type, starts_at, payload, source_item_id)
+      values (g.id, v_me.id, 'fake_ping', v_now, jsonb_build_object('lat', p_payload -> 'lat', 'lng', p_payload -> 'lng',
+              'applies', coalesce(nullif(p_payload ->> 'applies', ''), 'beide')), v_i.id);
+    when 'hotel' then
+      if v_pos.participant_id is null then raise exception 'Noch kein Standort.' using errcode = 'P0001'; end if;
+      insert into public.active_effects (game_id, participant_id, type, starts_at, ends_at, payload, source_item_id)
+      values (g.id, v_me.id, 'hotel', v_now, v_now + make_interval(mins => public.cfg_int(v_cfg, 'bonus', 'hotel_minutes', 360)),
+              jsonb_build_object('lat', v_pos.lat, 'lng', v_pos.lng, 'radius_m', public.cfg_int(v_cfg, 'bonus', 'hotel_radius_m', 50)), v_i.id);
+      perform public.notify(g.id, 'taskforce', null, 'bonus', 'Bonus: Hotel', 'Ein Spieler ist ' || public.cfg_int(v_cfg, 'bonus', 'hotel_minutes', 360) || ' min geschützt.', '{}', 'normal');
+    when 'budget' then
+      update public.participants set budget_balance = budget_balance + coalesce(v_minutes, 10) where id = v_me.id;
+    else
+      raise exception 'Unbekannter Gegenstand.' using errcode = 'P0001';
+  end case;
+  update public.inventory_items set used_at = v_now, type = v_type where id = v_i.id;
+  perform public.log_game_event(g.id, 'item_used', jsonb_build_object('type', v_type, 'participant', v_me.id));
+  perform public.bump(g.id);
+  return jsonb_build_object('type', v_type);
+end; $$;
+
+-- grant_jokers: Texte zu den Jokern (zuletzt in 0012_ohne_spielleitung_am_stueck.sql)
+create or replace function public.grant_jokers(p_game public.games, p_now timestamptz)
+returns void language plpgsql security definer set search_path = public as $$
+declare
+  v_cfg jsonb := p_game.config_json;
+  v_types jsonb := coalesce(v_cfg -> 'joker' -> 'types', '[]');
+  v_done jsonb;
+  v_t jsonb;
+  v_p public.participants;
+  i int;
+begin
+  if not public.cfg_bool(v_cfg, 'joker', 'enabled', false) or jsonb_typeof(v_types) <> 'array' or jsonb_array_length(v_types) = 0 then return; end if;
+  if p_game.status not in ('laeuft', 'finale') or p_game.hunt_start_at is null then return; end if;
+  -- Sperrt die Zeile, damit zwei gleichzeitige Ticks einen Joker nicht doppelt vergeben.
+  select coalesce(state_json -> 'jokers_granted', '[]') into v_done from public.games where id = p_game.id for update;
+  for i in 0 .. jsonb_array_length(v_types) - 1 loop
+    v_t := v_types -> i;
+    continue when v_done @> jsonb_build_array(i);
+    continue when p_now < p_game.hunt_start_at + make_interval(mins => coalesce((v_t ->> 'after_minutes')::int, 0));
+    v_done := v_done || jsonb_build_array(i);
+    update public.games set state_json = state_json || jsonb_build_object('jokers_granted', v_done) where id = p_game.id;
+    for v_p in select * from public.participants where game_id = p_game.id and role = 'spieler' and state in ('aktiv', 'ausserhalb', 'notfall') loop
+      insert into public.inventory_items (game_id, participant_id, kind, type, minutes, granted_day, granted_at, source)
+      values (p_game.id, v_p.id, 'joker', v_t ->> 'type', (v_t ->> 'minutes')::int, greatest(p_game.current_day, 1), p_now, 'zeit');
+      perform public.notify(p_game.id, null, v_p.id, 'joker', 'Neuer Joker: ' || case v_t ->> 'type'
+          when 'regeneration' then 'Regeneration'
+          when 'hunter_erfragen' then 'Hunter-Standorte'
+          when 'catch_free' then 'Schutzschild'
+          else replace(v_t ->> 'type', '_', ' ') end,
+        case v_t ->> 'type'
+          when 'regeneration' then 'Du wirst ' || coalesce(v_t ->> 'minutes', '?') || ' min nicht gepingt, und keine Blitzjagd auf dich ist möglich. Einsetzen unter Aktionen (nicht während einer Blitzjagd).'
+          when 'hunter_erfragen' then 'Zeigt dir beim Einsetzen einmalig, wo alle Hunter gerade sind (nicht live). Einsetzen unter Aktionen.'
+          when 'catch_free' then 'Du kannst ' || coalesce(v_t ->> 'minutes', '?') || ' min nicht gefangen werden. Einsetzen unter Aktionen.'
+          else '' end, '{}', 'hoch');
+    end loop;
+  end loop;
 end; $$;
 

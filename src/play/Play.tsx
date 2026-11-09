@@ -147,7 +147,7 @@ export default function PlayPage() {
     for (const e of s.me.effects) {
       if (e.type === 'hunter_snapshot') {
         for (const h of (e.payload.hunters as { name: string; lat: number; lng: number; at?: string }[]) ?? []) {
-          list.push({ id: `hs${h.name}`, lat: h.lat, lng: h.lng, color: '#f85149', kind: 'hunter', label: `Hunter ${h.name}${h.at ? ` · Stand ${clock(h.at)}` : ''}` });
+          list.push({ id: `hs${e.id}${h.name}`, lat: h.lat, lng: h.lng, color: '#f85149', kind: 'hunter', label: `Hunter ${h.name} · Ping ${clock(h.at)} (nicht live)` });
         }
       }
     }

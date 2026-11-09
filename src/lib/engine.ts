@@ -186,8 +186,8 @@ export const ITEM_LABELS: Record<string, string> = {
 
 /** Was ein Joker oder Bonus bewirkt, in einem Satz. */
 export const ITEM_HELP: Record<string, string> = {
-  regeneration: 'Du wirst eine Zeit lang nicht gepingt. Nicht während einer Blitzjagd.',
-  hunter_erfragen: 'Du siehst 5 Minuten lang auf der Karte, wo die Hunter sind.',
+  regeneration: 'Du wirst eine Zeit lang nicht gepingt, und die Hunter können keine Blitzjagd auf dich starten. Nicht einsetzbar, solange eine Blitzjagd läuft.',
+  hunter_erfragen: 'Beim Einsetzen siehst du einmalig, wo alle Hunter in diesem Moment sind (nicht live).',
   catch_free: 'Du kannst eine Zeit lang nicht gefangen werden.',
   fake_ping: 'Dein nächster Ping zeigt einen Ort, den du auf der Karte wählst.',
   hotel: 'Du bist an deinem jetzigen Ort eine Zeit lang geschützt.',
