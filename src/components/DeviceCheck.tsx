@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { api } from '../lib/engine';
 import { errorText } from '../lib/supabase';
+import { t } from '../i18n';
 
 interface Result { gps: boolean; accuracy: number | null; battery: number | null; notifications: string; wakeLock: boolean; camera: boolean; clock_ms: number | null }
 
@@ -13,7 +14,7 @@ export default function DeviceCheck({ gameId, minBattery }: { gameId: string; mi
   async function run() {
     setBusy(true);
     setErr(null);
-    const r: Result = { gps: false, accuracy: null, battery: null, notifications: 'nicht unterstützt', wakeLock: false, camera: false, clock_ms: null };
+    const r: Result = { gps: false, accuracy: null, battery: null, notifications: t('nicht unterstützt'), wakeLock: false, camera: false, clock_ms: null };
     try {
       const p = await new Promise<GeolocationPosition>((ok, fail) =>
         navigator.geolocation.getCurrentPosition(ok, fail, { enableHighAccuracy: true, timeout: 20000 }));
@@ -59,23 +60,23 @@ export default function DeviceCheck({ gameId, minBattery }: { gameId: string; mi
       <div className="row" style={{ flexWrap: 'nowrap' }}>
         <span style={{ fontSize: 24 }} aria-hidden="true">{allOk ? '✅' : '📱'}</span>
         <div className="spacer">
-          <strong>Handy-Check</strong>
-          <div className="muted small">{allOk ? 'Alles bereit: Standort, Akku und Benachrichtigungen.' : res ? 'Bitte die rot markierten Punkte beheben.' : 'Prüft Standort, Akku und Benachrichtigungen.'}</div>
+          <strong>{t('Handy-Check')}</strong>
+          <div className="muted small">{allOk ? t('Alles bereit: Standort, Akku und Benachrichtigungen.') : res ? t('Bitte die rot markierten Punkte beheben.') : t('Prüft Standort, Akku und Benachrichtigungen.')}</div>
         </div>
-        <button className={res ? 'small' : 'small primary'} onClick={run} disabled={busy}>{busy ? 'Prüfe …' : res ? 'Nochmals prüfen' : 'Gerät prüfen'}</button>
+        <button className={res ? 'small' : 'small primary'} onClick={run} disabled={busy}>{busy ? t('Prüfe …') : res ? t('Nochmals prüfen') : t('Gerät prüfen')}</button>
       </div>
       {res && !allOk && (
         <ul className="list small">
-          <li>{ok(res.gps)} Standort {res.gps ? `(±${res.accuracy} m)` : 'nicht erlaubt: bitte im Browser freigeben'}</li>
-          <li>{ok(res.battery == null || res.battery >= minBattery)} Akku {res.battery != null ? `${res.battery} %` : 'unbekannt'}{res.battery != null && res.battery < minBattery && ` (mind. ${minBattery} % nötig)`}</li>
-          <li>{ok(res.notifications === 'granted')} Benachrichtigungen: {res.notifications === 'granted' ? 'erlaubt' : res.notifications === 'denied' ? 'blockiert' : res.notifications}</li>
-          <li>{ok(res.wakeLock)} Bildschirm bleibt an</li>
-          <li>{ok(res.camera)} Kamera für QR-Fang</li>
-          {res.clock_ms != null && <li>{ok(Math.abs(res.clock_ms) < 30000)} Uhr {Math.abs(res.clock_ms) < 30000 ? 'stimmt' : `weicht ${Math.round(res.clock_ms / 1000)} s ab`}</li>}
+          <li>{ok(res.gps)} {t('Standort')} {res.gps ? `(±${res.accuracy} m)` : t('nicht erlaubt: bitte im Browser freigeben')}</li>
+          <li>{ok(res.battery == null || res.battery >= minBattery)} {t('Akku')} {res.battery != null ? `${res.battery} %` : 'unbekannt'}{res.battery != null && res.battery < minBattery && t(' (mind. {0} % nötig)', { 0: minBattery })}</li>
+          <li>{ok(res.notifications === 'granted')} {t('Benachrichtigungen:')} {res.notifications === 'granted' ? 'erlaubt' : res.notifications === 'denied' ? 'blockiert' : res.notifications}</li>
+          <li>{ok(res.wakeLock)} {t('Bildschirm bleibt an')}</li>
+          <li>{ok(res.camera)} {t('Kamera für QR-Fang')}</li>
+          {res.clock_ms != null && <li>{ok(Math.abs(res.clock_ms) < 30000)} {t('Uhr')} {Math.abs(res.clock_ms) < 30000 ? 'stimmt' : t('weicht {0} s ab', { 0: Math.round(res.clock_ms / 1000) })}</li>}
         </ul>
       )}
       {err && <div className="notice error">{err}</div>}
-      <div className="muted tiny">Während des Spiels die App offen lassen: der Standort wird nur gesendet, solange die App sichtbar ist.</div>
+      <div className="muted tiny">{t('Während des Spiels die App offen lassen: der Standort wird nur gesendet, solange die App sichtbar ist.')}</div>
     </div>
   );
 }

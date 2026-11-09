@@ -24,6 +24,9 @@ Live: https://marvsill.github.io/hunt-mode/ · Repo: github.com/MarvSill/hunt-mo
 - `supabase/migrations/` Datenbank und Spiel-Engine (PL/pgSQL, läuft alle 15 s per pg_cron). Neue Änderungen immer als neue Datei `00NN_name.sql`, nie alte ändern.
 - `scripts/supabase-setup.mjs` richtet Supabase aus der GitHub Action ein.
 
+## Sprachen
+- App in Deutsch, Französisch und Englisch. Neue Texte immer mit `t('Deutscher Text')` aus `src/i18n` schreiben und in `src/i18n/fr.ts` und `en.ts` ergänzen (der Test `src/i18n/i18n.test.ts` meldet fehlende). Neue Meldungen aus der Datenbank brauchen eine Regel in `src/i18n/server.ts`.
+
 ## Regeln, die gelten
 - Keine Spielleitung und keine Zentrale: die App regelt alles, der Host wählt selbst eine Rolle (Spieler, Hunter, Zuschauer).
 - Ein Startpunkt für alle: Spieler laufen los, Hunter warten dort bis Ende Vorsprung. Pings sind immer genau.

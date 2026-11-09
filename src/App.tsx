@@ -18,6 +18,7 @@ import OnboardingPage from './pages/Onboarding';
 import ProfilePage from './pages/Profile';
 import RulesPage from './pages/Rules';
 import SetupMissingPage from './pages/SetupMissing';
+import { t } from './i18n';
 
 // Karte und Spielansicht (Leaflet) erst bei Bedarf laden.
 const MapEditorPage = lazy(() => import('./pages/MapEditor'));
@@ -31,7 +32,7 @@ export default function App() {
   const [introDone, setIntroDone] = useState(introSeen);
 
   if (!supabase) return <SetupMissingPage />;
-  if (loading) return <div className="app center-screen muted">Lade …</div>;
+  if (loading) return <div className="app center-screen muted">{t('Lade …')}</div>;
   if (recovering) return <NewPasswordPage />;
   if (!session) {
     return (
@@ -51,7 +52,7 @@ export default function App() {
 
   return (
     <>
-      <Suspense fallback={<div className="app muted">Lade …</div>}>
+      <Suspense fallback={<div className="app muted">{t('Lade …')}</div>}>
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/neu" element={<NewGamePage />} />
@@ -72,10 +73,10 @@ export default function App() {
       </Routes>
       </Suspense>
       {showNav && <nav className="nav">
-        <NavLink to="/" end><Icon name="home" />Start</NavLink>
-        <NavLink to="/beitreten"><Icon name="join" />Beitreten</NavLink>
-        <NavLink to="/gruppen"><Icon name="users" />Gruppen</NavLink>
-        <NavLink to="/profil"><Icon name="user" />Profil</NavLink>
+        <NavLink to="/" end><Icon name="home" />{t('Start')}</NavLink>
+        <NavLink to="/beitreten"><Icon name="join" />{t('Beitreten')}</NavLink>
+        <NavLink to="/gruppen"><Icon name="users" />{t('Gruppen')}</NavLink>
+        <NavLink to="/profil"><Icon name="user" />{t('Profil')}</NavLink>
       </nav>}
     </>
   );

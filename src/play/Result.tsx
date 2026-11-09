@@ -3,11 +3,12 @@ import MapView, { type Marker } from '../components/MapView';
 import { api, clock, STATE_LABELS, type GameState, type MapFeature, type Replay } from '../lib/engine';
 import { errorText } from '../lib/supabase';
 import { colorFor, nameOf } from './common';
+import { t as tr, lazy } from '../i18n';
 
-const REASONS: Record<string, string> = {
+const REASONS: Record<string, string> = lazy({
   zeit_abgelaufen: 'Die Zeit ist abgelaufen.', alle_gefangen: 'Alle Spieler wurden gefangen.', alle_im_ziel_oder_gefangen: 'Alle sind am Fluchtpunkt oder gefangen.',
   letzter_ueberlebender: 'Nur noch eine Person ist frei.', alle_ausgeschieden: 'Alle Spieler sind ausgeschieden.', abgebrochen: 'Das Spiel wurde abgebrochen.',
-};
+});
 
 export default function Result({ s, zones }: { s: GameState; zones: MapFeature[] }) {
   const r = s.game.result;
@@ -51,7 +52,7 @@ export default function Result({ s, zones }: { s: GameState; zones: MapFeature[]
     }
     for (const pg of replay.pings) {
       const at = new Date(pg.at).getTime() / 1000;
-      if (at <= t && at > t - 3600) markers.push({ id: `p${pg.at}${pg.participant_id}`, lat: pg.lat, lng: pg.lng, color: pg.is_fake ? '#8b949e' : colorFor(s, pg.participant_id), label: `${nameOf(s, pg.participant_id)} · ${pg.source}${pg.is_fake ? ' (Fake)' : ''}`, kind: 'ping', opacity: 0.7 });
+      if (at <= t && at > t - 3600) markers.push({ id: `p${pg.at}${pg.participant_id}`, lat: pg.lat, lng: pg.lng, color: pg.is_fake ? '#8b949e' : colorFor(s, pg.participant_id), label: `${nameOf(s, pg.participant_id)} · ${pg.source}${pg.is_fake ? tr(' (Fake)') : ''}`, kind: 'ping', opacity: 0.7 });
     }
     return { markers, lines };
   }, [replay, t, s]);
@@ -62,11 +63,11 @@ export default function Result({ s, zones }: { s: GameState; zones: MapFeature[]
   return (
     <div className="stack">
       <div className="card stack" style={{ textAlign: 'center' }}>
-        <div className="brand">Spielende</div>
-        <h1 style={{ margin: 0 }}>{winners.size ? `Sieger: ${[...winners].map((w) => nameOf(s, w)).join(', ')}` : 'Die Hunter gewinnen'}</h1>
+        <div className="brand">{tr('Spielende')}</div>
+        <h1 style={{ margin: 0 }}>{winners.size ? tr('Sieger: {0}', { 0: [...winners].map((w) => nameOf(s, w)).join(', ') }) : tr('Die Hunter gewinnen')}</h1>
         <div className="muted">{REASONS[r?.reason ?? ''] ?? ''}</div>
-        {r && <div className="small">{r.hours} h · {r.catches} Fänge · {r.speedhunts} Blitzjagden · {r.pings} Pings</div>}
-        {s.game.config.win.prize && winners.size > 0 && <div className="badge green" style={{ alignSelf: 'center' }}>Preis: {s.game.config.win.prize}</div>}
+        {r && <div className="small">{r.hours} h · {r.catches} {tr('Fänge ·')} {r.speedhunts} {tr('Blitzjagden ·')} {r.pings} {tr('Pings')}</div>}
+        {s.game.config.win.prize && winners.size > 0 && <div className="badge green" style={{ alignSelf: 'center' }}>{tr('Preis:')} {s.game.config.win.prize}</div>}
       </div>
       <div className="card">
         <ul className="list">
@@ -74,27 +75,27 @@ export default function Result({ s, zones }: { s: GameState; zones: MapFeature[]
             <li key={p.id}>
               <span className="dot" style={{ background: colorFor(s, p.id) }} />
               <span className="spacer">{p.name}</span>
-              <span className={`badge${winners.has(p.id) ? ' green' : ''}`}>{winners.has(p.id) ? 'Sieg' : STATE_LABELS[p.state] ?? p.state}</span>
+              <span className={`badge${winners.has(p.id) ? ' green' : ''}`}>{winners.has(p.id) ? tr('Sieg') : STATE_LABELS[p.state] ?? p.state}</span>
               {r?.mode === 'punkte' && <span className="badge">{r.scores[p.id] ?? 0} P</span>}
             </li>
           ))}
           {s.participants.filter((p) => p.role === 'hunter').map((p) => (
-            <li key={p.id}><span className="dot" style={{ background: '#f85149' }} /><span className="spacer">{p.name}</span><span className="badge red">Kopfgeld {p.bounty}</span></li>
+            <li key={p.id}><span className="dot" style={{ background: '#f85149' }} /><span className="spacer">{p.name}</span><span className="badge red">{tr('Kopfgeld')} {p.bounty}</span></li>
           ))}
         </ul>
       </div>
-      <h2>Wiederholung</h2>
+      <h2>{tr('Wiederholung')}</h2>
       {err && <div className="notice error">{err}</div>}
       {replay && (
         <>
           <MapView zones={zones} markers={markers} lines={lines} fitKey="replay" height="50dvh" />
           <div className="row">
-            <button className="small" onClick={() => { if (t >= end) setT(start); setPlaying(!playing); }}>{playing ? 'Pause' : 'Abspielen'}</button>
-            <input type="range" min={start} max={end} value={t} onChange={(e) => setT(+e.target.value)} style={{ flex: 1 }} aria-label="Zeit" />
+            <button className="small" onClick={() => { if (t >= end) setT(start); setPlaying(!playing); }}>{playing ? tr('Pause') : tr('Abspielen')}</button>
+            <input type="range" min={start} max={end} value={t} onChange={(e) => setT(+e.target.value)} style={{ flex: 1 }} aria-label={tr('Zeit')} />
             <span className="small">{clock(new Date(t * 1000).toISOString(), s.game.timezone)}</span>
           </div>
           <details className="card">
-            <summary>Ereignisse ({replay.events.length})</summary>
+            <summary>{tr('Ereignisse (')}{replay.events.length})</summary>
             <ul className="list small">
               {replay.events.map((e, i) => <li key={i}>{clock(e.at, s.game.timezone)} · {e.type.replace(/_/g, ' ')}</li>)}
             </ul>

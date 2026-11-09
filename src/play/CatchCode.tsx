@@ -2,6 +2,7 @@ import QRCode from 'qrcode';
 import { useEffect, useState } from 'react';
 import { api } from '../lib/engine';
 import { errorText } from '../lib/supabase';
+import { t } from '../i18n';
 
 // Rotierender Fang-Code (alle 30 s neu), als QR und Zahl.
 export default function CatchCode({ gameId, onClose }: { gameId: string; onClose: () => void }) {
@@ -35,12 +36,12 @@ export default function CatchCode({ gameId, onClose }: { gameId: string; onClose
   return (
     <div className="overlay" onClick={onClose}>
       <div className="card stack" style={{ width: '100%', maxWidth: 380, textAlign: 'center', background: '#fff', color: '#000' }}>
-        <strong>Du wurdest erwischt? Zeig diesen Code.</strong>
+        <strong>{t('Du wurdest erwischt? Zeig diesen Code.')}</strong>
         {err && <div className="notice error">{err}</div>}
-        {img && <img src={img} alt="Fang-QR-Code" style={{ width: '100%', imageRendering: 'pixelated' }} />}
+        {img && <img src={img} alt={t('Fang-QR-Code')} style={{ width: '100%', imageRendering: 'pixelated' }} />}
         <div className="code-big" style={{ color: '#000' }} data-testid="catch-code">{code?.code ?? '······'}</div>
-        <div className="small">Neuer Code in {left} s</div>
-        <button className="block" onClick={onClose}>Schliessen</button>
+        <div className="small">{t('Neuer Code in')} {left} s</div>
+        <button className="block" onClick={onClose}>{t('Schliessen')}</button>
       </div>
     </div>
   );

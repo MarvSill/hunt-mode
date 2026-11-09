@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { api, clock, type GameState } from '../lib/engine';
 import { Confirm, nameOf } from './common';
+import { t, lazy } from '../i18n';
 
 /** Notrufnummern Schweiz: 117 Polizei, 144 Sanität, 112 europaweit (funktioniert auch in der Schweiz). */
-export const EMERGENCY_NUMBERS = [
+export const EMERGENCY_NUMBERS = lazy([
   { n: '117', label: 'Polizei' },
   { n: '144', label: 'Sanität' },
   { n: '112', label: 'Notruf EU' },
-];
+]);
 
 export function CallButtons() {
   return (
@@ -36,28 +37,28 @@ export default function EmergencyBox({ s, act, showMap }: {
     <div className="stack" style={{ marginBottom: 12 }}>
       {mine && (
         <div className="card stack emergency-card">
-          <strong>🚨 Dein Notfall ist gemeldet</strong>
-          <span className="small">Alle sind alarmiert und sehen deinen Standort. Das Spiel ist unterbrochen.</span>
-          <span className="small">Bei Gefahr sofort anrufen:</span>
+          <strong>{t('🚨 Dein Notfall ist gemeldet')}</strong>
+          <span className="small">{t('Alle sind alarmiert und sehen deinen Standort. Das Spiel ist unterbrochen.')}</span>
+          <span className="small">{t('Bei Gefahr sofort anrufen:')}</span>
           <CallButtons />
-          <Confirm className="block" label="Fehlalarm / Notfall beenden" confirm="Notfall wirklich beenden? Alle bekommen die Meldung, dass alles in Ordnung ist."
-            onYes={() => act(() => api.emergencyResolve(mine.id), 'Notfall beendet.')} />
+          <Confirm className="block" label={t('Fehlalarm / Notfall beenden')} confirm={t('Notfall wirklich beenden? Alle bekommen die Meldung, dass alles in Ordnung ist.')}
+            onYes={() => act(() => api.emergencyResolve(mine.id), t('Notfall beendet.'))} />
         </div>
       )}
       {others.map((e) => (
         <div key={e.id} className="card stack emergency-card">
-          <strong>🚨 NOTFALL: {nameOf(s, e.participant_id)} <span className="small muted">seit {clock(e.at)}</span></strong>
-          <span className="small"><strong>Das Spiel ist unterbrochen. Geh sofort zum Standort auf der Karte und hilf.</strong> Bei Gefahr ruf direkt an.</span>
-          {contact[e.participant_id] && <span>Notfallkontakt: <strong>{contact[e.participant_id]}</strong></span>}
+          <strong>{t('🚨 NOTFALL:')} {nameOf(s, e.participant_id)} <span className="small muted">{t('seit')} {clock(e.at)}</span></strong>
+          <span className="small"><strong>{t('Das Spiel ist unterbrochen. Geh sofort zum Standort auf der Karte und hilf.')}</strong> {t('Bei Gefahr ruf direkt an.')}</span>
+          {contact[e.participant_id] && <span>{t('Notfallkontakt:')} <strong>{contact[e.participant_id]}</strong></span>}
           <div className="row">
-            {e.lat != null && <button className="small" onClick={showMap}>📍 Auf der Karte</button>}
+            {e.lat != null && <button className="small" onClick={showMap}>{t('📍 Auf der Karte')}</button>}
             {contactAllowed && !contact[e.participant_id] && (
               <button className="small" onClick={() => act(async () => {
                 const c = await api.emergencyContact(s.game.id, e.participant_id);
-                setContact((prev) => ({ ...prev, [e.participant_id]: c ? `${c.name} ${c.phone}` : 'nicht hinterlegt' }));
-              })}>Notfallkontakt zeigen</button>
+                setContact((prev) => ({ ...prev, [e.participant_id]: c ? `${c.name} ${c.phone}` : t('nicht hinterlegt') }));
+              })}>{t('Notfallkontakt zeigen')}</button>
             )}
-            {s.game.host && <button className="small primary" onClick={() => act(() => api.emergencyResolve(e.id), 'Notfall erledigt.')}>Erledigt</button>}
+            {s.game.host && <button className="small primary" onClick={() => act(() => api.emergencyResolve(e.id), t('Notfall erledigt.'))}>{t('Erledigt')}</button>}
           </div>
           <CallButtons />
         </div>

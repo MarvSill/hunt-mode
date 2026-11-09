@@ -1,0 +1,272 @@
+/**
+ * Meldungen und Fehler vom Server kommen auf Deutsch (aus der Spiel-Engine in der Datenbank).
+ * Hier werden sie auf dem Handy in die eingestellte Sprache übersetzt. Jede Regel ist ein
+ * Muster mit Platzhaltern (Namen, Zahlen, Uhrzeiten), die übernommen werden.
+ */
+import { getLang } from './index';
+
+type Rule = [RegExp, string, string]; // Muster (de), Französisch, Englisch – $1, $2 … für Teile
+
+const N = '(.+?)'; // Name, Ort oder Text
+const D = '(\\d+)'; // Zahl
+const H = '(\\d{1,2}:\\d{2})'; // Uhrzeit
+
+function r(de: string, frText: string, enText: string): Rule {
+  const pattern = de
+    .split(/(\{[NDH]\})/)
+    .map((part) => (part === '{N}' ? N : part === '{D}' ? D : part === '{H}' ? H : part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')))
+    .join('');
+  return [new RegExp(`^${pattern}$`), frText, enText];
+}
+
+const RULES: Rule[] = [
+  // Pings, Blitzjagd, Joker
+  r('Du wurdest gepingt', 'Tu as été pingé', 'You were pinged'),
+  r('Die Hunter sehen jetzt, wo du gerade bist.', 'Les hunters voient maintenant où tu es.', 'The hunters can now see where you are.'),
+  r('Ping', 'Ping', 'Ping'),
+  r('Die Hunter haben gerade den Standort eines Spielers bekommen.', 'Les hunters viennent de recevoir la position d’un joueur.', 'The hunters just received a player’s location.'),
+  r('BLITZJAGD!', 'CHASSE ÉCLAIR !', 'BLITZ HUNT!'),
+  r('{N} Einer von euch wird gejagt.', '$1 L’un de vous est traqué.', '$1 One of you is being hunted.'),
+  r('Blitzjagd gestartet!', 'Chasse éclair lancée !', 'Blitz hunt started!'),
+  r('Blitzjagd: {N}', 'Chasse éclair : $1', 'Blitz hunt: $1'),
+  r('Straf-Blitzjagd: {N}', 'Chasse éclair de pénalité : $1', 'Penalty blitz hunt: $1'),
+  r('{D} Abfragen, ohne Zeitlimit', '$1 requêtes, sans limite de temps', '$1 queries, no time limit'),
+  r('Du bist das Ziel!', 'Tu es la cible !', 'You are the target!'),
+  r('Ping zählt als Abfrage 1', 'Le ping compte comme requête 1', 'The ping counts as query 1'),
+  r('Der letzte Ping liegt weniger als {D} min zurück.', 'Le dernier ping date de moins de $1 min.', 'The last ping was less than $1 min ago.'),
+  r('Blitzjagd beendet', 'Chasse éclair terminée', 'Blitz hunt over'),
+  r('BLITZJAGD: Abfrage {D} von {D}', 'CHASSE ÉCLAIR : requête $1 sur $2', 'BLITZ HUNT: query $1 of $2'),
+  r('Abfrage {D}/{D}: {N}', 'Requête $1/$2 : $3', 'Query $1/$2: $3'),
+  r('Ziel ist unterwegs: {D} s live.', 'La cible se déplace : $1 s en direct.', 'Target is moving: $1 s live.'),
+  r('Neuer Joker: Regeneration', 'Nouveau joker : Régénération', 'New joker: Regeneration'),
+  r('Neuer Joker: Hunter-Standorte', 'Nouveau joker : Position des hunters', 'New joker: Hunter locations'),
+  r('Neuer Joker: {N}', 'Nouveau joker : $1', 'New joker: $1'),
+  r('Du wirst {D} min nicht gepingt, und keine Blitzjagd auf dich ist möglich. Einsetzen unter Aktionen (nicht während einer Blitzjagd).',
+    'Tu ne seras pas pingé pendant $1 min, et aucune chasse éclair contre toi n’est possible. À utiliser sous Actions (pas pendant une chasse éclair).',
+    'You won’t be pinged for $1 min, and no blitz hunt can target you. Use it under Actions (not during a blitz hunt).'),
+  r('Du wirst {D} min nicht gepingt. Einsetzen unter Aktionen.', 'Tu ne seras pas pingé pendant $1 min. À utiliser sous Actions.', 'You won’t be pinged for $1 min. Use it under Actions.'),
+  r('Zeigt dir beim Einsetzen einmalig, wo alle Hunter gerade sind (nicht live). Einsetzen unter Aktionen.',
+    'Te montre une fois, au moment de l’utiliser, où sont tous les hunters (pas en direct). À utiliser sous Actions.',
+    'Shows you once, when used, where all hunters are right now (not live). Use it under Actions.'),
+  r('Joker: Regeneration', 'Joker : Régénération', 'Joker: Regeneration'),
+  r('Ein Spieler ist für {D} min nicht ortbar.', 'Un joueur est introuvable pendant $1 min.', 'A player can’t be located for $1 min.'),
+  r('Hunter-Standorte', 'Position des hunters', 'Hunter locations'),
+  r('Einmaliger Ping aller Hunter von {H}, nicht live. Auf der Karte eingezeichnet.', 'Ping unique de tous les hunters à $1, pas en direct. Indiqué sur la carte.', 'One-time ping of all hunters at $1, not live. Shown on the map.'),
+  r('Regeneration vorbei', 'Régénération terminée', 'Regeneration over'),
+  r('Schutzschild vorbei', 'Bouclier terminé', 'Shield over'),
+  r('Schonzeit vorbei', 'Répit terminé', 'Grace period over'),
+
+  // Start, Ende, Spielfeld
+  r('Los! Ihr habt Vorsprung', 'C’est parti ! Vous avez de l’avance', 'Go! You have a head start'),
+  r('{D} min, dann startet die Jagd.', '$1 min, puis la chasse commence.', '$1 min, then the hunt begins.'),
+  r('Spiel gestartet', 'Partie lancée', 'Game started'),
+  r('Wartet am Startpunkt. Die Jagd beginnt um {H}.', 'Attendez au point de départ. La chasse commence à $1.', 'Wait at the starting point. The hunt begins at $1.'),
+  r('Die Jagd beginnt!', 'La chasse commence !', 'The hunt begins!'),
+  r('Die Hunter sind unterwegs.', 'Les hunters sont en route.', 'The hunters are on their way.'),
+  r('Spielende!', 'Fin de la partie !', 'Game over!'),
+  r('Keine Sieger: die Hunter haben gewonnen.', 'Pas de gagnant : les hunters ont gagné.', 'No winners: the hunters won.'),
+  r('Sieger: {N}', 'Gagnants : $1', 'Winners: $1'),
+  r('Spielzeit vorbei', 'Temps de jeu écoulé', 'Time is up'),
+  r('Ankunft am Fluchtpunkt noch bis {H}.', 'Arrivée au point de fuite encore possible jusqu’à $1.', 'You can still reach the escape point until $1.'),
+  r('Neues Spielfeld ab {H}', 'Nouvelle zone de jeu dès $1', 'New play area from $1'),
+  r('Spielfeld wird kleiner um {H}', 'La zone de jeu rétrécit à $1', 'The play area shrinks at $1'),
+  r('Die neuen Grenzen sind auf der Karte gestrichelt.', 'Les nouvelles limites sont en pointillés sur la carte.', 'The new borders are dashed on the map.'),
+  r('Das Spielfeld ist jetzt kleiner', 'La zone de jeu est maintenant plus petite', 'The play area is now smaller'),
+  r('Phase {D} von {D}: neue Grenzen gelten ab sofort.', 'Phase $1 sur $2 : les nouvelles limites s’appliquent dès maintenant.', 'Phase $1 of $2: the new borders apply now.'),
+  r('Das Spielfeld hat sich geändert', 'La zone de jeu a changé', 'The play area has changed'),
+  r('Neue Grenzen gelten jetzt.', 'Les nouvelles limites s’appliquent maintenant.', 'The new borders apply now.'),
+
+  // Fluchtpunkt
+  r('Fluchtpunkt bekannt: siehe Karte', 'Point de fuite connu : voir la carte', 'Escape point revealed: see map'),
+  r('Fluchtpunkt bekannt: {N}', 'Point de fuite connu : $1', 'Escape point revealed: $1'),
+  r('Ankunft bis {H}. Ab jetzt dürft ihr auch zusammen sein.', 'Arrivée jusqu’à $1. Vous pouvez désormais être ensemble.', 'Arrive by $1. From now on you may be together.'),
+  r('Die Spieler kennen jetzt den Fluchtpunkt', 'Les joueurs connaissent maintenant le point de fuite', 'The players now know the escape point'),
+  r('Ihr erfahrt ihn nicht. Ankunft bis {H}.', 'Vous ne le saurez pas. Arrivée jusqu’à $1.', 'You won’t find out where it is. Arrival by $1.'),
+  r('Geschafft!', 'Réussi !', 'Made it!'),
+  r('Du bist am Fluchtpunkt und in Sicherheit.', 'Tu es au point de fuite et en sécurité.', 'You are at the escape point and safe.'),
+  r('{N} hat den Fluchtpunkt erreicht', '$1 a atteint le point de fuite', '$1 reached the escape point'),
+
+  // Fangen
+  r('{N} wurde gefangen', '$1 a été attrapé', '$1 was caught'),
+  r('Noch {D} Spieler frei.', 'Encore $1 joueur(s) libre(s).', '$1 player(s) still free.'),
+  r('Du wurdest gefangen', 'Tu as été attrapé', 'You were caught'),
+  r('{N} ist disqualifiziert', '$1 est disqualifié', '$1 is disqualified'),
+  r('{N} hat aufgegeben', '$1 a abandonné', '$1 gave up'),
+  r('Beweis hochladen', 'Envoyer une preuve', 'Upload proof'),
+  r('Foto oder Video innerhalb von 2 min.', 'Photo ou vidéo dans les 2 min.', 'Photo or video within 2 min.'),
+  r('Fang wird geprüft', 'Capture en vérification', 'Catch being checked'),
+  r('{N} meldet deinen Fang.', '$1 signale ta capture.', '$1 reports catching you.'),
+  r('Wurdest du gefangen?', 'As-tu été attrapé ?', 'Were you caught?'),
+  r('{N} meldet einen Fang. Bitte bestätigen.', '$1 signale une capture. Merci de confirmer.', '$1 reports a catch. Please confirm.'),
+  r('Fang bestritten', 'Capture contestée', 'Catch disputed'),
+  r('Die App entscheidet.', 'L’app décide.', 'The app decides.'),
+  r('Fang ungültig', 'Capture non valable', 'Catch invalid'),
+  r('Kein Foto/Video innerhalb von 2 min.', 'Pas de photo/vidéo dans les 2 min.', 'No photo/video within 2 min.'),
+  r('Fang abgelehnt', 'Capture refusée', 'Catch rejected'),
+  r('Keine Bestätigung und GPS-Abstand zu gross.', 'Pas de confirmation et distance GPS trop grande.', 'No confirmation and GPS distance too large.'),
+
+  // Spielfeld verlassen, Gefahrenzone, Verschanzen, Nähe
+  r('Zurück ins Spielfeld!', 'Retourne dans la zone de jeu !', 'Back into the play area!'),
+  r('Du hast {D} Sekunden Zeit, sonst sehen dich die Hunter live ({D}. Mal von 2 mit Countdown).',
+    'Tu as $1 secondes, sinon les hunters te voient en direct ($2e fois sur 2 avec compte à rebours).',
+    'You have $1 seconds, otherwise the hunters see you live (time $2 of 2 with a countdown).'),
+  r('Du bist ausserhalb!', 'Tu es hors de la zone !', 'You are outside!'),
+  r('{N} ist ausserhalb', '$1 est hors de la zone', '$1 is outside'),
+  r('{D} min bis zum Fang. Die Hunter sehen dich live.', 'Capture dans $1 min. Les hunters te voient en direct.', 'Caught in $1 min. The hunters see you live.'),
+  r('Schon das {D}. Mal: kein Countdown mehr. {D} min bis zum Fang. Die Hunter sehen dich live.', 'Déjà la $1e fois : plus de compte à rebours. Capture dans $2 min. Les hunters te voient en direct.', 'Already time $1: no more countdown. Caught in $2 min. The hunters see you live.'),
+  r('Die Hunter sehen dich live. Verlass die Zone sofort. Nach {D} min gilt: gefangen.', 'Les hunters te voient en direct. Quitte la zone immédiatement. Après $1 min : attrapé.', 'The hunters see you live. Leave the zone right away. After $1 min: caught.'),
+  r('Live-Standort sichtbar.', 'Position en direct visible.', 'Live location visible.'),
+  r('Zurück im Spielfeld', 'De retour dans la zone de jeu', 'Back in the play area'),
+  r('{N} ist zurück im Spielfeld', '$1 est de retour dans la zone de jeu', '$1 is back in the play area'),
+  r('Live-Standort beendet.', 'Position en direct terminée.', 'Live location ended.'),
+  r('Gefahrenzone! Sofort raus', 'Zone dangereuse ! Sors immédiatement', 'Danger zone! Get out now'),
+  r('{N}: du hast {D} Sekunden Zeit, sonst sehen dich die Hunter live ({D}. Mal von 2 mit Countdown).',
+    '$1 : tu as $2 secondes, sinon les hunters te voient en direct ($3e fois sur 2 avec compte à rebours).',
+    '$1: you have $2 seconds, otherwise the hunters see you live (time $3 of 2 with a countdown).'),
+  r('Du bist in einer Gefahrenzone!', 'Tu es dans une zone dangereuse !', 'You are in a danger zone!'),
+  r('{N} ist in einer Gefahrenzone', '$1 est dans une zone dangereuse', '$1 is in a danger zone'),
+  r('{N} hat die Gefahrenzone verlassen', '$1 a quitté la zone dangereuse', '$1 left the danger zone'),
+  r('Bist du verschanzt?', 'Es-tu retranché ?', 'Are you holed up?'),
+  r('Du bist seit {D} min am selben Ort. Bist du in einem nicht öffentlichen Ort (Wohnung, Haus)?',
+    'Tu es au même endroit depuis $1 min. Es-tu dans un lieu non public (appartement, maison) ?',
+    'You have been in the same place for $1 min. Are you in a non-public place (flat, house)?'),
+  r('Versteck verlassen', 'Cachette quittée', 'Hideout left'),
+  r('Mindestabstand erreicht.', 'Distance minimale atteinte.', 'Minimum distance reached.'),
+  r('Noch 2 min verschanzt!', 'Encore 2 min retranché !', '2 min left holed up!'),
+  r('Noch 10 min verschanzt', 'Encore 10 min retranché', '10 min left holed up'),
+  r('Noch 30 min verschanzt', 'Encore 30 min retranché', '30 min left holed up'),
+  r('Dann musst du raus ({D} m Abstand).', 'Ensuite tu dois sortir ($1 m de distance).', 'Then you must leave ($1 m away).'),
+  r('Nähe-Alarm', 'Alerte de proximité', 'Proximity alert'),
+  r('Nähe-Alarm: {N} ist in der Nähe', 'Alerte de proximité : $1 est tout près', 'Proximity alert: $1 is nearby'),
+  r('Ihr seid unter {D} m. Entfernt euch innerhalb von {D} min, sonst bekommen die Hunter euren Standort.',
+    'Vous êtes à moins de $1 m. Éloignez-vous dans les $2 min, sinon les hunters reçoivent votre position.',
+    'You are within $1 m. Move apart within $2 min, otherwise the hunters get your location.'),
+  r('{N} und {N} sind zusammen (unter {D} m). Ping auf der Karte.', '$1 et $2 sont ensemble (moins de $3 m). Ping sur la carte.', '$1 and $2 are together (within $3 m). Ping on the map.'),
+  r('Die Hunter haben euren Standort', 'Les hunters ont votre position', 'The hunters have your location'),
+  r('Ihr wart zu lange zusammen.', 'Vous êtes restés trop longtemps ensemble.', 'You stayed together too long.'),
+  r('Zurück zum Startpunkt!', 'Retourne au point de départ !', 'Back to the starting point!'),
+  r('Der Vorsprung der Spieler läuft noch. Die Jagd beginnt um {H}.', 'L’avance des joueurs est encore en cours. La chasse commence à $1.', 'The players’ head start is still running. The hunt begins at $1.'),
+
+  // Notfall
+  r('NOTFALL: {N} braucht Hilfe', 'URGENCE : $1 a besoin d’aide', 'EMERGENCY: $1 needs help'),
+  r('Das Spiel ist unterbrochen. Geht sofort zum Standort auf der Karte und helft. Bei Gefahr: 117 Polizei, 144 Sanität, 112 Notruf.',
+    'La partie est interrompue. Allez immédiatement à la position sur la carte et aidez. En cas de danger : 117 police, 144 ambulance, 112 urgences.',
+    'The game is paused. Go to the location on the map right away and help. In danger: 117 police, 144 ambulance, 112 emergency.'),
+  r('Notfall gemeldet', 'Urgence signalée', 'Emergency reported'),
+  r('Alle sind alarmiert und sehen deinen Standort. Das Spiel ist unterbrochen. Bei Gefahr: Polizei 117, Sanität 144, Notruf 112.',
+    'Tout le monde est alerté et voit ta position. La partie est interrompue. En cas de danger : police 117, ambulance 144, urgences 112.',
+    'Everyone is alerted and can see your location. The game is paused. In danger: police 117, ambulance 144, emergency 112.'),
+  r('Notfall abgebrochen', 'Urgence annulée', 'Emergency cancelled'),
+  r('Notfall erledigt', 'Urgence réglée', 'Emergency resolved'),
+  r('{N}: alles in Ordnung (Fehlalarm oder erledigt).', '$1 : tout va bien (fausse alerte ou réglé).', '$1: all fine (false alarm or resolved).'),
+  r('Weiter geht\'s!', 'On continue !', 'Let’s go on!'),
+  r('Der Notfall ist beendet. Das Spiel läuft wieder, die unterbrochene Zeit wird angehängt.',
+    'L’urgence est terminée. La partie reprend, le temps d’interruption est ajouté à la fin.',
+    'The emergency is over. The game is running again; the paused time is added at the end.'),
+  r('Spiel pausiert', 'Partie en pause', 'Game paused'),
+  r('Notfall: {N}', 'Urgence : $1', 'Emergency: $1'),
+
+  // Chat, Akku
+  r('Nachricht der Hunter an alle', 'Message des hunters à tous', 'Message from the hunters to all'),
+  r('Nachricht von {N} (Hunter)', 'Message de $1 (hunter)', 'Message from $1 (hunter)'),
+  r('Nachricht von {N}', 'Message de $1', 'Message from $1'),
+  r('Akku niedrig ({D} %)', 'Batterie faible ($1 %)', 'Battery low ($1 %)'),
+  r('Powerbank anschliessen!', 'Branche une batterie externe !', 'Plug in a power bank!'),
+
+  // Fehler
+  r('Nicht angemeldet.', 'Non connecté.', 'Not signed in.'),
+  r('Bitte bestätige zuerst deine E-Mail-Adresse.', 'Confirme d’abord ton adresse e-mail.', 'Please confirm your e-mail address first.'),
+  r('Bitte vervollständige zuerst dein Profil.', 'Complète d’abord ton profil.', 'Please complete your profile first.'),
+  r('Bitte erfasse zuerst einen Notfallkontakt.', 'Enregistre d’abord un contact d’urgence.', 'Please add an emergency contact first.'),
+  r('Kein offenes Spiel mit diesem Code gefunden.', 'Aucune partie ouverte avec ce code.', 'No open game found with this code.'),
+  r('Dieses Spiel läuft bereits. Beitreten ist nur in der Lobby möglich.', 'Cette partie est déjà en cours. On ne peut rejoindre que dans le lobby.', 'This game is already running. You can only join in the lobby.'),
+  r('Nur der Host kann Rollen vergeben.', 'Seul l’hôte peut attribuer les rôles.', 'Only the host can assign roles.'),
+  r('Rollen können nur vor dem Start geändert werden.', 'Les rôles ne peuvent être changés qu’avant le début.', 'Roles can only be changed before the start.'),
+  r('Unbekannte Rolle.', 'Rôle inconnu.', 'Unknown role.'),
+  r('Keine Berechtigung.', 'Pas d’autorisation.', 'Not allowed.'),
+  r('Der Host kann das Spiel nicht verlassen.', 'L’hôte ne peut pas quitter la partie.', 'The host can’t leave the game.'),
+  r('Nur der Host kann die Regeln ändern.', 'Seul l’hôte peut modifier les règles.', 'Only the host can change the rules.'),
+  r('Nur der Host kann das Spiel bearbeiten.', 'Seul l’hôte peut modifier la partie.', 'Only the host can edit the game.'),
+  r('Als Besitzer kannst du die Gruppe nicht verlassen. Übertrage zuerst den Besitz oder lösche die Gruppe.',
+    'En tant que propriétaire, tu ne peux pas quitter le groupe. Transfère d’abord la propriété ou supprime le groupe.',
+    'As the owner you can’t leave the group. Transfer ownership first or delete the group.'),
+  r('Nur der Besitzer kann Rollen ändern.', 'Seul le propriétaire peut changer les rôles.', 'Only the owner can change roles.'),
+  r('Nur der Besitzer kann die Gruppe löschen.', 'Seul le propriétaire peut supprimer le groupe.', 'Only the owner can delete the group.'),
+  r('Nur der Host kann die Karte bearbeiten.', 'Seul l’hôte peut modifier la carte.', 'Only the host can edit the map.'),
+  r('Die Karte ist ab Spielstart gesperrt.', 'La carte est verrouillée dès le début de la partie.', 'The map is locked once the game starts.'),
+  r('Du bist nicht in diesem Spiel.', 'Tu ne fais pas partie de cette partie.', 'You are not in this game.'),
+  r('Das darf deine Rolle nicht.', 'Ton rôle ne permet pas cela.', 'Your role isn’t allowed to do that.'),
+  r('Das Spiel ist beendet.', 'La partie est terminée.', 'The game is over.'),
+  r('Das Spiel ist pausiert.', 'La partie est en pause.', 'The game is paused.'),
+  r('Das Spiel läuft noch nicht.', 'La partie n’a pas encore commencé.', 'The game hasn’t started yet.'),
+  r('Nur der Host kann das Spiel starten.', 'Seul l’hôte peut lancer la partie.', 'Only the host can start the game.'),
+  r('Das Spiel wurde schon gestartet.', 'La partie a déjà été lancée.', 'The game has already started.'),
+  r('Noch {D} Person(en) ohne Rolle.', 'Encore $1 personne(s) sans rôle.', '$1 person(s) still without a role.'),
+  r('Mindestens 1 Spieler nötig.', 'Au moins 1 joueur nécessaire.', 'At least 1 player needed.'),
+  r('Mindestens 1 Hunter nötig.', 'Au moins 1 hunter nécessaire.', 'At least 1 hunter needed.'),
+  r('Zu viele Spieler für die Regeln.', 'Trop de joueurs pour les règles.', 'Too many players for the rules.'),
+  r('Zeichne zuerst ein Spielfeld auf der Karte.', 'Dessine d’abord une zone de jeu sur la carte.', 'Draw a play area on the map first.'),
+  r('Setze den Startpunkt auf der Karte.', 'Place le point de départ sur la carte.', 'Set the starting point on the map.'),
+  r('Setze mindestens 4 Fluchtpunkt-Kandidaten auf der Karte (oder schalte den Fluchtpunkt aus).', 'Place au moins 4 points de fuite possibles sur la carte (ou désactive le point de fuite).', 'Set at least 4 possible escape points on the map (or turn the escape point off).'),
+  r('Der Startpunkt liegt ausserhalb des Spielfelds.', 'Le point de départ est hors de la zone de jeu.', 'The starting point is outside the play area.'),
+  r('Der Startpunkt oder ein Fluchtpunkt liegt in einer Gefahrenzone.', 'Le point de départ ou un point de fuite est dans une zone dangereuse.', 'The starting point or an escape point is in a danger zone.'),
+  r('Nur wer das Spiel erstellt hat.', 'Seulement la personne qui a créé la partie.', 'Only the person who created the game.'),
+  r('Vorspulen geht nur im Probelauf.', 'L’avance rapide n’est possible qu’en partie d’essai.', 'Fast-forward only works in a test run.'),
+  r('Zwischen 1 und 1440 Minuten.', 'Entre 1 et 1440 minutes.', 'Between 1 and 1440 minutes.'),
+  r('Blitzjagden sind ausgeschaltet.', 'Les chasses éclair sont désactivées.', 'Blitz hunts are turned off.'),
+  r('Keine Blitzjagd mehr übrig.', 'Plus de chasse éclair disponible.', 'No blitz hunts left.'),
+  r('Schon {D} Blitzjagden gleichzeitig.', 'Déjà $1 chasses éclair en même temps.', 'Already $1 blitz hunts at the same time.'),
+  r('Dieses Ziel kann nicht gejagt werden.', 'Cette cible ne peut pas être traquée.', 'This target can’t be hunted.'),
+  r('Auf dieses Ziel läuft schon eine Blitzjagd.', 'Une chasse éclair est déjà en cours sur cette cible.', 'A blitz hunt is already running on this target.'),
+  r('Ziel ist durch einen Joker geschützt.', 'La cible est protégée par un joker.', 'The target is protected by a joker.'),
+  r('Nicht zweimal hintereinander dasselbe Ziel.', 'Pas deux fois de suite la même cible.', 'Not the same target twice in a row.'),
+  r('Dieses Ziel hatte schon genug Blitzjagden.', 'Cette cible a déjà eu assez de chasses éclair.', 'This target has had enough blitz hunts.'),
+  r('Erst {D} min nach dem letzten Ping möglich.', 'Possible seulement $1 min après le dernier ping.', 'Only possible $1 min after the last ping.'),
+  r('Blitzjagd nicht gefunden.', 'Chasse éclair introuvable.', 'Blitz hunt not found.'),
+  r('Die Blitzjagd läuft nicht.', 'La chasse éclair n’est pas en cours.', 'The blitz hunt isn’t running.'),
+  r('Nächste Abfrage erst um {H}.', 'Prochaine requête seulement à $1.', 'Next query only at $1.'),
+  r('GPS-Abstand zu gross ({D} m). Geh näher ran.', 'Distance GPS trop grande ($1 m). Approche-toi.', 'GPS distance too large ($1 m). Get closer.'),
+  r('Code ungültig oder abgelaufen.', 'Code non valable ou expiré.', 'Code invalid or expired.'),
+  r('Spieler nicht gefunden.', 'Joueur introuvable.', 'Player not found.'),
+  r('Schon entschieden.', 'Déjà décidé.', 'Already decided.'),
+  r('Nur die gefangene Person.', 'Seulement la personne attrapée.', 'Only the caught person.'),
+  r('Nur wer gefangen hat.', 'Seulement la personne qui a attrapé.', 'Only the person who made the catch.'),
+  r('Kein Beweis nötig.', 'Aucune preuve nécessaire.', 'No proof needed.'),
+  r('Der Fluchtpunkt ist noch nicht bekannt.', 'Le point de fuite n’est pas encore connu.', 'The escape point isn’t known yet.'),
+  r('Du bist noch nicht am Fluchtpunkt.', 'Tu n’es pas encore au point de fuite.', 'You aren’t at the escape point yet.'),
+  r('Nicht erlaubt.', 'Pas autorisé.', 'Not allowed.'),
+  r('Verschanzen-Regel ist aus.', 'La règle du retranchement est désactivée.', 'The holed-up rule is off.'),
+  r('Noch kein Standort.', 'Pas encore de position.', 'No location yet.'),
+  r('Gegenstand nicht gefunden.', 'Objet introuvable.', 'Item not found.'),
+  r('Nicht dein Gegenstand.', 'Ce n’est pas ton objet.', 'Not your item.'),
+  r('Schon benutzt oder verfallen.', 'Déjà utilisé ou expiré.', 'Already used or expired.'),
+  r('Du bist nicht mehr im Spiel.', 'Tu n’es plus en jeu.', 'You are no longer in the game.'),
+  r('Bitte einen Joker-Typ wählen.', 'Choisis un type de joker.', 'Please choose a joker type.'),
+  r('Während einer Blitzjagd nicht möglich.', 'Pas possible pendant une chasse éclair.', 'Not possible during a blitz hunt.'),
+  r('Unbekannter Gegenstand.', 'Objet inconnu.', 'Unknown item.'),
+  r('Nur die Person selbst oder wer das Spiel erstellt hat, kann den Notfall beenden.', 'Seule la personne elle-même ou celle qui a créé la partie peut terminer l’urgence.', 'Only the person themselves or whoever created the game can end the emergency.'),
+  r('Nur Hunter bei einem offenen Notfall.', 'Seulement les hunters lors d’une urgence en cours.', 'Only hunters during an open emergency.'),
+  r('Nur für Hunter.', 'Seulement pour les hunters.', 'Hunters only.'),
+  r('An alle Spieler schreiben nur die Hunter.', 'Seuls les hunters écrivent à tous les joueurs.', 'Only hunters write to all players.'),
+  r('Unbekannter Kanal.', 'Canal inconnu.', 'Unknown channel.'),
+  r('Spieler schreiben nie mit anderen Spielern.', 'Les joueurs n’écrivent jamais avec d’autres joueurs.', 'Players never write to other players.'),
+  r('Nur Spieler und Hunter schreiben hier.', 'Seuls les joueurs et les hunters écrivent ici.', 'Only players and hunters write here.'),
+  r('Nicht in der Gruppe.', 'Pas dans le groupe.', 'Not in the group.'),
+  r('Die Wiederholung gibt es erst nach Spielende.', 'Le replay n’est disponible qu’après la fin de la partie.', 'The replay is only available after the game.'),
+  r('Zu lange in einer Gefahrenzone', 'Trop longtemps dans une zone dangereuse', 'Too long in a danger zone'),
+];
+
+/** Übersetzt eine Meldung oder einen Fehler vom Server; Unbekanntes bleibt Deutsch. */
+export function translateServer(text: string | null | undefined): string {
+  if (!text) return text ?? '';
+  const lang = getLang();
+  if (lang === 'de') return text;
+  for (const [re, frText, enText] of RULES) {
+    const m = text.match(re);
+    if (m) return (lang === 'fr' ? frText : enText).replace(/\$(\d)/g, (_, i: string) => m[Number(i)] ?? '');
+  }
+  return text;
+}
+
+/** Für Tests: alle Muster. */
+export const SERVER_RULES = RULES;

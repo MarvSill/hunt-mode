@@ -5,6 +5,7 @@ import { useAuth } from '../lib/auth';
 import { STATUS_LABELS } from '../lib/games';
 import { appUrl, db, errorText } from '../lib/supabase';
 import { MessageList } from '../play/Chat';
+import { t } from '../i18n';
 
 interface Group { id: string; name: string; description: string | null; invite_code: string; owner_id: string; members_can_create_games: boolean }
 interface Member { user_id: string; username: string; display_name: string; role: string }
@@ -45,14 +46,14 @@ export default function GroupPage() {
     await load();
   }
 
-  if (!g) return <div className="app">{err ? <div className="notice error">{err}</div> : <span className="muted">Lade …</span>}</div>;
+  if (!g) return <div className="app">{err ? <div className="notice error">{err}</div> : <span className="muted">{t('Lade …')}</span>}</div>;
   const myRole = members.find((m) => m.user_id === session?.user.id)?.role;
   const owner = g.owner_id === session?.user.id;
   const admin = myRole === 'besitzer' || myRole === 'admin';
 
   async function share() {
     const url = appUrl(`/gruppe/${g!.invite_code}`);
-    const text = `Tritt der Gruppe "${g!.name}" bei: ${url}`;
+    const text = t('Tritt der Gruppe "{0}" bei: {1}', { 0: g!.name, 1: url });
     if (navigator.share) {
       try { await navigator.share({ title: 'Hunt Mode', text, url }); return; } catch { /* abgebrochen */ }
     }
@@ -64,38 +65,38 @@ export default function GroupPage() {
   return (
     <div className="app">
       <div className="topbar">
-        <Link to="/gruppen" className="button ghost back" aria-label="Zurück"><Icon name="back" /></Link>
+        <Link to="/gruppen" className="button ghost back" aria-label={t('Zurück')}><Icon name="back" /></Link>
         <h1>{g.name}</h1>
       </div>
       {err && <div className="notice error" style={{ marginBottom: 12 }}>{err}</div>}
       <div className="card stack">
-        <div className="muted small" style={{ textAlign: 'center' }}>Einladungs-Code</div>
+        <div className="muted small" style={{ textAlign: 'center' }}>{t('Einladungs-Code')}</div>
         <div className="code-big">{g.invite_code}</div>
-        <button onClick={share}>{copied ? 'Kopiert!' : 'Einladung teilen'}</button>
+        <button onClick={share}>{copied ? t('Kopiert!') : t('Einladung teilen')}</button>
         {owner && (
           <label className="check">
             <input type="checkbox" checked={g.members_can_create_games}
               onChange={async (e) => { await db().from('groups').update({ members_can_create_games: e.target.checked }).eq('id', g.id); await load(); }} />
-            <span>Alle Mitglieder dürfen Gruppenspiele erstellen</span>
+            <span>{t('Alle Mitglieder dürfen Gruppenspiele erstellen')}</span>
           </label>
         )}
       </div>
 
-      <h2>Spiele der Gruppe</h2>
+      <h2>{t('Spiele der Gruppe')}</h2>
       <div className="card">
         <ul className="list">
           {games.map((x) => (
             <li key={x.id}>
-              <span className="spacer">{x.name} <span className="muted small">Code {x.code}</span></span>
+              <span className="spacer">{x.name} <span className="muted small">{t('Code')} {x.code}</span></span>
               <span className="badge">{STATUS_LABELS[x.status] ?? x.status}</span>
-              <Link to={`/beitreten/${x.code}`} className="button small">Öffnen</Link>
+              <Link to={`/beitreten/${x.code}`} className="button small">{t('Öffnen')}</Link>
             </li>
           ))}
-          {games.length === 0 && <li className="muted small">Noch keine. Erstelle ein Spiel und ordne es dieser Gruppe zu.</li>}
+          {games.length === 0 && <li className="muted small">{t('Noch keine. Erstelle ein Spiel und ordne es dieser Gruppe zu.')}</li>}
         </ul>
       </div>
 
-      <h2>Mitglieder ({members.length})</h2>
+      <h2>{t('Mitglieder (')}{members.length})</h2>
       <div className="card">
         <ul className="list">
           {members.map((m) => (
@@ -104,35 +105,35 @@ export default function GroupPage() {
               <div className="spacer"><div>{m.display_name}</div><div className="muted small">@{m.username}</div></div>
               <span className="badge">{m.role}</span>
               {owner && m.user_id !== session?.user.id && (
-                <select aria-label={`Rolle ${m.display_name}`} value="" onChange={(e) => {
+                <select aria-label={t('Rolle {0}', { 0: m.display_name })} value="" onChange={(e) => {
                   const v = e.target.value;
                   if (v === 'entfernen') void run('remove_group_member', { p_group_id: g.id, p_user_id: m.user_id });
                   else if (v) void run('set_group_member_role', { p_group_id: g.id, p_user_id: m.user_id, p_role: v });
                 }}>
                   <option value="">…</option>
-                  <option value="admin">Admin</option>
-                  <option value="mitglied">Mitglied</option>
-                  <option value="besitzer">Besitz übertragen</option>
-                  <option value="entfernen">Entfernen</option>
+                  <option value="admin">{t('Admin')}</option>
+                  <option value="mitglied">{t('Mitglied')}</option>
+                  <option value="besitzer">{t('Besitz übertragen')}</option>
+                  <option value="entfernen">{t('Entfernen')}</option>
                 </select>
               )}
               {!owner && admin && m.role === 'mitglied' && (
-                <button className="small ghost" onClick={() => run('remove_group_member', { p_group_id: g.id, p_user_id: m.user_id })}>Entfernen</button>
+                <button className="small ghost" onClick={() => run('remove_group_member', { p_group_id: g.id, p_user_id: m.user_id })}>{t('Entfernen')}</button>
               )}
             </li>
           ))}
         </ul>
       </div>
 
-      <h2>Chat</h2>
+      <h2>{t('Chat')}</h2>
       <div className="card">
         <MessageList filter={{ column: 'group_id', value: g.id }} channel={null} height="40dvh"
           onSend={async (body) => { const { error } = await db().rpc('send_group_message', { p_group_id: g.id, p_body: body }); if (error) throw error; }} />
       </div>
 
       <div className="row" style={{ marginTop: 12 }}>
-        {!owner && <button className="ghost" onClick={() => run('leave_group', { p_group_id: g.id }, () => navigate('/gruppen'))}>Gruppe verlassen</button>}
-        {owner && <button className="ghost" onClick={() => { if (confirm('Gruppe wirklich löschen?')) void run('delete_group', { p_group_id: g.id }, () => navigate('/gruppen')); }}>Gruppe löschen</button>}
+        {!owner && <button className="ghost" onClick={() => run('leave_group', { p_group_id: g.id }, () => navigate('/gruppen'))}>{t('Gruppe verlassen')}</button>}
+        {owner && <button className="ghost" onClick={() => { if (confirm(t('Gruppe wirklich löschen?'))) void run('delete_group', { p_group_id: g.id }, () => navigate('/gruppen')); }}>{t('Gruppe löschen')}</button>}
       </div>
     </div>
   );

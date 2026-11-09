@@ -6,11 +6,12 @@ import { timeLimits } from '../shared/timeRules';
 import Icon from './Icon';
 import Info from './Info';
 import { formatMinutes } from '../shared/format';
+import { t, lazy } from '../i18n';
 
-export const JOKER_LABELS: Record<string, string> = {
+export const JOKER_LABELS: Record<string, string> = lazy({
   regeneration: 'Regeneration (keine Pings, keine Blitzjagd auf ihn)',
   hunter_erfragen: 'Hunter-Standorte (einmaliger Ping aller Hunter)',
-};
+});
 
 /**
  * Die wichtigsten Regeln auf einen Blick, mit grossen Knöpfen statt Zahlenfeldern.
@@ -61,50 +62,50 @@ export default function QuickSettings({ config, onChange }: Props) {
 
   return (
     <div>
-      <Box title="Spieler und Hunter" icon="👥" summary={`${config.roles.players_max} Spieler · ${config.roles.hunters_max} Hunter`} info={SETTING_HELP.roles}>
-        <Stepper label="Spieler" value={config.roles.players_max} min={1} max={100} onChange={(v) => set('roles', 'players_max', v)} />
-        <Stepper label="Hunter" value={config.roles.hunters_max} min={1} max={50} onChange={(v) => set('roles', 'hunters_max', v)} />
+      <Box title={t('Spieler und Hunter')} icon="👥" summary={t('{0} Spieler · {1} Hunter', { 0: config.roles.players_max, 1: config.roles.hunters_max })} info={SETTING_HELP.roles}>
+        <Stepper label={t('Spieler')} value={config.roles.players_max} min={1} max={100} onChange={(v) => set('roles', 'players_max', v)} />
+        <Stepper label={t('Hunter')} value={config.roles.hunters_max} min={1} max={50} onChange={(v) => set('roles', 'hunters_max', v)} />
         <Choice
-          label="Wer bestimmt die Rollen?"
+          label={t('Wer bestimmt die Rollen?')}
           value={config.roles.assignment}
-          options={[['host', 'Ich als Host'], ['zufall', 'Zufall'], ['selbst', 'Jeder selbst']]}
+          options={[['host', t('Ich als Host')], ['zufall', t('Zufall')], ['selbst', t('Jeder selbst')]]}
           onChange={(v) => set('roles', 'assignment', v)}
         />
       </Box>
 
-      <Box title="Zeit" icon="⏱️" summary={`${formatMinutes(g.duration_minutes)} am Stück · ${formatMinutes(config.start.head_start_minutes)} Vorsprung`} info={SETTING_HELP.times}>
-        <Duration label="Spieldauer (am Stück)" value={g.duration_minutes} min={15} max={20160} onChange={setDuration} />
-        <Duration label="Vorsprung der Spieler" value={config.start.head_start_minutes} min={0} max={600}
+      <Box title={t('Zeit')} icon="⏱️" summary={t('{0} am Stück · {1} Vorsprung', { 0: formatMinutes(g.duration_minutes), 1: formatMinutes(config.start.head_start_minutes) })} info={SETTING_HELP.times}>
+        <Duration label={t('Spieldauer (am Stück)')} value={g.duration_minutes} min={15} max={20160} onChange={setDuration} />
+        <Duration label={t('Vorsprung der Spieler')} value={config.start.head_start_minutes} min={0} max={600}
           onChange={(v) => set('start', 'head_start_minutes', v)} />
-        <Toggle label="Hunter warten am Startpunkt während des Vorsprungs" value={config.start.hunters_must_stay_in_hq}
+        <Toggle label={t('Hunter warten am Startpunkt während des Vorsprungs')} value={config.start.hunters_must_stay_in_hq}
           onChange={(v) => set('start', 'hunters_must_stay_in_hq', v)} />
       </Box>
 
-      <Box title="Pings" icon="📍" summary={`alle ${formatMinutes(config.ping.interval_minutes)}`} info={SETTING_HELP.pings}>
-        <Duration label="Ping alle" value={config.ping.interval_minutes} min={1} max={lim('ping.interval_minutes', 720)}
+      <Box title={t('Pings')} icon="📍" summary={`alle ${formatMinutes(config.ping.interval_minutes)}`} info={SETTING_HELP.pings}>
+        <Duration label={t('Ping alle')} value={config.ping.interval_minutes} min={1} max={lim('ping.interval_minutes', 720)}
           onChange={(v) => set('ping', 'interval_minutes', v)} />
-        <Duration label="Erster Ping nach dem Vorsprung" value={config.ping.first_ping_delay_minutes} min={0} max={lim('ping.first_ping_delay_minutes', 600)}
+        <Duration label={t('Erster Ping nach dem Vorsprung')} value={config.ping.first_ping_delay_minutes} min={0} max={lim('ping.first_ping_delay_minutes', 600)}
           onChange={(v) => set('ping', 'first_ping_delay_minutes', v)} />
-        <Toggle label="Hunter sehen, wann der nächste Ping kommt" value={config.ping.reveal_schedule_to_taskforce}
+        <Toggle label={t('Hunter sehen, wann der nächste Ping kommt')} value={config.ping.reveal_schedule_to_taskforce}
           onChange={(v) => set('ping', 'reveal_schedule_to_taskforce', v)} />
       </Box>
 
-      <Box title="Blitzjagd" icon="⚡" summary={config.speedhunt.enabled ? `${config.speedhunt.quota_per_day[0] ?? 0} im Spiel · ${config.speedhunt.queries} Abfragen` : 'aus'} info={SETTING_HELP.speedhunt}>
-        <Toggle label="Blitzjagden erlaubt" value={config.speedhunt.enabled} onChange={(v) => set('speedhunt', 'enabled', v)} />
+      <Box title={t('Blitzjagd')} icon="⚡" summary={config.speedhunt.enabled ? t('{0} im Spiel · {1} Abfragen', { 0: config.speedhunt.quota_per_day[0] ?? 0, 1: config.speedhunt.queries }) : 'aus'} info={SETTING_HELP.speedhunt}>
+        <Toggle label={t('Blitzjagden erlaubt')} value={config.speedhunt.enabled} onChange={(v) => set('speedhunt', 'enabled', v)} />
         {config.speedhunt.enabled && (
           <>
-            <Stepper label="Blitzjagden im ganzen Spiel" value={config.speedhunt.quota_per_day[0] ?? 0} min={0} max={20}
+            <Stepper label={t('Blitzjagden im ganzen Spiel')} value={config.speedhunt.quota_per_day[0] ?? 0} min={0} max={20}
               onChange={(v) => set('speedhunt', 'quota_per_day', [v])} />
-            <Stepper label="Standort-Abfragen pro Blitzjagd" value={config.speedhunt.queries} min={1} max={20}
+            <Stepper label={t('Standort-Abfragen pro Blitzjagd')} value={config.speedhunt.queries} min={1} max={20}
               onChange={(v) => set('speedhunt', 'queries', v)} />
-            <div className="muted small">Blitzjagden starten nur die Hunter. Eine Blitzjagd hat kein Zeitlimit: sie endet, wenn alle Abfragen gemacht sind oder das Ziel gefangen ist.</div>
+            <div className="muted small">{t('Blitzjagden starten nur die Hunter. Eine Blitzjagd hat kein Zeitlimit: sie endet, wenn alle Abfragen gemacht sind oder das Ziel gefangen ist.')}</div>
           </>
         )}
       </Box>
 
-      <Box title="Fangen und Gewinnen" icon="🏁" summary={`${config.catch.method.includes('qr') ? 'QR-Code' : 'Berühren'}${config.exit.enabled ? ' · mit Fluchtpunkt' : ''}`} info={SETTING_HELP.catch}>
+      <Box title={t('Fangen und Gewinnen')} icon="🏁" summary={`${config.catch.method.includes('qr') ? t('QR-Code') : t('Berühren')}${config.exit.enabled ? t(' · mit Fluchtpunkt') : ''}`} info={SETTING_HELP.catch}>
         <div className="field">
-          <span>Wie wird gefangen? <Hint label="Wie wird gefangen?" /></span>
+          <span>{t('Wie wird gefangen?')} <Hint label={t('Wie wird gefangen?')} /></span>
           <div className="chips">
             {CATCH_METHODS.filter((m) => m === 'qr' || m === 'touch_confirm').map((m) => {
               const on = config.catch.method.includes(m);
@@ -114,61 +115,61 @@ export default function QuickSettings({ config, onChange }: Props) {
                     const list = on ? config.catch.method.filter((x) => x !== m) : [...config.catch.method, m];
                     if (list.length) set('catch', 'method', list);
                   }}>
-                  {m === 'qr' ? 'QR-Code scannen' : 'Berühren + bestätigen'}
+                  {m === 'qr' ? t('QR-Code scannen') : t('Berühren + bestätigen')}
                 </button>
               );
             })}
           </div>
         </div>
-        <Toggle label="Fluchtpunkt am Schluss (Spieler müssen hin)" value={config.exit.enabled} onChange={(v) => set('exit', 'enabled', v)} />
+        <Toggle label={t('Fluchtpunkt am Schluss (Spieler müssen hin)')} value={config.exit.enabled} onChange={(v) => set('exit', 'enabled', v)} />
       </Box>
 
-      <Box title="Joker" icon="🃏" summary={j.enabled && j.types.length ? `${j.types.length} Joker · erster nach ${formatMinutes(firstJoker)}` : 'aus'} info={SETTING_HELP.joker}>
-        <Toggle label="Joker im Spiel" value={j.enabled} onChange={(v) => set('joker', 'enabled', v)} />
+      <Box title={t('Joker')} icon="🃏" summary={j.enabled && j.types.length ? t('{0} Joker · erster nach {1}', { 0: j.types.length, 1: formatMinutes(firstJoker) }) : 'aus'} info={SETTING_HELP.joker}>
+        <Toggle label={t('Joker im Spiel')} value={j.enabled} onChange={(v) => set('joker', 'enabled', v)} />
         {j.enabled && (
           <>
-            <div className="muted small">Jeder Joker wird nach der eingestellten Spielzeit für alle Spieler freigeschaltet. Wirken tut er erst, wenn der Spieler ihn einsetzt.</div>
+            <div className="muted small">{t('Jeder Joker wird nach der eingestellten Spielzeit für alle Spieler freigeschaltet. Wirken tut er erst, wenn der Spieler ihn einsetzt.')}</div>
             {j.types.map((x, i) => (
               <div key={i} className="sub stack" style={{ gap: 4 }}>
                 <div className="row" style={{ flexWrap: 'nowrap' }}>
-                  <select aria-label={`Joker ${i + 1}`} value={x.type} style={{ flex: 1 }}
+                  <select aria-label={t('Joker {0}', { 0: i + 1 })} value={x.type} style={{ flex: 1 }}
                     onChange={(e) => {
                       const type = e.target.value as JokerEntry['type'];
                       setJokers(j.types.map((y, k) => (k === i ? { type, after_minutes: y.after_minutes, ...(type === 'hunter_erfragen' ? {} : { minutes: y.minutes ?? 15 }) } : y)));
                     }}>
                     {JOKER_TYPES.map((t) => <option key={t} value={t}>{JOKER_LABELS[t]}</option>)}
                   </select>
-                  <button type="button" className="ghost small" aria-label={`Joker ${i + 1} entfernen`} onClick={() => setJokers(j.types.filter((_, k) => k !== i))}>✕</button>
+                  <button type="button" className="ghost small" aria-label={t('Joker {0} entfernen', { 0: i + 1 })} onClick={() => setJokers(j.types.filter((_, k) => k !== i))}>✕</button>
                 </div>
-                <Duration label="Freigeschaltet nach" value={x.after_minutes} min={0} max={latestJoker}
+                <Duration label={t('Freigeschaltet nach')} value={x.after_minutes} min={0} max={latestJoker}
                   onChange={(v) => setJokers(j.types.map((y, k) => (k === i ? { ...y, after_minutes: v } : y)))} />
                 {x.type !== 'hunter_erfragen' && (
-                  <Duration label="Wirkt so lange" value={x.minutes ?? 15} min={1} max={Math.min(1440, g.duration_minutes)}
+                  <Duration label={t('Wirkt so lange')} value={x.minutes ?? 15} min={1} max={Math.min(1440, g.duration_minutes)}
                     onChange={(v) => setJokers(j.types.map((y, k) => (k === i ? { ...y, minutes: v } : y)))} />
                 )}
               </div>
             ))}
-            <button type="button" className="small" onClick={addJoker}>+ Joker hinzufügen</button>
+            <button type="button" className="small" onClick={addJoker}>{t('+ Joker hinzufügen')}</button>
           </>
         )}
       </Box>
 
-      <Box title="Fortbewegung" icon="🚌" summary={[config.transport.motorized_allowed && 'ÖV/Taxi/Auto', config.transport.bikes_allowed && 'Velo/Trottinett'].filter(Boolean).join(' · ') || 'nur zu Fuss'}>
-        <Toggle label="ÖV, Taxi und Auto erlaubt" value={config.transport.motorized_allowed} onChange={(v) => set('transport', 'motorized_allowed', v)} />
-        <Toggle label="Velo und Trottinett erlaubt" value={config.transport.bikes_allowed} onChange={(v) => set('transport', 'bikes_allowed', v)} />
-        <div className="muted small">Zu Fuss geht immer. Fahrten muss man nicht anmelden, und niemand wird dabei live gezeigt.</div>
+      <Box title={t('Fortbewegung')} icon="🚌" summary={[config.transport.motorized_allowed && t('ÖV/Taxi/Auto'), config.transport.bikes_allowed && t('Velo/Trottinett')].filter(Boolean).join(' · ') || t('nur zu Fuss')}>
+        <Toggle label={t('ÖV, Taxi und Auto erlaubt')} value={config.transport.motorized_allowed} onChange={(v) => set('transport', 'motorized_allowed', v)} />
+        <Toggle label={t('Velo und Trottinett erlaubt')} value={config.transport.bikes_allowed} onChange={(v) => set('transport', 'bikes_allowed', v)} />
+        <div className="muted small">{t('Zu Fuss geht immer. Fahrten muss man nicht anmelden, und niemand wird dabei live gezeigt.')}</div>
       </Box>
 
-      <Box title="Extras" icon="✨" summary={[config.hideout.enabled && 'Verschanzen', config.proximity.enabled && 'Nähe-Alarm', config.spectator.enabled && 'Zuschauer'].filter(Boolean).join(' · ') || 'keine'} info={SETTING_HELP.extras}>
-        <Toggle label="Verschanzen-Regel (nicht zu lange am selben Ort)" value={config.hideout.enabled} onChange={(v) => set('hideout', 'enabled', v)} />
-        <Toggle label="Alarm, wenn Spieler zusammen laufen" value={config.proximity.enabled} onChange={(v) => set('proximity', 'enabled', v)} />
+      <Box title={t('Extras')} icon="✨" summary={[config.hideout.enabled && t('Verschanzen'), config.proximity.enabled && t('Nähe-Alarm'), config.spectator.enabled && t('Zuschauer')].filter(Boolean).join(' · ') || 'keine'} info={SETTING_HELP.extras}>
+        <Toggle label={t('Verschanzen-Regel (nicht zu lange am selben Ort)')} value={config.hideout.enabled} onChange={(v) => set('hideout', 'enabled', v)} />
+        <Toggle label={t('Alarm, wenn Spieler zusammen laufen')} value={config.proximity.enabled} onChange={(v) => set('proximity', 'enabled', v)} />
         {config.proximity.enabled && (
           <>
-            <Stepper label="Abstand für den Nähe-Alarm (m)" value={config.proximity.distance_m} min={10} max={2000} step={10} onChange={(v) => set('proximity', 'distance_m', v)} />
-            <Duration label="Zeit zum Auseinandergehen" value={config.proximity.warn_minutes} min={0} max={30} onChange={(v) => set('proximity', 'warn_minutes', v)} />
+            <Stepper label={t('Abstand für den Nähe-Alarm (m)')} value={config.proximity.distance_m} min={10} max={2000} step={10} onChange={(v) => set('proximity', 'distance_m', v)} />
+            <Duration label={t('Zeit zum Auseinandergehen')} value={config.proximity.warn_minutes} min={0} max={30} onChange={(v) => set('proximity', 'warn_minutes', v)} />
           </>
         )}
-        <Toggle label="Zuschauer erlaubt" value={config.spectator.enabled} onChange={(v) => set('spectator', 'enabled', v)} />
+        <Toggle label={t('Zuschauer erlaubt')} value={config.spectator.enabled} onChange={(v) => set('spectator', 'enabled', v)} />
       </Box>
     </div>
   );
@@ -223,12 +224,12 @@ function Duration({ label, value, min, max, onChange }: {
     <div className="quick-row">
       <span className="spacer">{label} <Hint label={label} /></span>
       <div className="duration">
-        <input type="number" inputMode="numeric" aria-label={`${label} Stunden`} min={0} value={h}
+        <input type="number" inputMode="numeric" aria-label={t('{0} Stunden', { 0: label })} min={0} value={h}
           onChange={(e) => put(Math.max(0, Math.round(Number(e.target.value) || 0)), m)} />
         <span>h</span>
-        <input type="number" inputMode="numeric" aria-label={`${label} Minuten`} min={0} max={59} step={5} value={m}
+        <input type="number" inputMode="numeric" aria-label={t('{0} Minuten', { 0: label })} min={0} max={59} step={5} value={m}
           onChange={(e) => put(h, clamp(Math.round(Number(e.target.value) || 0), 0, 59))} />
-        <span>min</span>
+        <span>{t('min')}</span>
       </div>
     </div>
   );
@@ -262,6 +263,7 @@ function Choice({ label, value, options, onChange }: {
 
 /** ⓘ-Knopf mit der Erklärung zur Einstellung, falls es eine gibt. */
 function Hint({ label }: { label: string }) {
-  const text = QUICK_HELP[label];
-  return text ? <Info title={label} text={text} /> : null;
+  // Die Beschriftung kommt schon übersetzt; die Erklärung ist nach dem deutschen Text abgelegt.
+  const key = label in QUICK_HELP ? label : Object.keys(QUICK_HELP).find((k) => t(k) === label);
+  return key ? <Info title={label} text={t(QUICK_HELP[key])} /> : null;
 }

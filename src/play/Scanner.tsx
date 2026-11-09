@@ -1,5 +1,6 @@
 import jsQR from 'jsqr';
 import { useEffect, useRef, useState } from 'react';
+import { t } from '../i18n';
 
 // QR-Scanner: BarcodeDetector, wo vorhanden, sonst jsQR. Fällt auf Code-Eingabe zurück.
 export default function Scanner({ onCode, onClose }: { onCode: (code: string) => void; onClose: () => void }) {
@@ -56,7 +57,7 @@ export default function Scanner({ onCode, onClose }: { onCode: (code: string) =>
           void loop();
         }
       } catch {
-        setErr('Kamera nicht verfügbar. Code von Hand eingeben.');
+        setErr(t('Kamera nicht verfügbar. Code von Hand eingeben.'));
       }
     })();
     return () => {
@@ -68,15 +69,15 @@ export default function Scanner({ onCode, onClose }: { onCode: (code: string) =>
   return (
     <div className="overlay">
       <div className="card stack" style={{ width: '100%', maxWidth: 420 }}>
-        <h2 style={{ margin: 0 }}>Fang-Code scannen</h2>
+        <h2 style={{ margin: 0 }}>{t('Fang-Code scannen')}</h2>
         {err ? <div className="notice">{err}</div> : <video ref={video} playsInline muted style={{ width: '100%', borderRadius: 12, background: '#000' }} />}
         <canvas ref={canvas} hidden />
         <form className="row" onSubmit={(e) => { e.preventDefault(); if (/^\d{6}$/.test(manual)) onCode(manual); }}>
-          <input inputMode="numeric" pattern="\d{6}" maxLength={6} placeholder="6-stelliger Code" aria-label="Fang-Code" value={manual}
+          <input inputMode="numeric" pattern="\d{6}" maxLength={6} placeholder={t('6-stelliger Code')} aria-label={t('Fang-Code')} value={manual}
             onChange={(e) => setManual(e.target.value.replace(/\D/g, ''))} style={{ flex: 1 }} />
-          <button type="submit" className="primary" disabled={manual.length !== 6}>Fangen</button>
+          <button type="submit" className="primary" disabled={manual.length !== 6}>{t('Fangen')}</button>
         </form>
-        <button className="ghost" onClick={onClose}>Abbrechen</button>
+        <button className="ghost" onClick={onClose}>{t('Abbrechen')}</button>
       </div>
     </div>
   );

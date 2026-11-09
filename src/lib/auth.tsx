@@ -1,6 +1,7 @@
 import type { Session } from '@supabase/supabase-js';
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 import { supabase } from './supabase';
+import { t, setLang } from '../i18n';
 
 export interface Profile {
   user_id: string;
@@ -8,6 +9,7 @@ export interface Profile {
   display_name: string;
   age_confirmed: boolean;
   is_adult: boolean;
+  locale?: string | null;
 }
 
 interface AuthState {
@@ -40,6 +42,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       supabase.from('profile_private').select('user_id').eq('user_id', s.user.id).maybeSingle(),
     ]);
     setProfile((p.data as Profile | null) ?? null);
+    // Sprache aus dem Profil, wenn auf diesem Gerät noch keine gewählt ist.
+    const loc = (p.data as Profile | null)?.locale;
+    try {
+      if (!localStorage.getItem('hm-lang') && (loc === 'de' || loc === 'fr' || loc === 'en')) setLang(loc);
+    } catch {
+      // ohne Speicher
+    }
     setHasEmergencyContact(!!e.data);
   }, []);
 
@@ -75,6 +84,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export function useAuth(): AuthState {
   const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth ausserhalb von AuthProvider');
+  if (!ctx) throw new Error(t('useAuth ausserhalb von AuthProvider'));
   return ctx;
 }

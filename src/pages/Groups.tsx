@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { db, errorText } from '../lib/supabase';
+import { t } from '../i18n';
 
 interface Group { id: string; name: string; description: string | null; invite_code: string; owner_id: string }
 
@@ -42,8 +43,8 @@ export default function GroupsPage() {
 
   return (
     <div className="app">
-      <div className="topbar"><h1>Gruppen</h1></div>
-      <p className="muted small">Eine Gruppe ist deine feste Crew: Chat, gemeinsame Spiele und schnelles Einladen.</p>
+      <div className="topbar"><h1>{t('Gruppen')}</h1></div>
+      <p className="muted small">{t('Eine Gruppe ist deine feste Crew: Chat, gemeinsame Spiele und schnelles Einladen.')}</p>
       {err && <div className="notice error" style={{ marginBottom: 12 }}>{err}</div>}
       {groups && groups.length > 0 && (
         <div className="card">
@@ -54,16 +55,16 @@ export default function GroupsPage() {
           </ul>
         </div>
       )}
-      {groups?.length === 0 && <p className="muted">Du bist noch in keiner Gruppe.</p>}
+      {groups?.length === 0 && <p className="muted">{t('Du bist noch in keiner Gruppe.')}</p>}
       <div className="card stack">
-        <h2 style={{ margin: 0 }}>Neue Gruppe</h2>
-        <input aria-label="Gruppenname" placeholder="Name (3 bis 40 Zeichen)" value={name} maxLength={40} onChange={(e) => setName(e.target.value)} />
-        <button className="primary" disabled={name.trim().length < 3} onClick={create}>Gruppe erstellen</button>
+        <h2 style={{ margin: 0 }}>{t('Neue Gruppe')}</h2>
+        <input aria-label={t('Gruppenname')} placeholder={t('Name (3 bis 40 Zeichen)')} value={name} maxLength={40} onChange={(e) => setName(e.target.value)} />
+        <button className="primary" disabled={name.trim().length < 3} onClick={create}>{t('Gruppe erstellen')}</button>
       </div>
       <div className="card stack">
-        <h2 style={{ margin: 0 }}>Gruppe beitreten</h2>
-        <input aria-label="Gruppen-Code" inputMode="numeric" placeholder="8-stelliger Code" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))} maxLength={8} />
-        <button disabled={code.length !== 8} onClick={() => join()}>Beitreten</button>
+        <h2 style={{ margin: 0 }}>{t('Gruppe beitreten')}</h2>
+        <input aria-label={t('Gruppen-Code')} inputMode="numeric" placeholder={t('8-stelliger Code')} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))} maxLength={8} />
+        <button disabled={code.length !== 8} onClick={() => join()}>{t('Beitreten')}</button>
       </div>
     </div>
   );

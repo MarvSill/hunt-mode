@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { useAuth } from '../lib/auth';
 import { db, errorText } from '../lib/supabase';
 import { MIN_PASSWORD } from './Login';
+import { t } from '../i18n';
 
 export default function NewPasswordPage() {
   const { clearRecovering } = useAuth();
@@ -12,7 +13,7 @@ export default function NewPasswordPage() {
   async function submit(e: FormEvent) {
     e.preventDefault();
     if (password.length < MIN_PASSWORD) {
-      setError(`Das Passwort braucht mindestens ${MIN_PASSWORD} Zeichen.`);
+      setError(t('Das Passwort braucht mindestens {0} Zeichen.', { 0: MIN_PASSWORD }));
       return;
     }
     setBusy(true);
@@ -28,14 +29,14 @@ export default function NewPasswordPage() {
 
   return (
     <div className="app center-screen">
-      <h1>Neues Passwort</h1>
+      <h1>{t('Neues Passwort')}</h1>
       <form className="stack" onSubmit={submit}>
         <label className="field">
-          Neues Passwort (mindestens {MIN_PASSWORD} Zeichen)
+          {t('Neues Passwort (mindestens')} {MIN_PASSWORD} {t('Zeichen)')}
           <input type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} />
         </label>
         {error && <div className="notice error">{error}</div>}
-        <button className="primary block" disabled={busy}>Speichern</button>
+        <button className="primary block" disabled={busy}>{t('Speichern')}</button>
       </form>
     </div>
   );
