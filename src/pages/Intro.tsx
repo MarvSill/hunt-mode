@@ -27,9 +27,9 @@ const SLIDES: { art: string; title: string; lead: string; points: [string, strin
     title: 'Pings verraten dich',
     lead: 'Die Hunter sehen nicht immer, wo du bist, nur in bestimmten Momenten.',
     points: [
-      ['⏱️', 'Ping', 'Alle paar Minuten sehen die Hunter deinen Standort von diesem Moment.'],
-      ['⚡', 'Blitzjagd', 'Kurze Live-Jagd: die Hunter fragen deinen Standort mehrmals ab.'],
-      ['🃏', 'Joker', 'Hilfen für Spieler, die nach einer bestimmten Spielzeit freigeschaltet werden.'],
+      ['⏱️', 'Ping', 'Alle paar Minuten sehen die Hunter deinen Standort. Dein Handy klingelt bei jedem Ping.'],
+      ['⚡', 'Blitzjagd', 'Die Hunter fragen deinen Standort mehrmals ab. Dein Handy klingelt dabei.'],
+      ['🃏', 'Joker', 'Hilfen für Spieler: nach einer bestimmten Zeit freigeschaltet, du setzt sie selbst ein.'],
     ],
   },
   {

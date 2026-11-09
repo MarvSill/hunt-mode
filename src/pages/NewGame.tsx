@@ -28,11 +28,11 @@ function presetConfig(id: string): GameConfig {
 }
 
 const GUIDE: GuideStep[] = [
-  { title: 'Willkommen!', text: 'In drei Schritten ist dein Spiel bereit. Du kannst den Helfer jederzeit schliessen und über "?" wieder öffnen.' },
+  { title: 'Willkommen!', text: 'In vier Schritten ist dein Spiel bereit. Du kannst den Helfer jederzeit schliessen und über "?" wieder öffnen.' },
   { target: 'name', title: '1. Name', text: 'Gib dem Spiel einen Namen, z. B. den Ort. Den sehen alle, die mitspielen.' },
   { target: 'presets', title: '2. Spielart', text: 'Wähle eine Vorlage. Sie stellt alle Regeln passend ein: Dauer, Pings, Blitzjagden, Joker. Für den Anfang ist "Schnell 90 min" oder "Stadtabend 3 h" ideal.' },
-  { target: 'adjust', title: '3. Anpassen (freiwillig)', text: 'Tippe einen Bereich an, um ihn zu ändern, z. B. die Anzahl Spieler oder wie oft gepingt wird. Alle Zeiten passt die App automatisch an die Spieldauer an.' },
-  { target: 'create', title: 'Fertig', text: 'Danach kommst du in die Lobby: dort zeichnest du die Karte, lädst Freunde mit dem Code ein und startest.' },
+  { target: 'adjust', title: '3. Anpassen (freiwillig)', text: 'Tippe einen Bereich an, um ihn zu ändern, z. B. die Anzahl Spieler oder wie oft gepingt wird. Bei jeder Einstellung erklärt das i, was sie bewirkt.' },
+  { target: 'create', title: '4. Karte', text: 'Danach zeichnest du das Spielfeld auf der Karte. Erst dann bekommst du den Code, mit dem deine Freunde beitreten.' },
 ];
 
 export default function NewGamePage() {
@@ -92,7 +92,8 @@ export default function NewGamePage() {
         const { error: gErr } = await db().rpc('set_game_group', { p_game_id: game.id, p_group_id: groupId });
         if (gErr) throw gErr;
       }
-      navigate(`/spiel/${game.id}`, { replace: true });
+      // Schritt 4: zuerst die Karte, erst danach gibt es den Code zum Einladen.
+      navigate(`/spiel/${game.id}/karte?neu=1`, { replace: true });
     } catch (err) {
       setError(errorText(err));
     } finally {
@@ -193,12 +194,15 @@ export default function NewGamePage() {
           </details>
         </div>
 
+        <div className="step-head"><span className="n">4</span><h2>Karte zeichnen</h2></div>
+        <p className="muted small" style={{ marginTop: 0 }}>Im nächsten Schritt legst du auf der Karte das Spielfeld fest. Danach bekommst du den Code zum Einladen.</p>
+
         <div style={{ marginTop: 12 }} data-guide="issues"><IssueList issues={result.issues} compact /></div>
 
         <div className="sticky-cta">
           {error && <div className="notice error" style={{ marginBottom: 8 }}>{error}</div>}
           <button className="primary block big" data-guide="create" disabled={busy || !name.trim()}>
-            {busy ? 'Erstelle …' : name.trim() ? 'Spiel erstellen' : 'Erst einen Namen eingeben'}
+            {busy ? 'Erstelle …' : name.trim() ? 'Weiter zur Karte' : 'Erst einen Namen eingeben'}
           </button>
         </div>
       </form>

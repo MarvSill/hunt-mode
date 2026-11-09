@@ -221,7 +221,7 @@ details summary { cursor: pointer; font-weight: 600; }
 .extra-rules li { display: list-item; }
 .extra-rules li .spacer { display: inline; }
 
-/* Gefahren- und Schutzzonen auf der Karte */
+/* Gefahrenzonen auf der Karte */
 path.hm-danger { fill: url(#hm-hatch) !important; fill-opacity: 1 !important; }
 .zone-badge { font-size: 14px; line-height: 22px; text-align: center; border-radius: 11px; padding: 0 4px; white-space: nowrap; box-shadow: 0 0 0 2px rgba(0,0,0,.5); }
 .zone-badge.danger { background: #f85149; }

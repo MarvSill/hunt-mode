@@ -104,9 +104,25 @@ Abweichungen von der Spezifikation und Annahmen, wo sie nichts festlegt.
 - Kein erkennbarer Bezug zu anderen Spielen oder Serien: keine Vorlagen nach Städten, keine solchen Texte. Übrig bleiben die Vorlagen Schnell 90 min, Stadtabend 3 h und Wochenende 24 h. Gespeicherte Spiele mit alten Vorlagen gelten als `eigenes`.
 - Eigene Begriffe: Hunter-Team (statt Taskforce), Blitzjagd (statt Speedhunt), Ping, Fluchtpunkt (statt Exitpoint), Schutzschild (Joker, nicht fangbar). Intern heissen Tabellen und Felder weiter `speedhunt`, `taskforce`, `exit`, `catch_free`.
 - Keine Spielleitung mehr (Rolle `gm` entfernt). Der Host wählt in der Lobby selbst eine Rolle und gilt immer als bereit. Strafen und bestrittene Fänge entscheidet immer die App. Funktionen der Spielleitung (Pause, Freigaben, Sonder-Ping, Joker vergeben, Live-Regeln) sind auf dem Server gesperrt. Der Host kann das Spiel abbrechen und im Probelauf vorspulen.
-- Das Spiel läuft am Stück: keine Spieltage (intern immer `game.days = 1`), keine jagdfreien Zeiten, keine Pause. Blitzjagden und Budget gelten fürs ganze Spiel, das Spielfeld wird alle X Minuten kleiner.
+- Das Spiel läuft am Stück: keine Spieltage (intern immer `game.days = 1`), keine jagdfreien Zeiten, keine Pause. Blitzjagden gelten fürs ganze Spiel, das Spielfeld wird alle X Minuten kleiner.
 - Notfall: geht an alle Hunter und an den Host. Nur die Jagd auf die betroffene Person wird ausgesetzt, das Spiel läuft weiter. Den Notfallkontakt sehen Hunter und Host nur bei einem offenen Notfall.
 - Challenges, Boni (Fake-Ping, Hotel) und die Schonzeit nach einer Blitzjagd sind entfernt. Ebenso Filmpflicht, Gegenstände-Limit und tägliche Einsatzbesprechung.
 - Joker: beim Erstellen eine Liste, pro Eintrag Art, Wirkdauer und Freischaltzeit (`joker.types[].after_minutes`). Zu dieser Spielzeit bekommt jeder freie Spieler den Joker einmal; vergebene Einträge merkt sich `games.state_json.jokers_granted`.
 - Chat: `sp:<spieler>` ist das Gespräch eines Spielers mit allen Huntern, `spieler` schreiben die Hunter an alle Spieler, `taskforce` ist der Kanal der Hunter. Spieler schreiben nie mit anderen Spielern. Ankündigungen schreibt niemand mehr; automatische Meldungen kommen unter "Meldungen". Neue Nachrichten lösen eine kurze Meldung beim Empfänger aus.
 - Repository und Adresse heissen `hunt-mode`. Die Spezifikation liegt nur noch lokal in `docs/` (nicht auf GitHub), weil sie sich auf eine Vorlage bezieht.
+
+## Runde 6: ohne Budget (Migration 0013)
+- Budget ist ganz entfernt: keine Einstellung, keine Anzeige, kein "Kauf melden", kein Kauf-Ping. Noch nicht gestartete Spiele haben es ausgeschaltet, `make_purchase` ist auf dem Server gesperrt. Die Tabelle `purchases` bleibt für alte Spiele stehen.
+
+## Runde 7: nur ein Spielfeld (Migration 0014)
+- Es gibt nur noch ein Spielfeld (es kann weiterhin alle X Minuten kleiner werden), dazu Gefahrenzonen und die Punkte Treffpunkt, HQ und Fluchtpunkt.
+- Entfernt: Kern- und Aussengebiet (eigene Ping-Abstände, `ping.zone_overrides`), Center (`transport.forbidden_in_zone_types`), Sektionen pro Spieler (`zone.sections_per_player`, `zone.release_on_catch`), Startzone und Schutzzone. Bestehende Zonen dieser Art sind gelöscht, `save_map` speichert sie nicht mehr.
+
+## Runde 8: Alarm, Blitzjagd nur durch Hunter, ohne Schutzschild (Migration 0015)
+- Bei jedem Ping bekommen alle Spieler eine Meldung, der gepingte Spieler "Du wurdest gepingt". Bei jeder Blitzjagd (Start und jede Abfrage) ebenso. Das Handy klingelt, vibriert und zeigt die Meldung. Jeder Spieler stellt Ton (an/aus), Klingelton, Lautstärke und Vibration im Spiel unter Aktionen selbst ein; gespeichert nur auf dem Gerät (`localStorage` `hm-alarm`). Die Einstellung "Spieler merkt den Ping" gibt es nicht mehr. Grenze: nur solange die App offen ist; iPhones vibrieren im Browser nicht.
+- Blitzjagden starten nur die Hunter: keine Zufalls-Blitzjagden, keine Straf-Blitzjagden. Die mittlere Strafstufe ist "15 min live sichtbar" (`live_standort`).
+- Eine Blitzjagd hat kein Zeitlimit (`deadline_at` leer): sie endet nach der letzten Abfrage oder beim Fang.
+- Der Joker "Schutzschild" ist entfernt; es bleiben Regeneration und Hunter-Standorte. Joker werden nach der eingestellten Zeit freigeschaltet und wirken erst, wenn der Spieler sie einsetzt.
+- "Teambildungs-Alarm" heisst jetzt Nähe-Alarm.
+- Jede Einstellung beim Erstellen hat ein ⓘ mit Erklärung (`QUICK_HELP` in `src/shared/help.ts`).
+- Spiel erstellen hat jetzt 4 Schritte: Name, Spielart, Anpassen, Karte. Nach "Weiter zur Karte" öffnet sich der Karten-Editor im Einrichtungs-Modus (`/spiel/<id>/karte?neu=1`); "Fertig" speichert und führt in die Lobby. Den Code zum Einladen zeigt die Lobby erst, wenn ein Spielfeld gezeichnet ist.

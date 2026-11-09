@@ -4,17 +4,15 @@ import { formatMinutes } from '../shared/format';
 const JOKER_NAMES: Record<string, string> = {
   regeneration: 'Regeneration',
   hunter_erfragen: 'Hunter-Standorte',
-  catch_free: 'Schutzschild',
 };
 
 /** Die Regeln in normalen Sätzen, für alle verständlich. */
 export function rulesInWords(c: GameConfig): [string, string][] {
   const out: [string, string][] = [];
   out.push(['⏱️', `Das Spiel dauert ${formatMinutes(c.game.duration_minutes)} am Stück, ohne Pause. Die Spieler haben ${formatMinutes(c.start.head_start_minutes)} Vorsprung.`]);
-  const kern = c.ping.zone_overrides.kern;
-  out.push(['📍', `Alle ${formatMinutes(c.ping.interval_minutes)} sehen die Hunter, wo die Spieler gerade sind${kern && kern !== c.ping.interval_minutes ? ` (im Kern-Gebiet alle ${formatMinutes(kern)})` : ''}.`]);
+  out.push(['📍', `Alle ${formatMinutes(c.ping.interval_minutes)} sehen die Hunter, wo die Spieler gerade sind. Bei jedem Ping und jeder Blitzjagd klingelt das Handy aller Spieler.`]);
   if (c.speedhunt.enabled) {
-    out.push(['⚡', `Blitzjagd: ${c.speedhunt.quota_per_day[0] ?? 0} im ganzen Spiel, dabei ${c.speedhunt.queries} Standort-Abfragen auf einen Spieler, höchstens ${formatMinutes(c.speedhunt.max_duration_minutes)}.`]);
+    out.push(['⚡', `Blitzjagd: Die Hunter dürfen ${c.speedhunt.quota_per_day[0] ?? 0}-mal im Spiel eine Blitzjagd starten, mit ${c.speedhunt.queries} Standort-Abfragen auf einen Spieler, ohne Zeitlimit.`]);
   }
   const how = c.catch.method.includes('qr') ? 'den Fang-Code des Spielers scannt' : 'den Spieler berührt und beide bestätigen';
   out.push(['🤚', `Gefangen ist, wer erwischt wird: der Hunter ${how}.`]);
@@ -22,10 +20,9 @@ export function rulesInWords(c: GameConfig): [string, string][] {
   if (c.exit.enabled) out.push(['🏁', `${formatMinutes(c.exit.reveal_minutes_before_end)} vor Schluss wird der Fluchtpunkt verraten. Wer frei dort ankommt, gewinnt.`]);
   if (c.joker.enabled && c.joker.types.length) {
     const list = c.joker.types.map((t) => `${JOKER_NAMES[t.type] ?? t.type} nach ${formatMinutes(t.after_minutes)}`).join(', ');
-    out.push(['🃏', `Joker für jeden Spieler: ${list}.`]);
+    out.push(['🃏', `Joker für jeden Spieler: ${list}. Freigeschaltete Joker wirken erst, wenn der Spieler sie einsetzt.`]);
   }
   if (c.hideout.enabled) out.push(['🏠', `Verschanzen: höchstens ${formatMinutes(c.hideout.max_minutes)} am selben Ort.`]);
-  if (c.budget.enabled) out.push(['💰', `Budget: ${c.budget.start_amount} ${c.budget.currency} fürs ganze Spiel. Jeder Kauf verrät den Standort.`]);
   return out;
 }
 

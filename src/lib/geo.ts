@@ -96,7 +96,7 @@ export function centerOf(field: Area, exit?: Position | null): Position {
 }
 
 /** Welche Zonen nur innerhalb des Spielfelds liegen dürfen. */
-export const INSIDE_FIELD: ZoneKind[] = ['sektion', 'startzone', 'center', 'kern', 'aussen', 'sicher', 'sperrzone'];
+export const INSIDE_FIELD: ZoneKind[] = ['sperrzone'];
 
 export interface MapIssue { level: 'error' | 'warning'; text: string }
 

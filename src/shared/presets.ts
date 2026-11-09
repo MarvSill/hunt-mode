@@ -18,7 +18,7 @@ export const PRESETS: Preset[] = [
   {
     id: 'wochenende_24h',
     name: 'Wochenende 24 h',
-    description: '24 h am Stück, Budget 30 CHF, Joker, Spielfeld wird alle 6 h kleiner.',
+    description: '24 h am Stück, Joker, Spielfeld wird alle 6 h kleiner.',
     suggested: { players: 6, hunters: 3 },
     patch: {
       game: { duration_minutes: 1440 },
@@ -26,11 +26,10 @@ export const PRESETS: Preset[] = [
       start: { head_start_minutes: 30 },
       time: { align_to_full_hour: false },
       zone: { shrink_mode: 'auto', auto_shrink_percent: 20, shrink_every_minutes: 360, shrink_announce_minutes: 60 },
-      ping: { interval_minutes: 45, zone_overrides: { kern: 30 } },
+      ping: { interval_minutes: 45 },
       speedhunt: {
         quota_per_day: [5],
         queries: 4,
-        max_duration_minutes: 45,
         no_consecutive_same_target: true,
         max_parallel: 2,
         vehicle_live_seconds: 60,
@@ -44,14 +43,13 @@ export const PRESETS: Preset[] = [
         stationary_minutes: 10,
       },
       transport: { live_after_base_minutes: 5, live_after_increment_minutes: 2 },
-      budget: { enabled: true, currency: 'CHF', start_amount: 30 },
       joker: {
         enabled: true,
         types: [
           { type: 'regeneration', minutes: 60, after_minutes: 120 },
-          { type: 'catch_free', minutes: 45, after_minutes: 480 },
+          { type: 'hunter_erfragen', after_minutes: 480 },
           { type: 'regeneration', minutes: 60, after_minutes: 840 },
-          { type: 'catch_free', minutes: 45, after_minutes: 1200 },
+          { type: 'hunter_erfragen', after_minutes: 1200 },
         ],
       },
       proximity: { enabled: true, distance_m: 200, active_after_minutes: 30 },
@@ -71,11 +69,10 @@ export const PRESETS: Preset[] = [
       start: { head_start_minutes: 10 },
       time: { align_to_full_hour: false },
       zone: { shrink_mode: 'auto', auto_shrink_percent: 15, shrink_every_minutes: 45, shrink_announce_minutes: 15 },
-      ping: { interval_minutes: 15, zone_overrides: {} },
+      ping: { interval_minutes: 15 },
       speedhunt: {
         quota_per_day: [4],
         queries: 3,
-        max_duration_minutes: 15,
         no_consecutive_same_target: true,
         max_parallel: 2,
         vehicle_live_seconds: 60,
@@ -89,12 +86,11 @@ export const PRESETS: Preset[] = [
         stationary_minutes: 5,
       },
       transport: { live_after_base_minutes: 2, live_after_increment_minutes: 1 },
-      budget: { enabled: false },
       joker: {
         enabled: true,
         types: [
           { type: 'regeneration', minutes: 15, after_minutes: 30 },
-          { type: 'catch_free', minutes: 10, after_minutes: 75 },
+          { type: 'hunter_erfragen', after_minutes: 75 },
           { type: 'regeneration', minutes: 15, after_minutes: 120 },
         ],
       },
@@ -115,11 +111,10 @@ export const PRESETS: Preset[] = [
       start: { head_start_minutes: 5 },
       time: { align_to_full_hour: false },
       zone: { shrink_mode: 'aus' },
-      ping: { interval_minutes: 10, zone_overrides: {} },
+      ping: { interval_minutes: 10 },
       speedhunt: {
         quota_per_day: [3],
         queries: 3,
-        max_duration_minutes: 8,
         no_consecutive_same_target: false,
         max_parallel: 1,
         vehicle_live_seconds: 0,
@@ -133,7 +128,6 @@ export const PRESETS: Preset[] = [
         stationary_minutes: 5,
       },
       transport: { allowed_modes: ['zu_fuss'], checkin_required: false, live_during: false },
-      budget: { enabled: false },
       joker: {
         enabled: true,
         types: [

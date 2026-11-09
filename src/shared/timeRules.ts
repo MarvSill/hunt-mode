@@ -8,7 +8,7 @@
  */
 import type { GameConfig } from './config';
 
-const JOKER_NAMES: Record<string, string> = { regeneration: 'Regeneration', hunter_erfragen: 'Hunter-Standorte', catch_free: 'Schutzschild' };
+const JOKER_NAMES: Record<string, string> = { regeneration: 'Regeneration', hunter_erfragen: 'Hunter-Standorte' };
 
 export interface TimeFix {
   path: string;
@@ -44,7 +44,6 @@ const LABELS: Record<string, string> = {
   'ping.first_ping_delay_minutes': 'Erster Ping nach',
   'ping.offset_minutes': 'Ping-Versatz',
   'ping.jitter_minutes': 'Ping-Zufallsversatz',
-  'speedhunt.max_duration_minutes': 'Dauer einer Blitzjagd',
   'speedhunt.query_min_gap_minutes': 'Abstand der Abfragen einer Blitzjagd',
   'speedhunt.min_minutes_after_silent_ping': 'Abstand der Blitzjagd zum Ping',
   'out_of_bounds.max_minutes': 'Limit ausserhalb',
@@ -52,8 +51,7 @@ const LABELS: Record<string, string> = {
   'hideout.stationary_minutes': 'Verschanzen-Erkennung',
   'hideout.lockout_after_first_entry_minutes': 'Ort gesperrt nach',
   'transport.live_after_base_minutes': 'Live-Nachlauf nach Fahrt',
-  'budget.ping_delay_minutes': 'Verzögerung Kauf-Ping',
-  'proximity.active_after_minutes': 'Teambildungs-Alarm aktiv ab',
+  'proximity.active_after_minutes': 'Nähe-Alarm aktiv ab',
   'exit.reveal_minutes_before_end': 'Bekanntgabe des Fluchtpunkts vor Ende',
   'spectator.delay_minutes': 'Zuschauer-Verzögerung',
 };
@@ -82,24 +80,21 @@ export function timeLimits(c: GameConfig): Record<string, TimeLimit> {
     'hideout.stationary_minutes': { max: Math.max(5, c.hideout.max_minutes), reason: `das Verschanzen-Limit nur ${c.hideout.max_minutes} min ist` },
     'hideout.lockout_after_first_entry_minutes': { max: d, reason: game },
     'transport.live_after_base_minutes': { max: d, reason: game },
-    'budget.ping_delay_minutes': { max: d, reason: game },
     'proximity.active_after_minutes': { max: Math.max(0, d - 5), reason: `der Alarm sonst nie aktiv wäre` },
     'exit.reveal_minutes_before_end': { max: d, reason: game },
     'spectator.delay_minutes': { max: Math.max(0, d - 5), reason: `Zuschauer sonst nichts sähen` },
   };
   // Nur Regeln prüfen, die im Spiel auch aktiv sind.
   const off: [boolean, string][] = [
-    [c.hideout.enabled, 'hideout.'], [c.budget.enabled, 'budget.'],
+    [c.hideout.enabled, 'hideout.'],
     [c.proximity.enabled, 'proximity.'], [c.exit.enabled, 'exit.'], [c.spectator.enabled, 'spectator.'],
   ];
   for (const [on, prefix] of off) if (!on) for (const k of Object.keys(out)) if (k.startsWith(prefix)) delete out[k];
   if (c.speedhunt.enabled) {
-    const sd = Math.max(5, d);
-    out['speedhunt.max_duration_minutes'] = { max: sd, reason: game };
     const gaps = Math.max(1, c.speedhunt.queries - 1);
     out['speedhunt.query_min_gap_minutes'] = {
-      max: Math.floor(Math.min(c.speedhunt.max_duration_minutes, sd) / gaps),
-      reason: `${c.speedhunt.queries} Abfragen in ${Math.min(c.speedhunt.max_duration_minutes, sd)} min passen müssen`,
+      max: Math.max(0, Math.floor(d / gaps)),
+      reason: `${c.speedhunt.queries} Abfragen in ${durationText(d)} passen müssen`,
     };
     out['speedhunt.min_minutes_after_silent_ping'] = { max: Math.max(0, c.ping.interval_minutes - 1), reason: `der Ping alle ${c.ping.interval_minutes} min kommt` };
   }
@@ -150,13 +145,7 @@ export function fitTimes(input: GameConfig): { config: GameConfig; fixes: TimeFi
     if (!changed) break;
   }
 
-  // Ping-Intervalle je Zone und Joker-/Effektdauern
-  for (const [zone, min] of Object.entries(c.ping.zone_overrides)) {
-    if (min > d) {
-      c.ping.zone_overrides[zone] = d;
-      fixes.push({ path: 'ping.zone_overrides', from: min, to: d, message: `Ping-Intervall im Gebiet "${zone}": ${d} statt ${min} min, weil das Spiel nur ${durationText(d)} dauert.` });
-    }
-  }
+  // Joker-Dauern und Freischaltzeiten
   const latest = Math.max(0, d - 5);
   for (const j of c.joker.enabled ? c.joker.types : []) {
     const name = JOKER_NAMES[j.type] ?? j.type;

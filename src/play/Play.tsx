@@ -7,6 +7,8 @@ import { api, clock, countdown, SOURCE_LABELS, type MapFeature, type Notificatio
 import { errorText } from '../lib/supabase';
 import { useTracker } from '../lib/tracker';
 import { useGameState, useNow } from '../lib/useGame';
+import { alarmKindOf, ring, unlockAudio, VIBRATION } from '../lib/alarm';
+import AlarmSettingsBox from './AlarmSettings';
 import Chat from './Chat';
 import EmergencyBox from './EmergencyBox';
 import { colorFor, Confirm, nameOf, Section } from './common';
@@ -45,11 +47,26 @@ export default function PlayPage() {
   const [sosAsk, setSosAsk] = useState(false);
   const [seenNotes, setSeenNotes] = useState(0);
 
+  const roleRef = useRef<string | undefined>(undefined);
+  const lastAlarm = useRef(0);
+  useEffect(() => {
+    // Browser spielen Töne erst nach einer Berührung der Seite ab.
+    document.addEventListener('pointerdown', unlockAudio, { once: true });
+    return () => document.removeEventListener('pointerdown', unlockAudio);
+  }, []);
+
   const onNew = useCallback((list: Notification[]) => {
     setToasts((t) => [...[...list].reverse(), ...t].slice(0, 4));
     const crit = list.some((n) => n.priority === 'kritisch');
     const high = list.some((n) => n.priority !== 'normal');
-    if (high) {
+    // Spieler: bei jedem Ping und jeder Blitzjagd klingeln (höchstens alle 3 s, falls mehrere gleichzeitig kommen).
+    const alarm = roleRef.current === 'spieler' ? alarmKindOf(list.map((n) => n.kind)) : null;
+    if (alarm) {
+      if (Date.now() - lastAlarm.current > 3000) {
+        lastAlarm.current = Date.now();
+        ring(alarm);
+      }
+    } else if (high) {
       navigator.vibrate?.(crit ? [300, 100, 300, 100, 300] : [200]);
       beep(crit);
     }
@@ -57,7 +74,8 @@ export default function PlayPage() {
     if (document.visibilityState !== 'visible' && typeof Notification !== 'undefined' && Notification.permission === 'granted') {
       void navigator.serviceWorker?.getRegistration().then((reg) => {
         for (const n of list) {
-          const opts = { body: n.body, tag: `hm-${n.id}`, icon: `${import.meta.env.BASE_URL}icon.svg`, requireInteraction: n.priority === 'kritisch' };
+          const kind = alarmKindOf([n.kind]);
+          const opts = { body: n.body, tag: `hm-${n.id}`, icon: `${import.meta.env.BASE_URL}icon.svg`, requireInteraction: n.priority === 'kritisch' || !!kind, vibrate: kind ? VIBRATION[kind] : undefined };
           if (reg) void reg.showNotification(n.title, opts);
           else new Notification(n.title, opts);
         }
@@ -69,6 +87,7 @@ export default function PlayPage() {
   const { state: s, error, reload, offsetMs } = useGameState(id, onNew);
   const now = useNow(offsetMs);
   const role = s?.me.role;
+  roleRef.current = role;
   const tracking = !!s && role !== 'zuschauer' && !['beendet', 'archiviert'].includes(s.game.status)
     && !(role === 'spieler' && ['gefangen', 'disqualifiziert', 'aufgegeben', 'verloren'].includes(s.me.state) && !s.game.config.catch.track_after_catch);
   const [kick, setKick] = useState(0);
@@ -243,6 +262,7 @@ export default function PlayPage() {
 
           <div style={{ display: tab === 'aktionen' ? 'block' : 'none' }}>
             {role === 'spieler' && <PlayerPanel s={s} now={now} act={act} pos={pos} />}
+            {role === 'spieler' && <AlarmSettingsBox />}
             {(role === 'hunter' || role === 'zentrale') && <HunterPanel s={s} now={now} act={act} pos={pos} />}
             {role === 'zuschauer' && <div className="card muted">Du schaust zu. Positionen siehst du mit {g.config.spectator.delay_minutes} min Verzögerung.</div>}
             {g.host && (

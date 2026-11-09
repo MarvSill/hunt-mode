@@ -22,8 +22,6 @@ export interface ValidationContext {
   hunters?: number;
   /** Mindestens eine teilnehmende Person ist unter 18. */
   hasMinors?: boolean;
-  /** Anzahl gezeichneter Sektionen (Karte, ab Schritt 2). */
-  sections?: number;
   /** Breite des Spielfelds in Metern (Karte, ab Schritt 2). */
   fieldWidthM?: number;
 }
@@ -55,16 +53,6 @@ export function validateConfig(input: GameConfig, ctx: ValidationContext = {}): 
     add('error', 'no_ping', 'Bei diesem Intervall gibt es keinen einzigen Ping.', 'ping.interval_minutes', 'game.duration_minutes');
   } else if (config.ping.interval_minutes * 3 > duration) {
     add('warning', 'few_pings', 'Es gibt weniger als drei Pings im ganzen Spiel.', 'ping.interval_minutes', 'game.duration_minutes');
-  }
-
-  if (config.speedhunt.enabled && config.speedhunt.max_duration_minutes > duration) {
-    add(
-      'error',
-      'speedhunt_longer_than_game',
-      'Eine Blitzjagd darf nicht länger dauern als das Spiel.',
-      'speedhunt.max_duration_minutes',
-      'game.duration_minutes',
-    );
   }
 
   if (config.joker.enabled && config.joker.types.some((j) => (j.minutes ?? 0) >= duration)) {
@@ -123,16 +111,9 @@ export function validateConfig(input: GameConfig, ctx: ValidationContext = {}): 
     add('error', 'handcuffs_minors', 'Fangmethode Handschellen ist mit Teilnehmenden unter 18 nicht erlaubt.', 'catch.method');
   }
 
-  if (config.budget.enabled && (!config.budget.currency || config.budget.start_amount <= 0)) {
-    add('error', 'budget_incomplete', 'Budget ist aktiv, aber Währung oder Betrag fehlen.', 'budget.currency', 'budget.start_amount');
-  }
 
   if (config.proximity.enabled && ctx.fieldWidthM !== undefined && config.proximity.distance_m > ctx.fieldWidthM / 2) {
     add('warning', 'proximity_always', 'Alarm wird fast dauernd ausgelöst.', 'proximity.distance_m');
-  }
-
-  if (config.zone.sections_per_player && ctx.sections !== undefined && ctx.sections < (ctx.players ?? 1)) {
-    add('error', 'sections_missing', 'Sektionen pro Spieler sind aktiv, aber es fehlen Sektionen auf der Karte.', 'zone.sections_per_player');
   }
 
   if (config.win.mode === 'letzter_ueberlebender' && config.exit.enabled) {

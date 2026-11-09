@@ -172,7 +172,7 @@ export default function GamePage() {
   const notReady = roster.filter((r) => !r.ready).length;
   const todos = [
     { done: hasField === true, title: 'Karte zeichnen', text: hasField ? 'Spielfeld ist gesetzt.' : 'Spielfeld, Treffpunkt und HQ festlegen.', action: <Link to={`/spiel/${game.id}/karte`} className="button small">{hasField ? 'Ändern' : 'Zeichnen'}</Link> },
-    { done: checks.players > 0 && checks.hunters > 0, title: 'Freunde einladen', text: `${roster.length - 1} beigetreten · Code ${game.code}`, action: <button className="small" onClick={share}><Icon name="share" size={18} />Teilen</button> },
+    { done: checks.players > 0 && checks.hunters > 0, title: 'Freunde einladen', text: hasField ? `${roster.length - 1} beigetreten · Code ${game.code}` : 'Geht, sobald die Karte steht.', action: hasField ? <button className="small" onClick={share}><Icon name="share" size={18} />Teilen</button> : null },
     { done: roster.length > 1 && unassigned === 0, title: 'Rollen verteilen', text: `${checks.players} Spieler · ${checks.hunters} Hunter${unassigned ? ` · ${unassigned} offen` : ''}`, action: <button className="small" onClick={shuffleRoles}>Zufällig</button> },
     { done: roster.length > 1 && notReady === 0, title: 'Alle bereit', text: notReady ? `${notReady} noch nicht bereit` : 'Alle haben die Regeln gelesen.', action: null },
   ];
@@ -191,7 +191,16 @@ export default function GamePage() {
         </Link>
       )}
 
-      {inLobby && (
+      {inLobby && isHost && hasField === false && (
+        <div className="hero stack" style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: 34 }} aria-hidden="true">🗺️</div>
+          <strong>Zuerst die Karte</strong>
+          <div className="muted small">Lege das Spielfeld fest, bevor du Freunde einlädst. Danach erscheint hier der Code zum Beitreten.</div>
+          <Link to={`/spiel/${game.id}/karte?neu=1`} className="button primary block">Karte zeichnen</Link>
+        </div>
+      )}
+
+      {inLobby && !(isHost && hasField === false) && (
         <div className="hero" style={{ textAlign: 'center' }}>
           <div className="muted small">Mit diesem Code treten deine Freunde bei</div>
           <div className="code-big" style={{ margin: '6px 0 12px' }}>{game.code}</div>
@@ -199,7 +208,7 @@ export default function GamePage() {
         </div>
       )}
 
-      {inLobby && isHost && (
+      {inLobby && isHost && hasField !== false && (
         <div className="card">
           <div className="row" style={{ marginBottom: 4 }}><strong className="spacer">Bereit zum Start?</strong><span className="muted small">{todos.filter((t) => t.done).length}/{todos.length}</span></div>
           {todos.map((t) => (

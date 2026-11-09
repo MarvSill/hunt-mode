@@ -12,7 +12,6 @@ describe('Konfiguration', () => {
     expect(c.game.day_length_minutes).toBe(180);
     expect(c.ping.interval_minutes).toBe(15);
     expect(c.speedhunt.quota_per_day).toEqual([2]);
-    expect(c.budget.currency).toBe('CHF');
     expect(c.transport.allowed_modes).not.toContain('eigenes_fahrzeug');
   });
 
@@ -31,8 +30,15 @@ describe('Konfiguration', () => {
     expect('quiet_hours' in c.game).toBe(false);
   });
 
+  it('es gibt nur ein Spielfeld: Einstellungen für weitere Gebiete werden ignoriert', () => {
+    const c = parseConfig({ ping: { zone_overrides: { kern: 30 } }, zone: { sections_per_player: true }, transport: { forbidden_in_zone_types: ['center'] } });
+    expect('zone_overrides' in c.ping).toBe(false);
+    expect('sections_per_player' in c.zone).toBe(false);
+    expect('forbidden_in_zone_types' in c.transport).toBe(false);
+  });
+
   it('Joker ohne Freischaltzeit kommen ab Jagdbeginn', () => {
-    const c = parseConfig({ joker: { enabled: true, types: [{ type: 'catch_free', minutes: 10 }] } });
+    const c = parseConfig({ joker: { enabled: true, types: [{ type: 'regeneration', minutes: 10 }] } });
     expect(c.joker.types[0].after_minutes).toBe(0);
   });
 
@@ -49,8 +55,8 @@ describe('Konfiguration', () => {
   });
 
   it('mergeConfig ersetzt Listen statt sie zu mischen', () => {
-    const c = mergeConfig(defaultConfig(), { ping: { zone_overrides: {} }, speedhunt: { quota_per_day: [1] } });
-    expect(c.ping.zone_overrides).toEqual({});
+    const c = mergeConfig(defaultConfig(), { joker: { types: [{ type: 'hunter_erfragen', after_minutes: 10 }] }, speedhunt: { quota_per_day: [1] } });
+    expect(c.joker.types).toEqual([{ type: 'hunter_erfragen', after_minutes: 10 }]);
     expect(c.speedhunt.quota_per_day).toEqual([1]);
     expect(c.ping.interval_minutes).toBe(15);
   });
@@ -119,13 +125,19 @@ describe('Validierung', () => {
     expect(validateConfig(defaultConfig(), { players: 3, hunters: 2 }).canStart).toBe(true);
   });
 
-  it('Blitzjagd länger als das Spiel wird gekürzt', () => {
-    const c = mergeConfig(defaultConfig(), { game: { duration_minutes: 60 }, ping: { interval_minutes: 10 }, speedhunt: { max_duration_minutes: 90 } });
-    expect(validateConfig(c).config.speedhunt.max_duration_minutes).toBe(60);
+  it('Blitzjagden haben kein Zeitlimit und keinen Zufalls-Auslöser', () => {
+    const c = parseConfig({ speedhunt: { max_duration_minutes: 30, trigger_mode: 'random' } });
+    expect('max_duration_minutes' in c.speedhunt).toBe(false);
+    expect('trigger_mode' in c.speedhunt).toBe(false);
   });
 
-  it('Blitzjagden löst nur das Hunter-Team oder der Zufall aus', () => {
-    expect(gameConfigSchema.safeParse({ speedhunt: { trigger_mode: 'gm' } }).success).toBe(false);
+  it('alte Spiele: Schutzschild-Joker und Straf-Blitzjagd werden umgewandelt', () => {
+    const c = parseConfig({
+      joker: { enabled: true, types: [{ type: 'catch_free', minutes: 10 }, { type: 'regeneration', minutes: 5 }] },
+      penalty: { escalation: ['verwarnung', 'straf_speedhunt', 'disqualifikation'] },
+    });
+    expect(c.joker.types.map((j) => j.type)).toEqual(['regeneration']);
+    expect(c.penalty.escalation).toEqual(['verwarnung', 'live_standort', 'disqualifikation']);
   });
 
   it('schaltet "Zentrale besetzt" bei nur einem Hunter automatisch aus', () => {
@@ -147,7 +159,7 @@ describe('Validierung', () => {
   });
 
   it('warnt bei kurzen Spielen mit Ausrichtung auf volle Stunden', () => {
-    const c = mergeConfig(defaultConfig(), { game: { duration_minutes: 60 }, time: { align_to_full_hour: true }, ping: { interval_minutes: 10 }, speedhunt: { max_duration_minutes: 30 } });
+    const c = mergeConfig(defaultConfig(), { game: { duration_minutes: 60 }, time: { align_to_full_hour: true }, ping: { interval_minutes: 10 } });
     const issue = validateConfig(c).issues.find((i) => i.code === 'align_short_game');
     expect(issue?.level).toBe('warning');
   });
@@ -181,7 +193,6 @@ describe('Zeitlogik', () => {
       game: { duration_minutes: 90 },
       zone: { shrink_mode: 'auto', shrink_every_minutes: 0, shrink_announce_minutes: 180 },
       ping: { interval_minutes: 120, first_ping_delay_minutes: 100 },
-      speedhunt: { max_duration_minutes: 200 },
       exit: { reveal_minutes_before_end: 120 },
       joker: { enabled: true, types: [{ type: 'regeneration', minutes: 240, after_minutes: 300 }] },
     });
@@ -190,7 +201,6 @@ describe('Zeitlogik', () => {
     expect(f.zone.shrink_every_minutes).toBeLessThanOrEqual(45);
     expect(f.zone.shrink_announce_minutes).toBeLessThanOrEqual(f.zone.shrink_every_minutes);
     expect(f.ping.first_ping_delay_minutes + f.ping.interval_minutes).toBeLessThan(90);
-    expect(f.speedhunt.max_duration_minutes).toBeLessThanOrEqual(90);
     expect(f.exit.reveal_minutes_before_end).toBeLessThanOrEqual(90);
     expect(f.joker.types[0].after_minutes).toBeLessThan(90);
     expect(f.joker.types[0].minutes).toBeLessThanOrEqual(90);

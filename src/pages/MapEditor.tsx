@@ -6,7 +6,7 @@ import L from 'leaflet';
 import { addMapButtons } from '../lib/mapControls';
 import 'leaflet/dist/leaflet.css';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import Info from '../components/Info';
 import { esc, pointIcon, zoneBadge, zoneStyle } from '../components/MapView';
 import { STEP_HELP, ZONE_HELP } from '../shared/help';
@@ -30,8 +30,7 @@ const newKey = () => `z${Date.now()}_${seq++}`;
 
 /** Symbol je Zonenart (Liste und Knöpfe). */
 const ICON: Record<ZoneKind, string> = {
-  spielfeld: '🟩', sektion: '🧩', startzone: '🚩', center: '⭐', kern: '🎯', aussen: '⭕',
-  sperrzone: '⚠️', sicher: '🛡️', exit: '🏁', hq: '🚓', treffpunkt: '📍',
+  spielfeld: '🟩', sperrzone: '⚠️', exit: '🏁', hq: '🚓', treffpunkt: '📍',
 };
 
 const TOOL_HINT: Record<Tool, string> = {
@@ -64,6 +63,9 @@ export function phaseCount(c: GameConfig): number {
 
 export default function MapEditorPage() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  // Direkt nach "Spiel erstellen": Schritt 4 von 4, danach geht es in die Lobby.
+  const setup = useSearchParams()[0].get('neu') === '1';
   const [game, setGame] = useState<Game | null>(null);
   const [savedConfig, setSavedConfig] = useState<GameConfig | null>(null);
   const [config, setConfig] = useState<GameConfig | null>(null);
@@ -235,12 +237,12 @@ export default function MapEditorPage() {
     setStepIdx(open >= 0 ? open : (exit ? 8 : 7) - 1);
   }, [loaded, config]);
 
-  // Symbole auf Gefahren- und Schutzzonen
+  // Symbole auf Gefahrenzonen
   useEffect(() => {
     const b = badges.current;
     if (!b) return;
     b.clearLayers();
-    for (const f of features) if (f.properties.kind === 'sperrzone' || f.properties.kind === 'sicher') b.addLayer(zoneBadge(f));
+    for (const f of features) if (f.properties.kind === 'sperrzone') b.addLayer(zoneBadge(f));
     // Gestrichelte Kreise: Mindestabstand um das HQ, Ankunftsradius um den Exit.
     for (const f of features) {
       if (f.geometry.type !== 'Point' || !config) continue;
@@ -508,8 +510,8 @@ export default function MapEditorPage() {
     setDirty(true);
   }
 
-  async function save() {
-    if (!game || !config || !savedConfig) return;
+  async function save(): Promise<boolean> {
+    if (!game || !config || !savedConfig) return false;
     setBusy(true);
     setMsg(null);
     try {
@@ -529,8 +531,10 @@ export default function MapEditorPage() {
       }
       setMsg({ ok: true, text: `Gespeichert: ${n} Zonen${changes.length ? ' und die Einstellungen zur Verkleinerung' : ''}.` });
       setDirty(false);
+      return true;
     } catch (err) {
       setMsg({ ok: false, text: errorText(err) });
+      return false;
     } finally {
       setBusy(false);
     }
@@ -675,7 +679,6 @@ export default function MapEditorPage() {
   const unitLabel = 'Phase';
   const limits = timeLimits(config);
   const draw = (p: Pending) => () => startDraw(p);
-  const others: ZoneKind[] = ['sicher', 'kern', 'aussen', 'center', 'sektion', 'startzone'];
   const steps: { id: string; icon: string; title: string; text: string; done: boolean; optional?: boolean }[] = [
     { id: 'feld', icon: '🟩', title: 'Spielfeld', text: 'Der Bereich, in dem gespielt wird. Alle anderen Zonen liegen darin.', done: !!field1 },
     { id: 'treff', icon: '📍', title: 'Treffpunkt', text: 'Hier sammeln sich alle vor dem Start. Muss im Spielfeld liegen.', done: has('treffpunkt') },
@@ -683,7 +686,6 @@ export default function MapEditorPage() {
     ...(config.exit.enabled ? [{ id: 'exit', icon: '🏁', title: 'Fluchtpunkt', text: 'Mehrere Kandidaten möglich. Einer wird zufällig gewählt und erst gegen Schluss verraten.', done: has('exit') }] : []),
     { id: 'klein', icon: '⏳', title: 'Kleiner werden', text: 'Soll das Spielfeld im Lauf des Spiels kleiner werden? Neue Grenzen werden vorher angekündigt und gestrichelt gezeigt.', done: shrink !== 'aus', optional: true },
     { id: 'gefahr', icon: '⚠️', title: 'Gefahren', text: 'Orte, die nie betreten werden dürfen: Autobahn, Gleise, Gewässer, Schulen, Baustellen. Sie werden rot schraffiert mit Warnsymbol gezeigt, und Spieler werden beim Annähern gewarnt.', done: has('sperrzone'), optional: true },
-    { id: 'mehr', icon: '🧩', title: 'Mehr Zonen', text: 'Schutzzonen, Kern-Gebiete und mehr. Alle liegen im Spielfeld; was hinausragt, wird abgeschnitten.', done: others.some(has), optional: true },
     { id: 'fertig', icon: '✅', title: 'Prüfen', text: 'Hier siehst du, ob die Karte bereit ist.', done: !issues.some((i) => i.level === 'error') },
   ];
   const cur = steps[Math.min(stepIdx, steps.length - 1)];
@@ -695,15 +697,20 @@ export default function MapEditorPage() {
       { label: 'Gross', km2: n * rec[1] },
     ];
   })();
-  const legend = (['spielfeld', 'sperrzone', 'sicher', 'kern', 'treffpunkt', 'hq', 'exit'] as ZoneKind[]).filter((k) => k === 'spielfeld' || has(k));
+  const legend = (['spielfeld', 'sperrzone', 'treffpunkt', 'hq', 'exit'] as ZoneKind[]).filter((k) => k === 'spielfeld' || has(k));
 
   return (
     <div className="app wide map-editor">
       <div className="topbar">
         <Link to={`/spiel/${id}`} className="button ghost back" aria-label="Zurück"><Icon name="back" /></Link>
-        <h1>Karte</h1>
-        {editable && <button className="primary small" onClick={save} disabled={busy || !dirty || !loaded}>{busy ? 'Speichere …' : dirty ? 'Speichern' : 'Gespeichert'}</button>}
+        <h1>{setup ? 'Schritt 4: Karte' : 'Karte'}</h1>
+        {editable && !setup && <button className="primary small" onClick={save} disabled={busy || !dirty || !loaded}>{busy ? 'Speichere …' : dirty ? 'Speichern' : 'Gespeichert'}</button>}
       </div>
+      {setup && editable && (
+        <div className="notice" style={{ marginBottom: 8 }}>
+          <strong>Letzter Schritt: das Spielfeld.</strong> Zeichne, wo gespielt wird, und setze Treffpunkt und HQ. Danach bekommst du den Code, mit dem deine Freunde beitreten.
+        </div>
+      )}
       {!editable && <div className="notice">Das Spiel läuft: die Karte ist gesperrt.</div>}
 
       {editable && (
@@ -872,23 +879,6 @@ export default function MapEditorPage() {
             </>
           )}
 
-          {cur.id === 'mehr' && (
-            <>
-            <div className="kind-grid">
-              {(['sicher', 'kern', 'aussen', 'center', 'sektion', 'startzone'] as ZoneKind[]).map((k) => (
-                <div key={k} className="kind-item">
-                  <button className="kind-btn" onClick={draw({ kind: k, tool: 'Polygon' })} disabled={!field1}>
-                    <span>{ICON[k]} {ZONE_INFO[k].label}</span>
-                    <span className="muted small">{ZONE_INFO[k].help}</span>
-                  </button>
-                  <span className="kind-info"><Info title={ZONE_HELP[k].title} text={ZONE_HELP[k].text} /></span>
-                </div>
-              ))}
-            </div>
-            {config.zone.sections_per_player && <div className="muted small">Sektionen pro Spieler sind aktiv: zeichne {players} Sektionen.</div>}
-            </>
-          )}
-
           {cur.id === 'fertig' && (
             <>
               {issues.length === 0 && <div className="notice success">Alles in Ordnung. Die Karte ist bereit.</div>}
@@ -899,7 +889,7 @@ export default function MapEditorPage() {
                   <button className="small" onClick={clipAll}>Zuschneiden</button>
                 </div>
               )}
-              {dirty && <button className="primary" onClick={save} disabled={busy || !loaded}>{busy ? 'Speichere …' : 'Karte speichern'}</button>}
+              {dirty && !setup && <button className="primary" onClick={save} disabled={busy || !loaded}>{busy ? 'Speichere …' : 'Karte speichern'}</button>}
             </>
           )}
 
@@ -912,6 +902,14 @@ export default function MapEditorPage() {
               </button>
             )}
           </div>
+          {setup && (
+            <div className="sticky-cta">
+              <button className="primary block big" disabled={busy || !loaded || !field1}
+                onClick={async () => { if (!dirty || (await save())) navigate(`/spiel/${id}`, { replace: true }); }}>
+                {busy ? 'Speichere …' : field1 ? 'Fertig: Karte speichern und Freunde einladen' : 'Zuerst das Spielfeld zeichnen'}
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -1028,13 +1026,6 @@ function ZoneProps({ sel, editable, phases, unitLabel, update, remove, close }: 
             </label>
           )}
         </>
-      )}
-      {['center', 'kern', 'aussen'].includes(p.kind) && (
-        <label className="field">
-          Eigenes Ping-Intervall (min, leer = Regel)
-          <input type="number" min={1} max={720} disabled={!editable} value={p.ping_interval_override ?? ''}
-            onChange={(e) => update(sel.key, { ping_interval_override: e.target.value ? +e.target.value : null })} />
-        </label>
       )}
       {editable && <button className="ghost" onClick={() => remove(sel.key)}>🗑 Zone löschen</button>}
     </div>

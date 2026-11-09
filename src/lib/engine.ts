@@ -7,7 +7,7 @@ export interface Effect { id: string; type: string; ends_at: string | null; payl
 export interface Item { id: string; kind: 'joker' | 'bonus'; type: string; minutes: number | null; source: string | null }
 export interface Participant {
   id: string; name: string; username: string; role: Role; color: string | null; state: string;
-  battery: number | null; last_seen_at: string | null; bounty: number; budget: number | null;
+  battery: number | null; last_seen_at: string | null; bounty: number;
   device_check: Record<string, unknown> | null; next_ping_at: string | null; protected: boolean | null;
   catch_free: boolean | null; briefing_done: boolean;
 }
@@ -46,7 +46,7 @@ export interface GameState {
     meeting_point: string | null; config: GameConfig; group_id: string | null; quiet: boolean;
   };
   me: {
-    id: string; role: Role; state: string; budget: number; bounty: number; next_ping_at: string | null;
+    id: string; role: Role; state: string; bounty: number; next_ping_at: string | null;
     location_requested: boolean; hideout_prompt: boolean; transport_prompt: boolean; out_accum_s: number; out_pending: boolean;
     in_restricted: boolean; briefing_done: boolean; live: boolean; effects: Effect[]; inventory: Item[];
     hideout: { id: string; inside: boolean; accum_s: number; entered_at: string; max_s: number; lat: number; lng: number } | null;
@@ -63,7 +63,6 @@ export interface GameState {
   emergencies: { id: string; participant_id: string; at: string; lat: number | null; lng: number | null; status: string }[];
   transits: { participant_id: string; mode: string; line: string | null; from: string | null; to: string | null; started_at: string }[];
   hideouts: { participant_id: string; inside: boolean; accum_s: number; lat: number; lng: number }[];
-  purchases: { participant_id: string; amount: number; category: string; note: string | null; at: string }[];
   notifications: Notification[];
   next_silent_ping_at: string | null;
   free_players: number;
@@ -91,18 +90,13 @@ export interface ZoneProps {
   visible_from?: string | null;
 }
 
-export const ZONE_KINDS = ['spielfeld', 'sektion', 'startzone', 'center', 'kern', 'aussen', 'sperrzone', 'sicher', 'exit', 'hq', 'treffpunkt'] as const;
+/** Es gibt nur ein Spielfeld, dazu Gefahrenzonen und Punkte (Treffpunkt, HQ, Fluchtpunkt). */
+export const ZONE_KINDS = ['spielfeld', 'sperrzone', 'exit', 'hq', 'treffpunkt'] as const;
 export type ZoneKind = (typeof ZONE_KINDS)[number];
 
 export const ZONE_INFO: Record<ZoneKind, { label: string; color: string; point: boolean; help: string }> = {
   spielfeld: { label: 'Spielfeld', color: '#3fb950', point: false, help: 'Wo gespielt wird. Kann im Lauf des Spiels kleiner werden.' },
-  sektion: { label: 'Sektion', color: '#58a6ff', point: false, help: 'Eigenes Gebiet pro Spieler.' },
-  startzone: { label: 'Startzone', color: '#a371f7', point: false, help: 'Gemeinsamer Bereich in Sektions-Spielen.' },
-  center: { label: 'Center', color: '#d29922', point: false, help: 'Eigene Ping-Regeln, z. B. kein Fahrzeug.' },
-  kern: { label: 'Kernzone', color: '#db6d28', point: false, help: 'Häufigere Pings.' },
-  aussen: { label: 'Aussenzone', color: '#8b949e', point: false, help: 'Eigenes Ping-Intervall.' },
   sperrzone: { label: 'Sperrzone', color: '#f85149', point: false, help: 'Betreten verboten (z. B. Bahnhof, Schule).' },
-  sicher: { label: 'Sichere Zone', color: '#2ea043', point: false, help: 'Hier darf nicht gefangen werden.' },
   exit: { label: 'Fluchtpunkt-Kandidat', color: '#f0f6fc', point: true, help: 'Einer davon wird zufällig der Fluchtpunkt.' },
   hq: { label: 'HQ', color: '#f85149', point: true, help: 'Startort der Hunter.' },
   treffpunkt: { label: 'Treffpunkt', color: '#58a6ff', point: true, help: 'Treffpunkt vor dem Start.' },
@@ -138,8 +132,6 @@ export const api = {
   transitIn: (g: string, mode: string, line: string, from: string, to: string) =>
     rpc('transit_checkin', { p_game_id: g, p_mode: mode, p_line: line, p_from: from, p_to: to }),
   transitOut: (g: string, stops: number | null) => rpc<{ live_after_minutes: number }>('transit_checkout', { p_game_id: g, p_stops: stops }),
-  purchase: (g: string, amount: number, category: string, note: string, receipt: string | null) =>
-    rpc<{ balance: number }>('make_purchase', { p_game_id: g, p_amount: amount, p_category: category, p_note: note, p_receipt: receipt }),
   useItem: (item: string, payload: Record<string, unknown> = {}) => rpc('use_item', { p_item_id: item, p_payload: payload }),
   emergency: (g: string, lat?: number, lng?: number) => rpc('emergency_start', { p_game_id: g, p_lat: lat ?? null, p_lng: lng ?? null }),
   emergencyResolve: (e: string) => rpc('emergency_resolve', { p_emergency_id: e }),
@@ -175,19 +167,19 @@ export const STATE_LABELS: Record<string, string> = {
 };
 
 export const SOURCE_LABELS: Record<string, string> = {
-  silent: 'Ping', speedhunt: 'Blitzjagd', purchase: 'Kauf', transit: 'ÖV', proximity: 'Teambildung', fake: 'Fake',
+  silent: 'Ping', speedhunt: 'Blitzjagd', transit: 'ÖV', proximity: 'Nähe-Alarm', fake: 'Fake',
   hotel_end: 'Hotel', out_of_bounds: 'Ausserhalb', penalty: 'Strafe', gm: 'Sonder-Ping', kein_signal: 'Kein Signal',
   challenge: 'Aufgabe', device_switch: 'Gerätewechsel',
 };
 
 export const PENALTY_LABELS: Record<string, string> = {
-  verwarnung: 'Verwarnung', straf_speedhunt: 'Straf-Blitzjagd', disqualifikation: 'Disqualifikation', catch: 'Als gefangen werten',
+  verwarnung: 'Verwarnung', straf_speedhunt: '15 min live', disqualifikation: 'Disqualifikation', catch: 'Als gefangen werten',
   live_standort: '15 min live', sofort_ping: 'Sofort-Ping',
 };
 
 export const ITEM_LABELS: Record<string, string> = {
   regeneration: 'Regeneration', hunter_erfragen: 'Hunter-Standorte', catch_free: 'Schutzschild', fake_ping: 'Fake-Ping',
-  hotel: 'Hotel', budget: 'Budget', wahl: 'Joker nach Wahl',
+  hotel: 'Hotel', wahl: 'Joker nach Wahl',
 };
 
 /** Was ein Joker oder Bonus bewirkt, in einem Satz. */
@@ -197,7 +189,6 @@ export const ITEM_HELP: Record<string, string> = {
   catch_free: 'Du kannst eine Zeit lang nicht gefangen werden.',
   fake_ping: 'Dein nächster Ping zeigt einen Ort, den du auf der Karte wählst.',
   hotel: 'Du bist an deinem jetzigen Ort eine Zeit lang geschützt.',
-  budget: 'Mehr Geld in deinem Budget.',
   wahl: 'Du wählst beim Einsetzen, welcher Joker es wird.',
 };
 
