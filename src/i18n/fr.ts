@@ -1041,4 +1041,7 @@ export const fr: Record<string, string> = {
   "hell und schlicht": "clair et sobre",
   "dunkel, leuchtende Zonen": "sombre, zones lumineuses",
   "Deine Nummer": "Ton numéro",
+  "Klassisch (wie früher)": "Classique (comme avant)",
+  "die gewohnte OpenStreetMap-Karte": "la carte OpenStreetMap habituelle",
+  "Auf jeder Karte kannst du die Kartenart oben links wechseln und 3D mit dem Knopf 3D. Beim Zeichnen der Karte bleibt sie flach, damit man genau zeichnen kann.": "Sur chaque carte, tu peux changer le type de carte en haut à gauche et la 3D avec le bouton 3D. Pour dessiner la carte, elle reste à plat afin de dessiner précisément.",
 };
