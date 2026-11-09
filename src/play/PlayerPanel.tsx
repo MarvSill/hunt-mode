@@ -65,6 +65,19 @@ export default function PlayerPanel({ s, now, act }: PanelProps) {
         <div className="notice error"><strong>Fährst du gerade?</strong> Melde den Transport unten an, sonst gibt es eine Strafe.</div>
       )}
 
+      {me.out_pending && me.state !== 'ausserhalb' && (() => {
+        // Countdown aus der letzten Warnung: so lange Zeit, um ins Spielfeld zurückzukehren.
+        const warn = s.notifications.find((n) => n.kind === 'outside_warning');
+        const deadline = warn?.payload.deadline as string | undefined;
+        return (
+          <div className="notice error pulse stack" role="alert">
+            <strong style={{ fontSize: 20 }}>Zurück ins Spielfeld!</strong>
+            {deadline && <div className="big-num red">{countdown(deadline, now)}</div>}
+            <span className="small">Bist du bis dann nicht zurück, sehen dich die Hunter live. Ab dem 3. Verlassen gibt es keinen Countdown mehr.</span>
+          </div>
+        );
+      })()}
+
       {me.state === 'ausserhalb' && (
         <div className="notice error">
           <strong>Du bist ausserhalb des Spielfelds!</strong> Die Hunter sehen dich live. Zeit draussen: {formatMinutes(Math.floor(me.out_accum_s / 60))} von {formatMinutes(cfg.out_of_bounds.max_minutes)}.

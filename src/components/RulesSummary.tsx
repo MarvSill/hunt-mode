@@ -16,7 +16,7 @@ export function rulesInWords(c: GameConfig): [string, string][] {
   }
   const how = c.catch.method.includes('qr') ? 'den Fang-Code des Spielers scannt' : 'den Spieler berührt und beide bestätigen';
   out.push(['🤚', `Gefangen ist, wer erwischt wird: der Hunter ${how}.`]);
-  out.push(['🗺️', `Wer das Spielfeld verlässt, wird live an die Hunter gezeigt. Nach ${formatMinutes(c.out_of_bounds.max_minutes)} draussen ${c.out_of_bounds.on_timeout === 'disqualify' ? 'ist man raus' : c.out_of_bounds.on_timeout === 'catch' ? 'gilt man als gefangen' : 'gibt es eine Strafe'}.`]);
+  out.push(['🗺️', `Wer das Spielfeld verlässt, bekommt einen Alarm und ${c.out_of_bounds.grace_seconds} Sekunden Zeit zurückzukommen, sonst sehen ihn die Hunter live. Ab dem 3. Verlassen sofort live. Nach ${formatMinutes(c.out_of_bounds.max_minutes)} draussen ${c.out_of_bounds.on_timeout === 'disqualify' ? 'ist man raus' : c.out_of_bounds.on_timeout === 'catch' ? 'gilt man als gefangen' : 'gibt es eine Strafe'}.`]);
   if (c.exit.enabled) out.push(['🏁', `${formatMinutes(c.exit.reveal_minutes_before_end)} vor Schluss wird der Fluchtpunkt verraten. Wer frei dort ankommt, gewinnt.`]);
   if (c.joker.enabled && c.joker.types.length) {
     const list = c.joker.types.map((t) => `${JOKER_NAMES[t.type] ?? t.type} nach ${formatMinutes(t.after_minutes)}`).join(', ');

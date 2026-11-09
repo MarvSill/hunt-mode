@@ -163,7 +163,7 @@ export const gameConfigSchema = z.object({
       max_minutes: int(10, 1, 600, 'Limit (min)'),
       count_mode: choice(['pro_ausflug', 'pro_tag'], 'pro_ausflug', 'Zählweise'),
       on_timeout: choice(['catch', 'disqualify', 'penalty'], 'catch', 'Folge bei Ablauf'),
-      grace_seconds: int(60, 0, 600, 'Toleranz (s)'),
+      grace_seconds: int(60, 0, 600, 'Countdown zum Zurückkehren (s, beim 1. und 2. Mal)'),
     })
     .default({})
     .describe('Ausserhalb des Spielfelds'),

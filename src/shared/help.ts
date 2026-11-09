@@ -3,7 +3,7 @@
 export const ZONE_HELP: Record<string, { title: string; text: string }> = {
   spielfeld: {
     title: 'Spielfeld',
-    text: 'Der ganze Bereich, in dem gespielt wird. Spieler dürfen ihn nicht verlassen: wer draussen ist, wird nach kurzer Toleranz live an alle Hunter gezeigt, und nach dem Limit gibt es die eingestellte Folge (z. B. Disqualifikation). Gefahrenzonen liegen darin. Das Spielfeld kann im Lauf des Spiels kleiner werden (Schritt "Kleiner werden").',
+    text: 'Der ganze Bereich, in dem gespielt wird. Spieler dürfen ihn nicht verlassen. Wer rausgeht, bekommt einen Alarm und 1 Minute Zeit, um zurückzukommen; sonst sehen ihn alle Hunter live. Ab dem 3. Verlassen gibt es keinen Countdown mehr, der Standort wird sofort live geteilt. Wer zu lange draussen bleibt, gilt als gefangen. Gefahrenzonen liegen darin. Das Spielfeld kann im Lauf des Spiels kleiner werden (Schritt "Kleiner werden").',
   },
   treffpunkt: {
     title: 'Startpunkt',

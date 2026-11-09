@@ -133,3 +133,4 @@ Abweichungen von der Spezifikation und Annahmen, wo sie nichts festlegt.
 - Pings zeigen immer den genauen Ort: die Einstellung "Ungenauigkeit" (`ping.precision_blur_m`) ist entfernt.
 - Joker Regeneration: solange er wirkt, wird der Spieler nicht gepingt und keine Blitzjagd auf ihn ist möglich. Einsetzen geht nicht, solange irgendeine Blitzjagd läuft.
 - Joker Hunter-Standorte: beim Einsetzen einmaliger Ping aller Hunter (Standort in diesem Moment, nicht live). Die Punkte bleiben mit Uhrzeit bis Spielende auf der Karte des Spielers.
+- Spielfeld verlassen: beim 1. und 2. Mal Alarm (kritisch, mit Klingelton) und Countdown (`out_of_bounds.grace_seconds`, Standard 60 s), groß in der Spieler-Ansicht. Ist der Spieler danach nicht zurück, sehen ihn die Hunter live. Ab dem 3. Verlassen sofort live ohne Countdown (`participants.out_exits`). Das Limit "zu lange draussen = gefangen" bleibt.
