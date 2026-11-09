@@ -22,7 +22,7 @@ const CLASSIC: StyleSpecification = {
 };
 
 export const MAP_STYLES: { id: Exclude<MapStyleId, 'auto'>; label: string; hint: string; url: string | StyleSpecification; dark: boolean; raster?: boolean }[] = [
-  { id: 'klassisch', label: 'Klassisch (wie früher)', hint: 'die gewohnte OpenStreetMap-Karte', url: CLASSIC, dark: false, raster: true },
+  { id: 'klassisch', label: 'Klassisch', hint: 'die gewohnte OpenStreetMap-Karte', url: CLASSIC, dark: false, raster: true },
   { id: 'stadt3d', label: 'Stadt in 3D', hint: 'hell, mit 3D-Gebäuden', url: 'https://tiles.openfreemap.org/styles/liberty', dark: false },
   { id: 'klar', label: 'Klar und ruhig', hint: 'hell und schlicht', url: 'https://tiles.openfreemap.org/styles/positron', dark: false },
   { id: 'nacht', label: 'Nacht', hint: 'dunkel, leuchtende Zonen', url: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json', dark: true },
