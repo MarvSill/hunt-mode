@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { t, lazy } from '../i18n';
 
 const KEY = 'hm-intro-seen';
 
@@ -11,7 +12,7 @@ export function introSeen() {
   }
 }
 
-const SLIDES: { art: string; title: string; lead: string; points: [string, string, string][] }[] = [
+const SLIDES: { art: string; title: string; lead: string; points: [string, string, string][] }[] = lazy([
   {
     art: '🏃',
     title: 'Flucht durch die Stadt',
@@ -62,7 +63,7 @@ const SLIDES: { art: string; title: string; lead: string; points: [string, strin
       ['3️⃣', 'Freunde einladen', 'Den 6-stelligen Code teilen, Rollen verteilen, starten.'],
     ],
   },
-];
+]);
 
 /** Einführung beim ersten Start; später unter Profil > So funktioniert's. */
 export default function IntroPage({ onDone }: { onDone?: () => void }) {
@@ -85,9 +86,9 @@ export default function IntroPage({ onDone }: { onDone?: () => void }) {
   return (
     <div className="intro">
       <div className="row">
-        <span className="brand">Hunt Mode</span>
+        <span className="brand">{t('Hunt Mode')}</span>
         <span className="spacer" />
-        <button className="ghost small" onClick={finish}>{onDone ? 'Überspringen' : 'Schliessen'}</button>
+        <button className="ghost small" onClick={finish}>{onDone ? t('Überspringen') : t('Schliessen')}</button>
       </div>
       <div className="intro-art" aria-hidden="true">{slide.art}</div>
       <h1>{slide.title}</h1>
@@ -101,13 +102,13 @@ export default function IntroPage({ onDone }: { onDone?: () => void }) {
         ))}
       </ul>
       <div className="spacer" />
-      <div className="dots" aria-label={`Seite ${i + 1} von ${SLIDES.length}`}>
+      <div className="dots" aria-label={t('Seite {0} von {1}', { 0: i + 1, 1: SLIDES.length })}>
         {SLIDES.map((_, k) => <span key={k} className={k === i ? 'on' : ''} />)}
       </div>
       <div className="row" style={{ flexWrap: 'nowrap' }}>
-        {i > 0 && <button style={{ flex: 1 }} onClick={() => setI(i - 1)}>Zurück</button>}
+        {i > 0 && <button style={{ flex: 1 }} onClick={() => setI(i - 1)}>{t('Zurück')}</button>}
         <button className="primary" style={{ flex: 2 }} onClick={() => (last ? finish() : setI(i + 1))}>
-          {last ? 'Los geht’s' : 'Weiter'}
+          {last ? t('Los geht’s') : t('Weiter')}
         </button>
       </div>
     </div>

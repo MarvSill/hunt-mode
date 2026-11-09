@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, type GameState, type Notification } from './engine';
 import { db, errorText } from './supabase';
+import { translateServer } from '../i18n/server';
 
 // Lädt game_state() und hält ihn aktuell: Realtime auf game_ticks (Änderungszähler),
 // dazu ein Client-Tick alle 15 s, falls pg_cron fehlt oder die Verbindung hängt.
@@ -25,6 +26,9 @@ export function useGameState(gameId: string | undefined, onNew?: (n: Notificatio
       const t0 = Date.now();
       const s = await api.state(gameId);
       const t1 = Date.now();
+      // Meldungen vom Server in der eingestellten Sprache anzeigen.
+      s.notifications = s.notifications.map((n) => ({ ...n, title: translateServer(n.title), body: translateServer(n.body) }));
+      s.game.pause_reason = translateServer(s.game.pause_reason);
       // Spielzeit (inkl. Probelauf-Vorlauf) relativ zur Gerätezeit.
       setOffsetMs(new Date(s.now).getTime() - (t0 + t1) / 2);
       setState(s);

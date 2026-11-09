@@ -3,6 +3,7 @@ import Icon from '../components/Icon';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { joinGame } from '../lib/games';
 import { errorText } from '../lib/supabase';
+import { t } from '../i18n';
 
 export default function JoinPage() {
   const params = useParams();
@@ -41,12 +42,12 @@ export default function JoinPage() {
   return (
     <div className="app">
       <div className="topbar">
-        <Link to="/" className="button ghost back" aria-label="Zurück"><Icon name="back" /></Link>
-        <h1>Spiel beitreten</h1>
+        <Link to="/" className="button ghost back" aria-label={t('Zurück')}><Icon name="back" /></Link>
+        <h1>{t('Spiel beitreten')}</h1>
       </div>
       <form className="stack" onSubmit={submit}>
         <label className="field">
-          6-stelliger Code vom Host
+          {t('6-stelliger Code vom Host')}
           <input
             className="code-big"
             inputMode="numeric"
@@ -59,7 +60,7 @@ export default function JoinPage() {
         </label>
         {error && <div className="notice error">{error}</div>}
         <button className="primary block" disabled={busy || code.length !== 6}>
-          Beitreten
+          {t('Beitreten')}
         </button>
       </form>
     </div>

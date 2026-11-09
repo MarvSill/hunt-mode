@@ -4,6 +4,7 @@ import Icon from '../components/Icon';
 import { useAuth } from '../lib/auth';
 import { STATUS_LABELS, joinGame, myGames, type Game } from '../lib/games';
 import { errorText } from '../lib/supabase';
+import { t, locale } from '../i18n';
 
 const LIVE = ['vorsprung', 'laeuft', 'pausiert', 'finale'];
 const DONE = ['beendet', 'archiviert'];
@@ -45,10 +46,10 @@ export default function HomePage() {
       <div className="topbar" style={{ marginBottom: 14 }}>
         <div className="logo"><Icon name="target" size={26} /></div>
         <div className="spacer">
-          <div className="brand" style={{ fontSize: 13 }}>Hunt Mode</div>
-          <div style={{ fontWeight: 700, fontSize: 19 }}>Hallo {profile?.display_name}</div>
+          <div className="brand" style={{ fontSize: 13 }}>{t('Hunt Mode')}</div>
+          <div style={{ fontWeight: 700, fontSize: 19 }}>{t('Hallo')} {profile?.display_name}</div>
         </div>
-        <Link to="/hilfe" className="button ghost icon-btn" aria-label="So funktioniert's"><Icon name="help" /></Link>
+        <Link to="/hilfe" className="button ghost icon-btn" aria-label={t('So funktioniert\'s')}><Icon name="help" /></Link>
       </div>
 
       {live.map((g) => (
@@ -56,7 +57,7 @@ export default function HomePage() {
           <span className="status-dot live" />
           <div className="spacer">
             <div style={{ fontWeight: 700 }}>{g.name}</div>
-            <div className="small muted">{STATUS_LABELS[g.status]} · jetzt weiterspielen</div>
+            <div className="small muted">{STATUS_LABELS[g.status]} {t('· jetzt weiterspielen')}</div>
           </div>
           <Icon name="play" />
         </Link>
@@ -65,39 +66,39 @@ export default function HomePage() {
       <div className="stack" style={{ gap: 10 }}>
         <Link to="/neu" className="tile primary">
           <span className="ico"><Icon name="plus" size={26} /></span>
-          <span className="spacer"><strong>Spiel erstellen</strong><span className="muted">Vorlage wählen, Karte zeichnen, Freunde einladen</span></span>
+          <span className="spacer"><strong>{t('Spiel erstellen')}</strong><span className="muted">{t('Vorlage wählen, Karte zeichnen, Freunde einladen')}</span></span>
           <Icon name="chevron" />
         </Link>
         <form className="tile" onSubmit={join} style={{ flexDirection: 'column', alignItems: 'stretch', gap: 10 }}>
           <div className="row" style={{ flexWrap: 'nowrap', gap: 14 }}>
             <span className="ico"><Icon name="join" size={24} /></span>
-            <span className="spacer"><strong>Spiel beitreten</strong><span className="muted">Code vom Host eingeben</span></span>
+            <span className="spacer"><strong>{t('Spiel beitreten')}</strong><span className="muted">{t('Code vom Host eingeben')}</span></span>
           </div>
           <div className="row" style={{ flexWrap: 'nowrap' }}>
             <input className="code-input" inputMode="numeric" autoComplete="one-time-code" maxLength={6} placeholder="000000"
-              aria-label="6-stelliger Code" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))} />
-            <button className="primary" disabled={joining || code.length !== 6} style={{ flexShrink: 0 }}>Los</button>
+              aria-label={t('6-stelliger Code')} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))} />
+            <button className="primary" disabled={joining || code.length !== 6} style={{ flexShrink: 0 }}>{t('Los')}</button>
           </div>
           {joinError && <div className="notice error small">{joinError}</div>}
         </form>
       </div>
 
-      <div className="section-title">Meine Spiele</div>
+      <div className="section-title">{t('Meine Spiele')}</div>
       {error && <div className="notice error">{error}</div>}
-      {games === null && !error && <p className="muted">Lade …</p>}
+      {games === null && !error && <p className="muted">{t('Lade …')}</p>}
       {games?.length === 0 && (
         <div className="empty">
           <div style={{ fontSize: 34 }}>🗺️</div>
-          Noch keine Spiele. Erstelle eins oder tritt mit einem Code bei.
-          <div style={{ marginTop: 10 }}><Link to="/hilfe">So funktioniert Hunt Mode</Link></div>
+          {t('Noch keine Spiele. Erstelle eins oder tritt mit einem Code bei.')}
+          <div style={{ marginTop: 10 }}><Link to="/hilfe">{t('So funktioniert Hunt Mode')}</Link></div>
         </div>
       )}
       {open.map((g) => <GameRow key={g.id} g={g} />)}
-      {games && games.length > 0 && open.length === 0 && live.length === 0 && <p className="muted small" style={{ margin: '0 4px 8px' }}>Gerade kein Spiel geplant.</p>}
+      {games && games.length > 0 && open.length === 0 && live.length === 0 && <p className="muted small" style={{ margin: '0 4px 8px' }}>{t('Gerade kein Spiel geplant.')}</p>}
       {done.length > 0 && (
         <>
           <button className="ghost small block" onClick={() => setShowOld((v) => !v)}>
-            {showOld ? 'Vergangene Spiele ausblenden' : `Vergangene Spiele (${done.length})`}
+            {showOld ? t('Vergangene Spiele ausblenden') : t('Vergangene Spiele ({0})', { 0: done.length })}
           </button>
           {showOld && done.map((g) => <GameRow key={g.id} g={g} />)}
         </>
@@ -115,8 +116,8 @@ function GameRow({ g }: { g: Game }) {
         <div style={{ fontWeight: 600 }}>{g.name}</div>
         <div className="small muted">
           {STATUS_LABELS[g.status] ?? g.status}
-          {!done && ` · Code ${g.code}`}
-          {g.start_at && ` · ${new Date(g.start_at).toLocaleString('de-CH', { dateStyle: 'short', timeStyle: 'short' })}`}
+          {!done && t(' · Code {0}', { 0: g.code })}
+          {g.start_at && ` · ${new Date(g.start_at).toLocaleString(locale(), { dateStyle: 'short', timeStyle: 'short' })}`}
         </div>
       </div>
       <Icon name="chevron" />

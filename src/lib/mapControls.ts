@@ -1,4 +1,5 @@
 import L from 'leaflet';
+import { t } from '../i18n';
 
 /**
  * Zusätzliche Knöpfe auf der Karte: Vollbild, auf das Spielfeld zoomen, eigener Standort.
@@ -18,20 +19,20 @@ export function addMapButtons(m: L.Map, opts: { wrap: () => HTMLElement | null; 
         L.DomEvent.on(a, 'click', (e) => { L.DomEvent.preventDefault(e); L.DomEvent.stopPropagation(e); fn(); });
         return a;
       };
-      const full = btn('⛶', 'Vollbild', () => {
+      const full = btn('⛶', t('Vollbild'), () => {
         const w = opts.wrap();
         if (!w) return;
         const on = w.classList.toggle('map-fullscreen');
         document.body.classList.toggle('no-scroll', on);
         full.innerHTML = on ? '✕' : '⛶';
-        full.title = on ? 'Vollbild beenden' : 'Vollbild';
+        full.title = on ? t('Vollbild beenden') : t('Vollbild');
         setTimeout(() => m.invalidateSize(), 50);
       });
-      btn('⌖', 'Auf das Spielfeld zoomen', () => {
+      btn('⌖', t('Auf das Spielfeld zoomen'), () => {
         const b = opts.fit();
         if (b?.isValid()) m.fitBounds(b, { padding: [20, 20] });
       });
-      btn('◎', 'Mein Standort', () => {
+      btn('◎', t('Mein Standort'), () => {
         navigator.geolocation?.getCurrentPosition((p) => m.setView([p.coords.latitude, p.coords.longitude], Math.max(m.getZoom(), 16)), () => undefined, { timeout: 8000 });
       });
       L.DomEvent.disableClickPropagation(box);

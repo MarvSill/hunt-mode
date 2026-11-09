@@ -5,6 +5,7 @@
  */
 import type { GameConfig } from './config';
 import { fitTimes } from './timeRules';
+import { t } from '../i18n';
 
 export type IssueLevel = 'error' | 'warning' | 'autofix';
 
@@ -46,41 +47,41 @@ export function validateConfig(input: GameConfig, ctx: ValidationContext = {}): 
   const duration = config.game.duration_minutes;
 
   if (ctx.players !== undefined && ctx.hunters !== undefined && (ctx.players < 1 || ctx.hunters < 1)) {
-    add('error', 'min_participants', 'Es braucht mindestens einen Spieler und einen Hunter.');
+    add('error', 'min_participants', t('Es braucht mindestens einen Spieler und einen Hunter.'));
   }
 
   if (config.ping.interval_minutes >= duration) {
-    add('error', 'no_ping', 'Bei diesem Intervall gibt es keinen einzigen Ping.', 'ping.interval_minutes', 'game.duration_minutes');
+    add('error', 'no_ping', t('Bei diesem Intervall gibt es keinen einzigen Ping.'), 'ping.interval_minutes', 'game.duration_minutes');
   } else if (config.ping.interval_minutes * 3 > duration) {
-    add('warning', 'few_pings', 'Es gibt weniger als drei Pings im ganzen Spiel.', 'ping.interval_minutes', 'game.duration_minutes');
+    add('warning', 'few_pings', t('Es gibt weniger als drei Pings im ganzen Spiel.'), 'ping.interval_minutes', 'game.duration_minutes');
   }
 
   if (config.joker.enabled && config.joker.types.some((j) => (j.minutes ?? 0) >= duration)) {
-    add('warning', 'joker_whole_game', 'Ein Joker wirkt das ganze Spiel.', 'joker.types');
+    add('warning', 'joker_whole_game', t('Ein Joker wirkt das ganze Spiel.'), 'joker.types');
   }
   if (config.joker.enabled && config.joker.types.length === 0) {
-    add('warning', 'joker_empty', 'Joker sind aktiv, aber es ist kein Joker eingestellt.', 'joker.types');
+    add('warning', 'joker_empty', t('Joker sind aktiv, aber es ist kein Joker eingestellt.'), 'joker.types');
   }
 
   if (config.hideout.enabled && config.hideout.max_minutes >= duration) {
-    add('warning', 'hideout_unlimited', 'Verschanzen ist praktisch unbegrenzt.', 'hideout.max_minutes');
+    add('warning', 'hideout_unlimited', t('Verschanzen ist praktisch unbegrenzt.'), 'hideout.max_minutes');
   }
 
   if (config.out_of_bounds.max_minutes >= duration) {
-    add('warning', 'out_of_bounds_unlimited', 'Ausserhalb-Limit ist länger als das Spiel.', 'out_of_bounds.max_minutes');
+    add('warning', 'out_of_bounds_unlimited', t('Ausserhalb-Limit ist länger als das Spiel.'), 'out_of_bounds.max_minutes');
   }
 
   if (config.exit.enabled && config.exit.reveal_minutes_before_end > duration) {
     add(
       'error',
       'exit_reveal_before_start',
-      'Der Fluchtpunkt würde vor Spielbeginn bekanntgegeben.',
+      t('Der Fluchtpunkt würde vor Spielbeginn bekanntgegeben.'),
       'exit.reveal_minutes_before_end',
     );
   }
 
   if (config.time.align_to_full_hour && duration < 120) {
-    add('warning', 'align_short_game', 'Bei kurzen Spielen besser ab Spielstart zählen.', 'time.align_to_full_hour');
+    add('warning', 'align_short_game', t('Bei kurzen Spielen besser ab Spielstart zählen.'), 'time.align_to_full_hour');
   }
 
   if (config.speedhunt.enabled) {
@@ -90,23 +91,23 @@ export function validateConfig(input: GameConfig, ctx: ValidationContext = {}): 
       add(
         'warning',
         'hunter_advantage',
-        'Die Hunter sind stark im Vorteil (sehr viele Blitzjagden pro Spieler).',
+        t('Die Hunter sind stark im Vorteil (sehr viele Blitzjagden pro Spieler).'),
         'speedhunt.quota_per_day',
       );
     }
   }
 
   if (ctx.hasMinors && config.catch.method.includes('handcuffs')) {
-    add('error', 'handcuffs_minors', 'Fangmethode Handschellen ist mit Teilnehmenden unter 18 nicht erlaubt.', 'catch.method');
+    add('error', 'handcuffs_minors', t('Fangmethode Handschellen ist mit Teilnehmenden unter 18 nicht erlaubt.'), 'catch.method');
   }
 
 
   if (config.proximity.enabled && ctx.fieldWidthM !== undefined && config.proximity.distance_m > ctx.fieldWidthM / 2) {
-    add('warning', 'proximity_always', 'Alarm wird fast dauernd ausgelöst.', 'proximity.distance_m');
+    add('warning', 'proximity_always', t('Alarm wird fast dauernd ausgelöst.'), 'proximity.distance_m');
   }
 
   if (config.win.mode === 'letzter_ueberlebender' && config.exit.enabled) {
-    add('warning', 'exit_ignored', 'Der Fluchtpunkt wird ignoriert.', 'win.mode', 'exit.enabled');
+    add('warning', 'exit_ignored', t('Der Fluchtpunkt wird ignoriert.'), 'win.mode', 'exit.enabled');
   }
 
   return { config, issues, canStart: !issues.some((i) => i.level === 'error') };

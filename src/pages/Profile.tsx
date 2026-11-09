@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import Icon from '../components/Icon';
 import { useAuth } from '../lib/auth';
 import { db, errorText } from '../lib/supabase';
+import { t } from '../i18n';
+import LanguagePicker from '../components/LanguagePicker';
 
 export default function ProfilePage() {
   const { session, profile, refresh } = useAuth();
@@ -46,14 +48,14 @@ export default function ProfilePage() {
       .from('profile_private')
       .upsert({ user_id: userId, emergency_contact_name: contactName.trim(), emergency_contact_phone: contactPhone.trim() });
     const err = a.error ?? b.error;
-    setMsg(err ? { kind: 'error', text: errorText(err) } : { kind: 'ok', text: 'Gespeichert.' });
+    setMsg(err ? { kind: 'error', text: errorText(err) } : { kind: 'ok', text: t('Gespeichert.') });
     await refresh();
   }
 
   return (
     <div className="app">
       <div className="topbar">
-        <h1>Profil</h1>
+        <h1>{t('Profil')}</h1>
       </div>
       <div className="card">
         <div className="row">
@@ -64,48 +66,52 @@ export default function ProfilePage() {
           </div>
         </div>
       </div>
+      <div className="card stack">
+        <strong>{t('Sprache')}</strong>
+        <LanguagePicker userId={session?.user.id} />
+      </div>
       <form className="stack" onSubmit={save}>
         <label className="field">
-          Anzeigename
+          {t('Anzeigename')}
           <input required maxLength={40} value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
         </label>
-        <div className="section-title" style={{ marginBottom: 0 }}>Notfallkontakt</div>
-        <p className="muted small" style={{ margin: 0 }}>Wird nur bei einem Notfall an die Hunter gezeigt.</p>
+        <div className="section-title" style={{ marginBottom: 0 }}>{t('Notfallkontakt')}</div>
+        <p className="muted small" style={{ margin: 0 }}>{t('Wird nur bei einem Notfall an die Hunter gezeigt.')}</p>
         <label className="field">
-          Name
+          {t('Name')}
           <input required value={contactName} onChange={(e) => setContactName(e.target.value)} />
         </label>
         <label className="field">
-          Telefonnummer
+          {t('Telefonnummer')}
           <input required type="tel" value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} />
         </label>
         {msg && <div className={`notice ${msg.kind}`}>{msg.text}</div>}
-        <button className="primary block">Speichern</button>
+        <button className="primary block">{t('Speichern')}</button>
       </form>
-      <div className="section-title">Hilfe</div>
-      <Link to="/hilfe" className="game-card"><Icon name="help" /><span className="spacer">So funktioniert Hunt Mode</span><Icon name="chevron" /></Link>
-      <Link to="/datenschutz" className="game-card"><Icon name="shield" /><span className="spacer">Datenschutz</span><Icon name="chevron" /></Link>
+      <div className="section-title">{t('Hilfe')}</div>
+      <Link to="/hilfe" className="game-card"><Icon name="help" /><span className="spacer">{t('So funktioniert Hunt Mode')}</span><Icon name="chevron" /></Link>
+      <Link to="/datenschutz" className="game-card"><Icon name="shield" /><span className="spacer">{t('Datenschutz')}</span><Icon name="chevron" /></Link>
 
-      <div className="section-title">Konto</div>
+      <div className="section-title">{t('Konto')}</div>
       <button className="block" onClick={() => db().auth.signOut()}>
-        Abmelden
+        {t('Abmelden')}
       </button>
       {!delAsk ? (
         <button className="ghost block" style={{ marginTop: 8, color: 'var(--red)' }} onClick={() => setDelAsk(true)}>
-          Konto löschen
+          {t('Konto löschen')}
         </button>
       ) : (
         <div className="card stack" style={{ marginTop: 12, borderColor: 'var(--red)' }}>
-          <strong>Konto endgültig löschen?</strong>
-          <span className="small muted">Dein Profil, dein Notfallkontakt, deine Teilnahmen und alle Spiele, die du erstellt hast, werden sofort gelöscht. Das kann man nicht rückgängig machen.</span>
+          <strong>{t('Konto endgültig löschen?')}</strong>
+          <span className="small muted">{t('Dein Profil, dein Notfallkontakt, deine Teilnahmen und alle Spiele, die du erstellt hast, werden sofort gelöscht. Das kann man nicht rückgängig machen.')}</span>
           <label className="field">
-            Zum Bestätigen LÖSCHEN eingeben
+            {t('Zum Bestätigen LÖSCHEN eingeben')}
             <input value={delText} onChange={(e) => setDelText(e.target.value)} autoCapitalize="characters" />
           </label>
           {delError && <div className="notice error">{delError}</div>}
           <div className="row">
-            <button className="ghost" onClick={() => { setDelAsk(false); setDelText(''); }}>Abbrechen</button>
-            <button className="primary spacer" disabled={delText.trim().toUpperCase() !== 'LÖSCHEN'} onClick={deleteAccount}>Endgültig löschen</button>
+            <button className="ghost" onClick={() => { setDelAsk(false); setDelText(''); }}>{t('Abbrechen')}</button>
+            <button className="primary spacer" disabled={delText.trim().toUpperCase() !== t('LÖSCHEN')} onClick={deleteAccount}>{t('Endgültig löschen')}</button>
           </div>
         </div>
       )}

@@ -1,6 +1,7 @@
 import type { ConfigIssue } from '../shared/validation';
+import { t, lazy } from '../i18n';
 
-const LABEL = { error: 'Fehler', warning: 'Hinweis', autofix: 'Angepasst' } as const;
+const LABEL = lazy({ error: 'Fehler', warning: 'Hinweis', autofix: 'Angepasst' });
 const CLASS = { error: 'error', warning: 'warning', autofix: 'info' } as const;
 
 /**
@@ -10,7 +11,7 @@ const CLASS = { error: 'error', warning: 'warning', autofix: 'info' } as const;
 export default function IssueList({ issues, compact }: { issues: ConfigIssue[]; compact?: boolean }) {
   const fixes = issues.filter((i) => i.level === 'autofix');
   const rest = compact ? issues.filter((i) => i.level !== 'autofix') : issues;
-  if (issues.length === 0) return compact ? null : <div className="notice ok">✓ Regeln geprüft: alles passt zusammen.</div>;
+  if (issues.length === 0) return compact ? null : <div className="notice ok">{t('✓ Regeln geprüft: alles passt zusammen.')}</div>;
   return (
     <div className="stack" style={{ gap: 8 }}>
       {rest.map((i) => (
@@ -20,7 +21,7 @@ export default function IssueList({ issues, compact }: { issues: ConfigIssue[]; 
       ))}
       {compact && fixes.length > 0 && (
         <details className="notice info small">
-          <summary>{fixes.length === 1 ? '1 Wert wurde' : `${fixes.length} Werte wurden`} automatisch angepasst, damit alles zusammenpasst</summary>
+          <summary>{fixes.length === 1 ? t('1 Wert wurde') : t('{0} Werte wurden', { 0: fixes.length })} {t('automatisch angepasst, damit alles zusammenpasst')}</summary>
           <ul style={{ margin: '8px 0 0', paddingLeft: 18 }}>
             {fixes.map((i) => <li key={i.code}>{i.message}</li>)}
           </ul>

@@ -1,16 +1,17 @@
 import type { GameConfig } from '../shared/config';
 import { db } from './supabase';
+import { lazy } from '../i18n';
 
 export type Role = 'offen' | 'spieler' | 'hunter' | 'zuschauer';
 
-export const ROLE_LABELS: Record<Role, string> = {
+export const ROLE_LABELS: Record<Role, string> = lazy({
   offen: 'Noch offen',
   spieler: 'Spieler',
   hunter: 'Hunter',
   zuschauer: 'Zuschauer',
-};
+});
 
-export const STATUS_LABELS: Record<string, string> = {
+export const STATUS_LABELS: Record<string, string> = lazy({
   entwurf: 'Entwurf',
   geplant: 'Geplant',
   lobby: 'Lobby',
@@ -20,7 +21,7 @@ export const STATUS_LABELS: Record<string, string> = {
   finale: 'Finale',
   beendet: 'Beendet',
   archiviert: 'Archiviert',
-};
+});
 
 export interface Game {
   id: string;

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { GameState, Participant } from '../lib/engine';
+import { t } from '../i18n';
 
 export interface PanelProps {
   s: GameState;
@@ -15,8 +16,8 @@ export function byId(s: GameState) {
 }
 
 export function nameOf(s: GameState, id: string | null | undefined) {
-  if (!id) return 'Unbekannt';
-  return s.participants.find((p) => p.id === id)?.name ?? 'Unbekannt';
+  if (!id) return t('Unbekannt');
+  return s.participants.find((p) => p.id === id)?.name ?? t('Unbekannt');
 }
 
 export const PLAYER_COLORS = ['#3fb950', '#58a6ff', '#d29922', '#a371f7', '#db6d28', '#f778ba', '#56d4dd', '#e3b341', '#7ee787', '#79c0ff'];
@@ -36,8 +37,8 @@ export function Confirm({ label, confirm, onYes, className, disabled }: { label:
   return (
     <div className="row">
       <span className="small">{confirm}</span>
-      <button className="primary small" onClick={() => { setAsk(false); onYes(); }}>Ja</button>
-      <button className="small ghost" onClick={() => setAsk(false)}>Nein</button>
+      <button className="primary small" onClick={() => { setAsk(false); onYes(); }}>{t('Ja')}</button>
+      <button className="small ghost" onClick={() => setAsk(false)}>{t('Nein')}</button>
     </div>
   );
 }

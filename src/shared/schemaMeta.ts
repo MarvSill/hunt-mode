@@ -3,6 +3,7 @@
  * Bereich. Daraus baut der Regel-Editor seine Eingabefelder.
  */
 import { z } from 'zod';
+import { t } from '../i18n';
 import { gameConfigSchema, type ConfigSection } from './config';
 
 export type FieldKind = 'number' | 'boolean' | 'enum' | 'text' | 'enumList' | 'numberList' | 'json';
@@ -120,10 +121,10 @@ const OPTIONS: Record<string, string> = {
 
 /** Lesbarer Name eines Auswahlwerts, z. B. "alle_ueberlebenden" -> "Alle Überlebenden". */
 export function optionLabel(value: string): string {
-  if (OPTIONS[value]) return OPTIONS[value];
+  if (OPTIONS[value]) return t(OPTIONS[value]);
   const text = value
     .split('_')
     .map((w) => WORDS[w] ?? w)
     .join(' ');
-  return text.charAt(0).toUpperCase() + text.slice(1);
+  return t(text.charAt(0).toUpperCase() + text.slice(1));
 }

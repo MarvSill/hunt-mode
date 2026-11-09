@@ -1,6 +1,7 @@
 import type { GameConfig } from '../shared/config';
 import type { Role } from './games';
 import { db } from './supabase';
+import { lazy, locale } from '../i18n';
 
 // Spielstand aus game_state() (supabase/migrations/0006_spielstand.sql).
 export interface Effect { id: string; type: string; ends_at: string | null; payload: Record<string, unknown> }
@@ -97,12 +98,12 @@ export interface ZoneProps {
 export const ZONE_KINDS = ['spielfeld', 'sperrzone', 'exit', 'treffpunkt'] as const;
 export type ZoneKind = (typeof ZONE_KINDS)[number];
 
-export const ZONE_INFO: Record<ZoneKind, { label: string; color: string; point: boolean; help: string }> = {
+export const ZONE_INFO: Record<ZoneKind, { label: string; color: string; point: boolean; help: string }> = lazy({
   spielfeld: { label: 'Spielfeld', color: '#3fb950', point: false, help: 'Wo gespielt wird. Kann im Lauf des Spiels kleiner werden.' },
   sperrzone: { label: 'Sperrzone', color: '#f85149', point: false, help: 'Betreten verboten (z. B. Bahnhof, Schule).' },
   exit: { label: 'Fluchtpunkt-Kandidat', color: '#f0f6fc', point: true, help: 'Einer davon wird zufällig der Fluchtpunkt.' },
   treffpunkt: { label: 'Startpunkt', color: '#58a6ff', point: true, help: 'Hier starten alle, Spieler und Hunter.' },
-};
+});
 
 async function rpc<T = unknown>(fn: string, args: Record<string, unknown>): Promise<T> {
   const { data, error } = await db().rpc(fn, args);
@@ -163,45 +164,45 @@ export async function uploadProof(gameId: string, file: Blob, name: string) {
   return path;
 }
 
-export const STATE_LABELS: Record<string, string> = {
+export const STATE_LABELS: Record<string, string> = lazy({
   aktiv: 'Aktiv', ausserhalb: 'Ausserhalb', gefangen: 'Gefangen', disqualifiziert: 'Disqualifiziert', aufgegeben: 'Aufgegeben',
   im_ziel: 'Am Fluchtpunkt', verloren: 'Verloren', notfall: 'Notfall', pausiert: 'Pausiert',
-};
+});
 
-export const SOURCE_LABELS: Record<string, string> = {
+export const SOURCE_LABELS: Record<string, string> = lazy({
   silent: 'Ping', speedhunt: 'Blitzjagd', transit: 'ÖV', proximity: 'Nähe-Alarm', fake: 'Fake',
   hotel_end: 'Hotel', out_of_bounds: 'Ausserhalb', penalty: 'Strafe', gm: 'Sonder-Ping', kein_signal: 'Kein Signal',
   challenge: 'Aufgabe', device_switch: 'Gerätewechsel',
-};
+});
 
-export const PENALTY_LABELS: Record<string, string> = {
+export const PENALTY_LABELS: Record<string, string> = lazy({
   verwarnung: 'Verwarnung', straf_speedhunt: '15 min live', disqualifikation: 'Disqualifikation', catch: 'Als gefangen werten',
   live_standort: '15 min live', sofort_ping: 'Sofort-Ping',
-};
+});
 
-export const ITEM_LABELS: Record<string, string> = {
+export const ITEM_LABELS: Record<string, string> = lazy({
   regeneration: 'Regeneration', hunter_erfragen: 'Hunter-Standorte', catch_free: 'Schutzschild', fake_ping: 'Fake-Ping',
   hotel: 'Hotel', wahl: 'Joker nach Wahl',
-};
+});
 
 /** Was ein Joker oder Bonus bewirkt, in einem Satz. */
-export const ITEM_HELP: Record<string, string> = {
+export const ITEM_HELP: Record<string, string> = lazy({
   regeneration: 'Du wirst eine Zeit lang nicht gepingt, und die Hunter können keine Blitzjagd auf dich starten. Nicht einsetzbar, solange eine Blitzjagd läuft.',
   hunter_erfragen: 'Beim Einsetzen siehst du einmalig, wo alle Hunter in diesem Moment sind (nicht live).',
   catch_free: 'Du kannst eine Zeit lang nicht gefangen werden.',
   fake_ping: 'Dein nächster Ping zeigt einen Ort, den du auf der Karte wählst.',
   hotel: 'Du bist an deinem jetzigen Ort eine Zeit lang geschützt.',
   wahl: 'Du wählst beim Einsetzen, welcher Joker es wird.',
-};
+});
 
-export const TRANSPORT_LABELS: Record<string, string> = {
+export const TRANSPORT_LABELS: Record<string, string> = lazy({
   zu_fuss: 'Zu Fuss', oev_bus: 'Bus', oev_bahn: 'Bahn', oev_tram: 'Tram', faehre: 'Fähre', taxi: 'Taxi', fahrrad: 'Fahrrad',
   scooter: 'Scooter', eigenes_fahrzeug: 'Eigenes Fahrzeug',
-};
+});
 
 export function clock(iso: string | null | undefined, tz?: string) {
   if (!iso) return '–';
-  return new Date(iso).toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit', timeZone: tz });
+  return new Date(iso).toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit', timeZone: tz });
 }
 
 export function countdown(targetIso: string | null | undefined, nowMs: number) {

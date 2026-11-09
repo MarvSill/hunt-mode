@@ -12,6 +12,7 @@ import { errorText } from '../lib/supabase';
 import { gameConfigSchema, parseConfig, type GameConfig } from '../shared/config';
 import { configFromPreset, getPreset } from '../shared/presets';
 import { validateConfig } from '../shared/validation';
+import { t } from '../i18n';
 
 export default function RulesPage() {
   const { id } = useParams<{ id: string }>();
@@ -51,7 +52,7 @@ export default function RulesPage() {
   );
 
   if (!game || !config || !saved || !result) {
-    return <div className="app">{msg ? <div className="notice error">{msg.text}</div> : <span className="muted">Lade …</span>}</div>;
+    return <div className="app">{msg ? <div className="notice error">{msg.text}</div> : <span className="muted">{t('Lade …')}</span>}</div>;
   }
 
   const editable = game.host_id === session?.user.id && ['entwurf', 'geplant', 'lobby'].includes(game.status);
@@ -63,7 +64,7 @@ export default function RulesPage() {
       setConfig(parsed.data);
       setMsg(null);
     } else {
-      setMsg({ kind: 'error', text: 'Ungültiger Wert: ' + parsed.error.issues.map((i) => i.path.join('.')).join(', ') });
+      setMsg({ kind: 'error', text: t('Ungültiger Wert: ') + parsed.error.issues.map((i) => i.path.join('.')).join(', ') });
     }
   }
 
@@ -74,7 +75,7 @@ export default function RulesPage() {
       await updateConfig(game.id, result.config, changes);
       setSaved(result.config);
       setConfig(result.config);
-      setMsg({ kind: 'ok', text: `${changes.length} Änderung(en) gespeichert.` });
+      setMsg({ kind: 'ok', text: t('{0} Änderung(en) gespeichert.', { 0: changes.length }) });
     } catch (err) {
       setMsg({ kind: 'error', text: errorText(err) });
     } finally {
@@ -85,8 +86,8 @@ export default function RulesPage() {
   return (
     <div className="app">
       <div className="topbar">
-        <Link to={`/spiel/${game.id}`} className="button ghost back" aria-label="Zurück"><Icon name="back" /></Link>
-        <h1>Regeln</h1>
+        <Link to={`/spiel/${game.id}`} className="button ghost back" aria-label={t('Zurück')}><Icon name="back" /></Link>
+        <h1>{t('Regeln')}</h1>
       </div>
       {!editable && (
         <div className="card">
@@ -95,12 +96,12 @@ export default function RulesPage() {
       )}
       {editable && (
         <>
-          <p className="muted small" style={{ marginTop: 0 }}>Tippe einen Bereich an, um ihn zu ändern. Zeiten passt die App automatisch an die Spieldauer an.</p>
+          <p className="muted small" style={{ marginTop: 0 }}>{t('Tippe einen Bereich an, um ihn zu ändern. Zeiten passt die App automatisch an die Spieldauer an.')}</p>
           <QuickSettings config={result.config} onChange={edit} />
           <details className="acc">
             <summary>
               <span className="ico" aria-hidden="true">📌</span>
-              <span className="spacer"><span className="t">Eigene Zusatzregeln</span><span className="s" style={{ display: 'block' }}>{config.extras.rules.length ? `${config.extras.rules.length} Regeln` : 'keine'}</span></span>
+              <span className="spacer"><span className="t">{t('Eigene Zusatzregeln')}</span><span className="s" style={{ display: 'block' }}>{config.extras.rules.length ? t('{0} Regeln', { 0: config.extras.rules.length }) : 'keine'}</span></span>
               <Icon name="chevron" className="chev" />
             </summary>
             <div className="body">
@@ -112,7 +113,7 @@ export default function RulesPage() {
       <details className="acc">
         <summary>
           <span className="ico" aria-hidden="true">🧰</span>
-          <span className="spacer"><span className="t">{editable ? 'Expertenmodus' : 'Alle Einstellungen'}</span><span className="s" style={{ display: 'block' }}>Jede Einstellung einzeln</span></span>
+          <span className="spacer"><span className="t">{editable ? t('Expertenmodus') : t('Alle Einstellungen')}</span><span className="s" style={{ display: 'block' }}>{t('Jede Einstellung einzeln')}</span></span>
           <Icon name="chevron" className="chev" />
         </summary>
         <div className="body">
@@ -124,7 +125,7 @@ export default function RulesPage() {
       {editable && (
         <div className="sticky-cta">
           <button className="primary block" disabled={busy || changes.length === 0} onClick={save}>
-            {changes.length === 0 ? 'Keine Änderungen' : `${changes.length} Änderung(en) speichern`}
+            {changes.length === 0 ? t('Keine Änderungen') : t('{0} Änderung(en) speichern', { 0: changes.length })}
           </button>
         </div>
       )}

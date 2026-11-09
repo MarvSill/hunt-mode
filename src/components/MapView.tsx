@@ -5,6 +5,7 @@ import { useEffect, useRef } from 'react';
 import { pointOnFeature } from '@turf/turf';
 import { ZONE_INFO, type MapFeature } from '../lib/engine';
 import { restrictedInfo } from '../lib/geo';
+import { t } from '../i18n';
 
 export interface Marker {
   id: string;
@@ -64,11 +65,11 @@ export function addZones(layer: L.LayerGroup, zones: MapFeature[], day?: number)
     } else {
       l = L.geoJSON(f as GeoJSON.Feature, { style: () => zoneStyle(f, day) });
     }
-    const dayText = f.properties.day_index ? ` (Phase ${f.properties.day_index})` : '';
+    const dayText = f.properties.day_index ? t(' (Phase {0})', { 0: f.properties.day_index }) : '';
     if (k === 'sperrzone') layer.addLayer(zoneBadge(f));
     // Fluchtpunkt immer beschriftet, alles andere beim Antippen.
     const permanent = k === 'exit';
-    const prefix = k === 'exit' ? 'FLUCHTPUNKT: ' : k === 'sperrzone' ? `GEFAHR (${restrictedInfo(f.properties.restricted_type).label}): ` : '';
+    const prefix = k === 'exit' ? t('FLUCHTPUNKT: ') : k === 'sperrzone' ? t('GEFAHR ({0}): ', { 0: restrictedInfo(f.properties.restricted_type).label }) : '';
     (l as L.Path).bindTooltip(esc(`${prefix}${name}${dayText}`), permanent ? { permanent: true, direction: 'top' } : { sticky: true });
     layer.addLayer(l);
   }
@@ -136,7 +137,7 @@ export default function MapView({ zones, markers, lines, onClick, fitKey, height
     const m = L.map(el.current, { zoomControl: true, attributionControl: true }).setView([47.3769, 8.5417], 13);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
-      attribution: '&copy; OpenStreetMap',
+      attribution: t('&copy; OpenStreetMap'),
     }).addTo(m);
     zoneLayer.current = L.layerGroup().addTo(m);
     markerLayer.current = L.layerGroup().addTo(m);

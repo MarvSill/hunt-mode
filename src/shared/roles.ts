@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 /**
  * Rollenverteilung in der Lobby (Kapitel 21.5, Schritt 5).
  */
@@ -52,16 +53,16 @@ export interface LobbyIssue {
 export function lobbyIssues(counts: RosterCounts, limits: RoleLimits, notReady: number): LobbyIssue[] {
   const issues: LobbyIssue[] = [];
   if (counts.unassigned > 0) {
-    issues.push({ level: 'error', code: 'unassigned', message: `${counts.unassigned} Person(en) haben noch keine Rolle.` });
+    issues.push({ level: 'error', code: 'unassigned', message: t('{0} Person(en) haben noch keine Rolle.', { 0: counts.unassigned }) });
   }
   if (counts.players > limits.players_max) {
-    issues.push({ level: 'error', code: 'too_many_players', message: `Zu viele Spieler: ${counts.players} von max. ${limits.players_max}.` });
+    issues.push({ level: 'error', code: 'too_many_players', message: t('Zu viele Spieler: {0} von max. {1}.', { 0: counts.players, 1: limits.players_max }) });
   }
   if (counts.hunters > limits.hunters_max) {
-    issues.push({ level: 'error', code: 'too_many_hunters', message: `Zu viele Hunter: ${counts.hunters} von max. ${limits.hunters_max}.` });
+    issues.push({ level: 'error', code: 'too_many_hunters', message: t('Zu viele Hunter: {0} von max. {1}.', { 0: counts.hunters, 1: limits.hunters_max }) });
   }
   if (notReady > 0) {
-    issues.push({ level: 'warning', code: 'not_ready', message: `${notReady} Person(en) sind noch nicht bereit.` });
+    issues.push({ level: 'warning', code: 'not_ready', message: t('{0} Person(en) sind noch nicht bereit.', { 0: notReady }) });
   }
   return issues;
 }

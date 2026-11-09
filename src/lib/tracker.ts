@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from './engine';
+import { t } from '../i18n';
 
 // Standort-Erfassung (23.4): watchPosition, Puffer bei Funkloch, Senden im
 // Server-Takt (schneller bei Live-Fenster oder Standort-Anfrage), Wake Lock.
@@ -48,7 +49,7 @@ export function useTracker(gameId: string | undefined, enabled: boolean, kick = 
       return;
     }
     if (!('geolocation' in navigator)) {
-      setInfo((i) => ({ ...i, status: 'fehler', error: 'Dieses Gerät hat kein GPS im Browser.' }));
+      setInfo((i) => ({ ...i, status: 'fehler', error: t('Dieses Gerät hat kein GPS im Browser.') }));
       return;
     }
     let stopped = false;
@@ -96,7 +97,7 @@ export function useTracker(gameId: string | undefined, enabled: boolean, kick = 
       } catch (err) {
         // Offline: Punkte behalten und später senden (max. 200).
         queue.current = queue.current.slice(-200);
-        setInfo((i) => ({ ...i, queued: queue.current.length, error: (err as Error).message ?? 'Senden fehlgeschlagen' }));
+        setInfo((i) => ({ ...i, queued: queue.current.length, error: (err as Error).message ?? t('Senden fehlgeschlagen') }));
       } finally {
         sending.current = false;
       }

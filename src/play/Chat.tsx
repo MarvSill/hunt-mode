@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { api } from '../lib/engine';
 import { db, errorText } from '../lib/supabase';
 import type { GameState } from '../lib/engine';
+import { t, locale } from '../i18n';
 
 interface Msg { id: number; channel: string; sender_id: string | null; sender_name: string | null; body: string; at: string }
 
@@ -14,15 +15,15 @@ export function channelsFor(s: GameState): { id: string; label: string; write: b
   const r = s.me.role;
   if (r === 'spieler') {
     return [
-      { id: `sp:${s.me.id}`, label: 'Mit den Huntern', write: true },
-      { id: 'spieler', label: 'Von den Huntern an alle', write: false },
+      { id: `sp:${s.me.id}`, label: t('Mit den Huntern'), write: true },
+      { id: 'spieler', label: t('Von den Huntern an alle'), write: false },
     ];
   }
   if (r === 'hunter') {
     return [
-      { id: 'taskforce', label: 'Hunter-Team', write: true },
-      { id: 'spieler', label: 'An alle Spieler', write: true },
-      ...s.participants.filter((p) => p.role === 'spieler').map((p) => ({ id: `sp:${p.id}`, label: `Mit ${p.name}`, write: true })),
+      { id: 'taskforce', label: t('Hunter-Team'), write: true },
+      { id: 'spieler', label: t('An alle Spieler'), write: true },
+      ...s.participants.filter((p) => p.role === 'spieler').map((p) => ({ id: `sp:${p.id}`, label: t('Mit {0}', { 0: p.name }), write: true })),
     ];
   }
   return [];
@@ -80,10 +81,10 @@ export function MessageList({ filter, value, channel, onSend, height = '50dvh' }
   return (
     <div className="stack">
       <div ref={box} className="chat" style={{ maxHeight: height }}>
-        {msgs.length === 0 && <div className="muted small">Noch keine Nachrichten.</div>}
+        {msgs.length === 0 && <div className="muted small">{t('Noch keine Nachrichten.')}</div>}
         {msgs.map((m) => (
           <div key={m.id} className={`bubble${m.sender_id === me ? ' mine' : ''}`}>
-            <div className="small muted">{m.sender_name ?? '?'} · {new Date(m.at).toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' })}</div>
+            <div className="small muted">{m.sender_name ?? '?'} · {new Date(m.at).toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' })}</div>
             <div>{m.body}</div>
           </div>
         ))}
@@ -91,8 +92,8 @@ export function MessageList({ filter, value, channel, onSend, height = '50dvh' }
       {err && <div className="notice error">{err}</div>}
       {onSend && (
         <form className="row" onSubmit={(e) => { e.preventDefault(); void send(); }}>
-          <input aria-label="Nachricht" value={text} maxLength={2000} onChange={(e) => setText(e.target.value)} placeholder="Nachricht" style={{ flex: 1 }} />
-          <button type="submit" className="primary" disabled={!text.trim()}>Senden</button>
+          <input aria-label={t('Nachricht')} value={text} maxLength={2000} onChange={(e) => setText(e.target.value)} placeholder={t('Nachricht')} style={{ flex: 1 }} />
+          <button type="submit" className="primary" disabled={!text.trim()}>{t('Senden')}</button>
         </form>
       )}
     </div>
@@ -103,15 +104,15 @@ export default function Chat({ s }: { s: GameState }) {
   const chans = channelsFor(s);
   const [ch, setCh] = useState(chans[0]?.id ?? '');
   const cur = chans.find((c) => c.id === ch) ?? chans[0];
-  if (!cur) return <div className="card muted">Im Chat schreiben nur Spieler und Hunter. Wichtige Meldungen findest du unter „Meldungen“.</div>;
+  if (!cur) return <div className="card muted">{t('Im Chat schreiben nur Spieler und Hunter. Wichtige Meldungen findest du unter „Meldungen“.')}</div>;
   const hint = s.me.role === 'spieler'
-    ? (cur.write ? 'Deine Nachricht lesen alle Hunter. Mit anderen Spielern kannst du nicht schreiben.' : 'Hier schreiben nur die Hunter.')
-    : cur.id === 'taskforce' ? 'Nur das Hunter-Team liest mit.'
-    : cur.id === 'spieler' ? 'Alle Spieler lesen diese Nachricht.'
-    : 'Dieser Spieler und alle Hunter lesen mit.';
+    ? (cur.write ? t('Deine Nachricht lesen alle Hunter. Mit anderen Spielern kannst du nicht schreiben.') : t('Hier schreiben nur die Hunter.'))
+    : cur.id === 'taskforce' ? t('Nur das Hunter-Team liest mit.')
+    : cur.id === 'spieler' ? t('Alle Spieler lesen diese Nachricht.')
+    : t('Dieser Spieler und alle Hunter lesen mit.');
   return (
     <div className="stack">
-      <select aria-label="Kanal" value={cur.id} onChange={(e) => setCh(e.target.value)}>
+      <select aria-label={t('Kanal')} value={cur.id} onChange={(e) => setCh(e.target.value)}>
         {chans.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
       </select>
       <div className="muted small">{hint}</div>

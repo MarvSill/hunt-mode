@@ -16,9 +16,10 @@ import { CallButtons } from './EmergencyBox';
 import HunterPanel from './HunterPanel';
 import PlayerPanel from './PlayerPanel';
 import Result from './Result';
+import { t, lazy } from '../i18n';
 
 type Tab = 'karte' | 'aktionen' | 'meldungen' | 'chat';
-const TABS: [Tab, string, IconName][] = [['karte', 'Karte', 'map'], ['aktionen', 'Aktionen', 'bolt'], ['meldungen', 'Meldungen', 'bell'], ['chat', 'Chat', 'chat']];
+const TABS: [Tab, string, IconName][] = lazy([['karte', 'Karte', 'map'], ['aktionen', 'Aktionen', 'bolt'], ['meldungen', 'Meldungen', 'bell'], ['chat', 'Chat', 'chat']]);
 
 function beep(critical: boolean) {
   try {
@@ -130,7 +131,7 @@ export default function PlayPage() {
       if (p.lat == null || p.lng == null) continue;
       if (role === 'spieler' && p.participant_id === s.me.id && p.source === 'proximity') continue;
       const age = now - new Date(p.at).getTime();
-      const label = `${nameOf(s, p.participant_id)} · ${SOURCE_LABELS[p.source] ?? p.source}${p.n ? ` ${p.n}` : ''} · ${clock(p.at)}${p.stale_seconds ? ` (${Math.round(p.stale_seconds / 60)} min alt)` : ''}${p.is_fake ? ' · FAKE' : ''}`;
+      const label = `${nameOf(s, p.participant_id)} · ${SOURCE_LABELS[p.source] ?? p.source}${p.n ? ` ${p.n}` : ''} · ${clock(p.at)}${p.stale_seconds ? t(' ({0} min alt)', { 0: Math.round(p.stale_seconds / 60) }) : ''}${p.is_fake ? t(' · FAKE') : ''}`;
       list.push({ id: p.id, lat: p.lat, lng: p.lng, color: colorFor(s, p.participant_id), label, kind: 'ping', opacity: Math.max(0.3, 1 - age / Math.max(fade, 1)), accuracy: p.accuracy_m });
     }
     for (const x of s.positions) {
@@ -139,27 +140,27 @@ export default function PlayPage() {
       list.push({
         id: `pos${x.participant_id}`, lat: x.lat, lng: x.lng, accuracy: x.accuracy_m,
         color: isMe ? '#58a6ff' : colorFor(s, x.participant_id), kind: isMe ? 'me' : pp?.role === 'spieler' ? 'player' : 'hunter',
-        label: `${isMe ? 'Du' : pp?.name ?? '?'}${x.live && !isMe ? ' (LIVE)' : ''} · ${clock(x.at)}`, pulse: x.live && tf && !isMe,
+        label: `${isMe ? t('Du') : pp?.name ?? '?'}${x.live && !isMe ? t(' (LIVE)') : ''} · ${clock(x.at)}`, pulse: x.live && tf && !isMe,
       });
     }
     // Eigene Live-Position (schneller als der Server-Stand)
     if (pos && !s.positions.some((x) => x.participant_id === s.me.id)) {
-      list.push({ id: 'me', lat: pos.lat, lng: pos.lng, color: '#58a6ff', kind: 'me', label: 'Du', accuracy: tracker.last?.acc });
+      list.push({ id: 'me', lat: pos.lat, lng: pos.lng, color: '#58a6ff', kind: 'me', label: t('Du'), accuracy: tracker.last?.acc });
     }
     for (const e of s.me.effects) {
       if (e.type === 'hunter_snapshot') {
         for (const h of (e.payload.hunters as { name: string; lat: number; lng: number; at?: string }[]) ?? []) {
-          list.push({ id: `hs${e.id}${h.name}`, lat: h.lat, lng: h.lng, color: '#f85149', kind: 'hunter', label: `Hunter ${h.name} · Ping ${clock(h.at)} (nicht live)` });
+          list.push({ id: `hs${e.id}${h.name}`, lat: h.lat, lng: h.lng, color: '#f85149', kind: 'hunter', label: t('Hunter {0} · Ping {1} (nicht live)', { 0: h.name, 1: clock(h.at) }) });
         }
       }
     }
     for (const n of s.notifications.slice(0, 10)) {
       if (n.kind === 'proximity_self' && n.payload.lat != null && now - new Date(n.at).getTime() < 15 * 60000) {
-        list.push({ id: `px${n.id}`, lat: n.payload.lat as number, lng: n.payload.lng as number, color: '#d29922', kind: 'player', label: `${n.payload.name} (in der Nähe)` });
+        list.push({ id: `px${n.id}`, lat: n.payload.lat as number, lng: n.payload.lng as number, color: '#d29922', kind: 'player', label: t('{0} (in der Nähe)', { 0: n.payload.name }) });
       }
     }
     for (const e of s.emergencies) {
-      if (e.lat != null && e.lng != null) list.push({ id: `e${e.id}`, lat: e.lat, lng: e.lng, color: '#ff0000', kind: 'emergency', label: `NOTFALL ${nameOf(s, e.participant_id)}`, pulse: true });
+      if (e.lat != null && e.lng != null) list.push({ id: `e${e.id}`, lat: e.lat, lng: e.lng, color: '#ff0000', kind: 'emergency', label: t('NOTFALL {0}', { 0: nameOf(s, e.participant_id) }), pulse: true });
     }
     return list;
   }, [s, now, pos, role, tracker.last?.acc]);
@@ -167,8 +168,8 @@ export default function PlayPage() {
   if (!s) {
     return (
       <div className="app">
-        {error ? <div className="notice error">{error}</div> : <div className="muted">Lade Spiel …</div>}
-        <Link to={`/spiel/${id}`}>Zurück</Link>
+        {error ? <div className="notice error">{error}</div> : <div className="muted">{t('Lade Spiel …')}</div>}
+        <Link to={`/spiel/${id}`}>{t('Zurück')}</Link>
       </div>
     );
   }
@@ -177,11 +178,11 @@ export default function PlayPage() {
   const ended = ['beendet', 'archiviert'].includes(g.status);
   const players = s.participants.filter((p) => p.role === 'spieler');
   const live = ['vorsprung', 'laeuft', 'finale'].includes(g.status);
-  const headline = g.paused ? 'UNTERBROCHEN: NOTFALL' : g.status === 'vorsprung' ? `Jagd in ${countdown(g.hunt_start_at, now)}`
-    : g.status === 'finale' ? `Fluchtpunkt bis ${clock(g.deadline_at, g.timezone)} · ${countdown(g.deadline_at, now)}`
-    : ended ? 'Spiel beendet' : `Ende in ${countdown(g.ends_at, now)}`;
+  const headline = g.paused ? t('UNTERBROCHEN: NOTFALL') : g.status === 'vorsprung' ? t('Jagd in {0}', { 0: countdown(g.hunt_start_at, now) })
+    : g.status === 'finale' ? t('Fluchtpunkt bis {0} · {1}', { 0: clock(g.deadline_at, g.timezone), 1: countdown(g.deadline_at, now) })
+    : ended ? t('Spiel beendet') : t('Ende in {0}', { 0: countdown(g.ends_at, now) });
 
-  const roleLabel = role === 'spieler' ? 'Spieler' : role === 'zuschauer' ? 'Zuschauer' : 'Hunter';
+  const roleLabel = role === 'spieler' ? t('Spieler') : role === 'zuschauer' ? t('Zuschauer') : t('Hunter');
   const canSos = !ended && role !== 'zuschauer' && s.me.state !== 'notfall';
   const unseen = tab === 'meldungen' ? 0 : s.notifications.length - seenNotes;
   function openTab(t: Tab) {
@@ -192,29 +193,29 @@ export default function PlayPage() {
   return (
     <div className="app wide play">
       <div className="topbar">
-        <Link to="/" className="button ghost back" aria-label="Zur Startseite"><Icon name="back" /></Link>
+        <Link to="/" className="button ghost back" aria-label={t('Zur Startseite')}><Icon name="back" /></Link>
         <div className="spacer play-head">
           <div className="sub-line">
             <span className={`role-pill ${role === 'spieler' ? 'spieler' : role === 'zuschauer' ? 'zuschauer' : 'hunter'}`} style={{ padding: '1px 8px', marginRight: 6 }}>{roleLabel}</span>
-            {g.name}{g.is_test ? ' · Probelauf' : ''}{(g.phase_count ?? 0) > 1 && g.config.zone.shrink_every_minutes > 0 && ` · Phase ${g.phase}/${g.phase_count}`}
+            {g.name}{g.is_test ? t(' · Probelauf') : ''}{(g.phase_count ?? 0) > 1 && g.config.zone.shrink_every_minutes > 0 && t(' · Phase {0}/{1}', { 0: g.phase, 1: g.phase_count })}
           </div>
           <div className="headline">{headline}</div>
         </div>
-        {canSos && <button className="sos" aria-label="NOTFALL" onClick={() => setSosAsk(true)}>SOS</button>}
+        {canSos && <button className="sos" aria-label={t('NOTFALL')} onClick={() => setSosAsk(true)}>{t('SOS')}</button>}
       </div>
 
       {sosAsk && (
-        <div className="overlay" role="dialog" aria-label="Notfall melden" onClick={() => setSosAsk(false)}>
+        <div className="overlay" role="dialog" aria-label={t('Notfall melden')} onClick={() => setSosAsk(false)}>
           <div className="card stack emergency-card" style={{ maxWidth: 440, width: '100%', background: 'var(--surface)' }} onClick={(e) => e.stopPropagation()}>
-            <strong style={{ fontSize: 20 }}>🚨 Notfall melden?</strong>
-            <span className="small">Das ganze Spiel wird sofort unterbrochen. Alle werden alarmiert, sehen deinen Standort und kommen helfen. Die Hunter sehen auch deinen Notfallkontakt. Bei einem Versehen kannst du den Notfall danach wieder beenden; dann geht das Spiel weiter.</span>
+            <strong style={{ fontSize: 20 }}>{t('🚨 Notfall melden?')}</strong>
+            <span className="small">{t('Das ganze Spiel wird sofort unterbrochen. Alle werden alarmiert, sehen deinen Standort und kommen helfen. Die Hunter sehen auch deinen Notfallkontakt. Bei einem Versehen kannst du den Notfall danach wieder beenden; dann geht das Spiel weiter.')}</span>
             <button className="danger block big" onClick={() => {
               setSosAsk(false);
-              void act(() => api.emergency(g.id, pos?.lat, pos?.lng), 'Notfall gemeldet. Bei Gefahr: 117 (Polizei) oder 112 anrufen.');
-            }}>Ja, Notfall melden</button>
-            <div className="muted small">Bei Gefahr direkt anrufen:</div>
+              void act(() => api.emergency(g.id, pos?.lat, pos?.lng), t('Notfall gemeldet. Bei Gefahr: 117 (Polizei) oder 112 anrufen.'));
+            }}>{t('Ja, Notfall melden')}</button>
+            <div className="muted small">{t('Bei Gefahr direkt anrufen:')}</div>
             <CallButtons />
-            <button className="ghost block" onClick={() => setSosAsk(false)}>Abbrechen</button>
+            <button className="ghost block" onClick={() => setSosAsk(false)}>{t('Abbrechen')}</button>
           </div>
         </div>
       )}
@@ -230,18 +231,18 @@ export default function PlayPage() {
 
       {g.paused && (
         <div className="notice error pulse" role="alert" style={{ marginBottom: 8 }}>
-          <strong>Spiel unterbrochen.</strong> {g.pause_reason ?? 'Notfall'}. Geht zum Standort auf der Karte und helft. Sobald der Notfall beendet ist, geht das Spiel weiter.
+          <strong>{t('Spiel unterbrochen.')}</strong> {g.pause_reason ?? t('Notfall')}{t('. Geht zum Standort auf der Karte und helft. Sobald der Notfall beendet ist, geht das Spiel weiter.')}
         </div>
       )}
       {tracking && tracker.status !== 'ok' && (
         <div className="notice error" style={{ marginBottom: 8 }}>
-          {tracker.status === 'verweigert' ? 'Standort ist blockiert. Erlaube den Standort in den Browser-Einstellungen, sonst kannst du nicht mitspielen.'
-            : tracker.status === 'warte' ? 'Warte auf GPS …' : `GPS-Problem: ${tracker.error ?? ''}`}
+          {tracker.status === 'verweigert' ? t('Standort ist blockiert. Erlaube den Standort in den Browser-Einstellungen, sonst kannst du nicht mitspielen.')
+            : tracker.status === 'warte' ? t('Warte auf GPS …') : t('GPS-Problem: {0}', { 0: tracker.error ?? '' })}
         </div>
       )}
-      {tracker.queued > 3 && <div className="notice" style={{ marginBottom: 8 }}>Offline: {tracker.queued} Standorte warten auf Verbindung.</div>}
+      {tracker.queued > 3 && <div className="notice" style={{ marginBottom: 8 }}>{t('Offline:')} {tracker.queued} {t('Standorte warten auf Verbindung.')}</div>}
       {!ended && notifPerm === 'default' && typeof Notification !== 'undefined' && (
-        <button className="small block" style={{ marginBottom: 8 }} onClick={() => void Notification.requestPermission().then(setNotifPerm)}>Benachrichtigungen erlauben</button>
+        <button className="small block" style={{ marginBottom: 8 }} onClick={() => void Notification.requestPermission().then(setNotifPerm)}>{t('Benachrichtigungen erlauben')}</button>
       )}
       {msg && <div className={`notice ${msg.ok ? 'success' : 'error'}`} style={{ marginBottom: 8 }} onClick={() => setMsg(null)}>{msg.text}</div>}
 
@@ -259,11 +260,11 @@ export default function PlayPage() {
           <div style={{ display: tab === 'karte' ? 'block' : 'none' }}>
             <div className="map-box"><MapView zones={zones} markers={markers} fitKey={g.id} height="62dvh" showDay={g.phase ?? g.current_day} /></div>
             <div className="row small" style={{ marginTop: 8 }}>
-              {role === 'spieler' && s.me.next_ping_at && <span className="badge">Nächster Ping {clock(s.me.next_ping_at)}</span>}
-              {s.next_silent_ping_at && role !== 'spieler' && <span className="badge">Nächster Ping {clock(s.next_silent_ping_at)}</span>}
-              <span className="badge">{s.free_players}/{players.length} Spieler frei</span>
-              {s.speedhunts.some((x) => x.status === 'laeuft') && <span className="badge red pulse">Blitzjagd</span>}
-              {tracker.last && <span className="badge">GPS ±{tracker.last.acc} m</span>}
+              {role === 'spieler' && s.me.next_ping_at && <span className="badge">{t('Nächster Ping')} {clock(s.me.next_ping_at)}</span>}
+              {s.next_silent_ping_at && role !== 'spieler' && <span className="badge">{t('Nächster Ping')} {clock(s.next_silent_ping_at)}</span>}
+              <span className="badge">{s.free_players}/{players.length} {t('Spieler frei')}</span>
+              {s.speedhunts.some((x) => x.status === 'laeuft') && <span className="badge red pulse">{t('Blitzjagd')}</span>}
+              {tracker.last && <span className="badge">{t('GPS ±')}{tracker.last.acc} m</span>}
             </div>
           </div>
 
@@ -271,25 +272,25 @@ export default function PlayPage() {
             {role === 'spieler' && <PlayerPanel s={s} now={now} act={act} pos={pos} />}
             {role === 'spieler' && <AlarmSettingsBox />}
             {role === 'hunter' && <HunterPanel s={s} now={now} act={act} pos={pos} />}
-            {role === 'zuschauer' && <div className="card muted">Du schaust zu. Positionen siehst du mit {g.config.spectator.delay_minutes} min Verzögerung.</div>}
+            {role === 'zuschauer' && <div className="card muted">{t('Du schaust zu. Positionen siehst du mit')} {g.config.spectator.delay_minutes} {t('min Verzögerung.')}</div>}
             {g.host && (
-              <Section title="Spiel steuern" badge={g.is_test ? <span className="badge">Probelauf</span> : undefined}>
-                <div className="muted small">Du hast das Spiel erstellt. Es läuft am Stück bis {clock(g.ends_at, g.timezone)} ({countdown(g.ends_at, now)}).</div>
+              <Section title={t('Spiel steuern')} badge={g.is_test ? <span className="badge">{t('Probelauf')}</span> : undefined}>
+                <div className="muted small">{t('Du hast das Spiel erstellt. Es läuft am Stück bis')} {clock(g.ends_at, g.timezone)} ({countdown(g.ends_at, now)}).</div>
                 {g.is_test && live && (
                   <>
-                    <div className="muted small">Probelauf: Spielzeit vorspulen (Timer laufen sofort ab).</div>
+                    <div className="muted small">{t('Probelauf: Spielzeit vorspulen (Timer laufen sofort ab).')}</div>
                     <div className="row">
-                      {[1, 5, 15, 60].map((m) => <button key={m} className="small" onClick={() => act(() => api.advance(g.id, m))}>+{m} min</button>)}
+                      {[1, 5, 15, 60].map((m) => <button key={m} className="small" onClick={() => act(() => api.advance(g.id, m))}>+{m} {t('min')}</button>)}
                     </div>
                   </>
                 )}
-                <Confirm className="ghost" disabled={!live} label="Spiel abbrechen" confirm="Spiel jetzt für alle beenden?" onYes={() => act(() => api.endGame(g.id))} />
+                <Confirm className="ghost" disabled={!live} label={t('Spiel abbrechen')} confirm={t('Spiel jetzt für alle beenden?')} onYes={() => act(() => api.endGame(g.id))} />
               </Section>
             )}
             <details className="acc">
               <summary>
                 <span className="ico" aria-hidden="true">📖</span>
-                <span className="spacer"><span className="t">Spielregeln</span><span className="s" style={{ display: 'block' }}>Alles Wichtige in Kürze</span></span>
+                <span className="spacer"><span className="t">{t('Spielregeln')}</span><span className="s" style={{ display: 'block' }}>{t('Alles Wichtige in Kürze')}</span></span>
                 <Icon name="chevron" className="chev" />
               </summary>
               <div className="body"><RulesSummary config={g.config} /></div>
@@ -308,7 +309,7 @@ export default function PlayPage() {
                     <span className="muted small">{clock(n.at, g.timezone)}</span>
                   </li>
                 ))}
-                {s.notifications.length === 0 && <li className="muted">Noch keine Meldungen.</li>}
+                {s.notifications.length === 0 && <li className="muted">{t('Noch keine Meldungen.')}</li>}
               </ul>
             </div>
           </div>

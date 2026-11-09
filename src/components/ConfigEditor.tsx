@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import type { GameConfig } from '../shared/config';
 import { configSections, optionLabel, type FieldMeta } from '../shared/schemaMeta';
 import { timeLimits } from '../shared/timeRules';
+import { t } from '../i18n';
 
 /** Felder, die nicht mehr einstellbar sind (fest geregelt). */
 const HIDDEN = new Set([
@@ -49,14 +50,14 @@ export default function ConfigEditor({ config, baseline, readOnly, problemPaths,
     <div>
       <input
         type="search"
-        placeholder="Regel suchen, z. B. Ping, Blitzjagd, Joker"
+        placeholder={t('Regel suchen, z. B. Ping, Blitzjagd, Joker')}
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         style={{ marginBottom: 12 }}
       />
       {sections.map((s) => {
         const fields = s.fields.filter(
-          (f) => !q || f.label.toLowerCase().includes(q) || f.path.includes(q) || s.label.toLowerCase().includes(q),
+          (f) => !q || t(f.label).toLowerCase().includes(q) || f.label.toLowerCase().includes(q) || f.path.includes(q) || t(s.label).toLowerCase().includes(q),
         );
         if (fields.length === 0) return null;
         const changed = baseline
@@ -66,9 +67,9 @@ export default function ConfigEditor({ config, baseline, readOnly, problemPaths,
         return (
           <details key={s.section} className="section" open={!!q}>
             <summary>
-              <span className="spacer">{s.label}</span>
-              {problems > 0 && <span className="badge red">{problems} prüfen</span>}
-              {changed > 0 && <span className="badge yellow">{changed} geändert</span>}
+              <span className="spacer">{t(s.label)}</span>
+              {problems > 0 && <span className="badge red">{problems} {t('prüfen')}</span>}
+              {changed > 0 && <span className="badge yellow">{changed} {t('geändert')}</span>}
             </summary>
             <div>
               {fields.map((f) => (
@@ -107,7 +108,7 @@ function Field({ field: f, value, changed, problem, readOnly, onChange }: FieldP
       <div className={cls}>
         <label className="check">
           <input type="checkbox" checked={value as boolean} disabled={readOnly} onChange={(e) => onChange(e.target.checked)} />
-          <span>{f.label}</span>
+          <span>{t(f.label)}</span>
         </label>
       </div>
     );
@@ -117,14 +118,14 @@ function Field({ field: f, value, changed, problem, readOnly, onChange }: FieldP
     <div className={cls}>
       <label className="field">
         <span>
-          {f.label}
+          {t(f.label)}
           {f.kind === 'number' && f.min !== undefined && (
             <span className="muted small">
               {' '}
-              ({f.min} bis {f.max})
+              ({f.min} {t('bis')} {f.max})
             </span>
           )}
-          {f.hint && <span className="muted small"> · höchstens {f.max}, weil {f.hint}</span>}
+          {f.hint && <span className="muted small"> {t('· höchstens')} {f.max}{t(', weil')} {f.hint}</span>}
         </span>
         {f.kind === 'number' && <NumberInput field={f} value={value as number} readOnly={readOnly} onChange={onChange} />}
         {f.kind === 'text' && (
@@ -201,7 +202,7 @@ function ListInput({ value, readOnly, onChange }: { value: number[]; readOnly?: 
     <input
       value={text}
       disabled={readOnly}
-      placeholder="z. B. 3, 2, 2"
+      placeholder={t('z. B. 3, 2, 2')}
       onChange={(e) => {
         setText(e.target.value);
         const parts = e.target.value.split(',').map((x) => x.trim()).filter(Boolean).map(Number);

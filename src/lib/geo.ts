@@ -5,11 +5,12 @@
 import { area, bbox, booleanPointInPolygon, buffer, centroid, circle, destination, featureCollection, intersect, pointOnFeature, transformScale, union } from '@turf/turf';
 import type { Feature, MultiPolygon, Polygon, Position } from 'geojson';
 import type { MapFeature, ZoneKind } from './engine';
+import { t, lazy } from '../i18n';
 
 export type Area = Feature<Polygon | MultiPolygon>;
 
 /** Arten von Sperrzonen mit Symbol (Spezifikation 22.3). */
-export const RESTRICTED_TYPES: Record<string, { label: string; icon: string }> = {
+export const RESTRICTED_TYPES: Record<string, { label: string; icon: string }> = lazy({
   strasse: { label: 'Strasse / Autobahn', icon: '🚗' },
   gleise: { label: 'Bahngleise', icon: '🚆' },
   gewaesser: { label: 'Gewässer', icon: '🌊' },
@@ -21,7 +22,7 @@ export const RESTRICTED_TYPES: Record<string, { label: string; icon: string }> =
   einkauf: { label: 'Einkaufszentrum innen', icon: '🛒' },
   militaer: { label: 'Polizei / Militär', icon: '👮' },
   andere: { label: 'Andere Gefahr', icon: '⚠️' },
-};
+});
 
 export function restrictedInfo(type?: string | null) {
   return RESTRICTED_TYPES[type ?? ''] ?? RESTRICTED_TYPES.andere;
@@ -127,38 +128,38 @@ export function checkMap(i: MapCheckInput): MapIssue[] {
   const last = fieldOfPhase(f, i.phases);
   const restricted = unionAll(f.filter((x) => x.properties.kind === 'sperrzone' && isArea(x)).map(asArea));
 
-  if (!field1) out.push({ level: 'error', text: 'Es fehlt das Spielfeld.' });
+  if (!field1) out.push({ level: 'error', text: t('Es fehlt das Spielfeld.') });
   const meet = pts('treffpunkt');
   const exits = pts('exit');
-  if (meet.length === 0) out.push({ level: 'error', text: 'Setze den Startpunkt, an dem alle starten.' });
-  if (i.exitEnabled && exits.length < 4) out.push({ level: 'error', text: `Setze mindestens 4 Fluchtpunkt-Kandidaten (jetzt ${exits.length}) oder schalte den Fluchtpunkt in den Regeln aus.` });
+  if (meet.length === 0) out.push({ level: 'error', text: t('Setze den Startpunkt, an dem alle starten.') });
+  if (i.exitEnabled && exits.length < 4) out.push({ level: 'error', text: t('Setze mindestens 4 Fluchtpunkt-Kandidaten (jetzt {0}) oder schalte den Fluchtpunkt in den Regeln aus.', { 0: exits.length }) });
   if (field1) {
-    if (meet.some((p) => !pointInside(p, field1))) out.push({ level: 'error', text: 'Der Startpunkt liegt ausserhalb des Spielfelds.' });
+    if (meet.some((p) => !pointInside(p, field1))) out.push({ level: 'error', text: t('Der Startpunkt liegt ausserhalb des Spielfelds.') });
     const lastField = i.autoShrink ? field1 : last ?? field1;
     if (exits.some((p) => !pointInside(p, lastField))) {
-      out.push({ level: 'error', text: i.manualShrink ? 'Ein Fluchtpunkt liegt ausserhalb des Spielfelds der letzten Phase.' : 'Ein Fluchtpunkt liegt ausserhalb des Spielfelds.' });
+      out.push({ level: 'error', text: i.manualShrink ? t('Ein Fluchtpunkt liegt ausserhalb des Spielfelds der letzten Phase.') : t('Ein Fluchtpunkt liegt ausserhalb des Spielfelds.') });
     }
     const km2 = areaKm2(field1);
-    if (km2 > 500) out.push({ level: 'warning', text: 'Das Spielfeld ist grösser als 500 km².' });
-    if (km2 > 0 && km2 < 0.02) out.push({ level: 'warning', text: 'Das Spielfeld ist sehr klein (unter 0,02 km²).' });
-    if (restricted && areaKm2(restricted) > 0.4 * km2) out.push({ level: 'warning', text: 'Sperrzonen bedecken mehr als 40 % des Spielfelds.' });
+    if (km2 > 500) out.push({ level: 'warning', text: t('Das Spielfeld ist grösser als 500 km².') });
+    if (km2 > 0 && km2 < 0.02) out.push({ level: 'warning', text: t('Das Spielfeld ist sehr klein (unter 0,02 km²).') });
+    if (restricted && areaKm2(restricted) > 0.4 * km2) out.push({ level: 'warning', text: t('Sperrzonen bedecken mehr als 40 % des Spielfelds.') });
     const rec = recommendedKm2PerPlayer(i.durationMinutes);
     const per = km2 / Math.max(1, i.players);
     if (per < rec[0] / 2 || per > rec[1] * 2) {
-      out.push({ level: 'warning', text: `Fläche pro Spieler ${per.toFixed(2)} km², empfohlen ${rec[0]}–${rec[1]} km² bei dieser Spieldauer.` });
+      out.push({ level: 'warning', text: t('Fläche pro Spieler {0} km², empfohlen {1}–{2} km² bei dieser Spieldauer.', { 0: per.toFixed(2), 1: rec[0], 2: rec[1] }) });
     }
   }
   if (restricted) {
-    if ([...meet, ...exits].some((p) => pointInside(p, restricted))) out.push({ level: 'error', text: 'Der Startpunkt oder ein Fluchtpunkt liegt in einer Gefahrenzone.' });
+    if ([...meet, ...exits].some((p) => pointInside(p, restricted))) out.push({ level: 'error', text: t('Der Startpunkt oder ein Fluchtpunkt liegt in einer Gefahrenzone.') });
   }
   if (i.manualShrink && i.phases > 1) {
     for (let p = 2; p <= i.phases; p++) {
       const has = f.some((x) => x.properties.kind === 'spielfeld' && x.properties.day_index === p);
-      if (!has) out.push({ level: 'warning', text: `Für Phase ${p} ist kein eigenes Spielfeld gezeichnet (es gilt das vorherige).` });
+      if (!has) out.push({ level: 'warning', text: t('Für Phase {0} ist kein eigenes Spielfeld gezeichnet (es gilt das vorherige).', { 0: p }) });
     }
     for (const x of f.filter((z) => z.properties.kind === 'spielfeld' && (z.properties.day_index ?? 1) > 1 && !z.properties.grows)) {
       const prev = fieldOfPhase(f, (x.properties.day_index ?? 2) - 1);
-      if (prev && outsideShare(asArea(x), prev) > 0.01) out.push({ level: 'error', text: `Das Spielfeld von Phase ${x.properties.day_index} ist grösser als das vorherige (oder als „vergrössert“ markieren).` });
+      if (prev && outsideShare(asArea(x), prev) > 0.01) out.push({ level: 'error', text: t('Das Spielfeld von Phase {0} ist grösser als das vorherige (oder als „vergrössert“ markieren).', { 0: x.properties.day_index }) });
     }
   }
   return out;

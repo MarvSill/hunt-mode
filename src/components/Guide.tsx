@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { t } from '../i18n';
 
 export interface GuideStep { target?: string; title: string; text: string }
 
@@ -22,19 +23,19 @@ export default function Guide({ steps, onClose }: { steps: GuideStep[]; onClose:
 
   if (!step) return null;
   return (
-    <div className="guide-card card stack" role="dialog" aria-label="Helfer">
+    <div className="guide-card card stack" role="dialog" aria-label={t('Helfer')}>
       <div className="row">
-        <span className="muted small spacer">Helfer · Schritt {i + 1} von {list.length}</span>
-        <button type="button" className="ghost small" onClick={onClose} aria-label="Helfer schliessen">✕</button>
+        <span className="muted small spacer">{t('Helfer · Schritt {0} von {1}', { 0: i + 1, 1: list.length })}</span>
+        <button type="button" className="ghost small" onClick={onClose} aria-label={t('Helfer schliessen')}>✕</button>
       </div>
       <strong>{step.title}</strong>
       <span className="small">{step.text}</span>
       <div className="row">
-        <button type="button" className="small" disabled={i === 0} onClick={() => setI(i - 1)}>← Zurück</button>
+        <button type="button" className="small" disabled={i === 0} onClick={() => setI(i - 1)}>{t('← Zurück')}</button>
         <span className="spacer" />
         {i < list.length - 1
-          ? <button type="button" className="small primary" onClick={() => setI(i + 1)}>Weiter →</button>
-          : <button type="button" className="small primary" onClick={onClose}>Fertig</button>}
+          ? <button type="button" className="small primary" onClick={() => setI(i + 1)}>{t('Weiter →')}</button>
+          : <button type="button" className="small primary" onClick={onClose}>{t('Fertig')}</button>}
       </div>
     </div>
   );

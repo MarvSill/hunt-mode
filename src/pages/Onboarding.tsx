@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { useAuth } from '../lib/auth';
 import { db, errorText } from '../lib/supabase';
 import { defaultConfig } from '../shared/config';
+import { t } from '../i18n';
 
 export const CONSENT_VERSION = '2026-10';
 const USERNAME_RE = /^[a-z0-9_.]{3,20}$/;
@@ -24,15 +25,15 @@ export default function OnboardingPage() {
     setError(null);
     const uname = username.trim().toLowerCase();
     if (!USERNAME_RE.test(uname)) {
-      setError('Benutzername: 3 bis 20 Zeichen, nur a-z, 0-9, Punkt und Unterstrich.');
+      setError(t('Benutzername: 3 bis 20 Zeichen, nur a-z, 0-9, Punkt und Unterstrich.'));
       return;
     }
     if (!ageOk) {
-      setError(`Mitspielen ist erst ab ${minAge} Jahren möglich.`);
+      setError(t('Mitspielen ist erst ab {0} Jahren möglich.', { 0: minAge }));
       return;
     }
     if (!consent) {
-      setError('Bitte bestätige die Regeln zu Nutzung, Datenschutz und Standort.');
+      setError(t('Bitte bestätige die Regeln zu Nutzung, Datenschutz und Standort.'));
       return;
     }
     setBusy(true);
@@ -64,45 +65,45 @@ export default function OnboardingPage() {
   return (
     <div className="app">
       <div className="hero">
-        <div className="brand" style={{ fontSize: 13 }}>Willkommen bei Hunt Mode</div>
-        <h1>Dein Profil</h1>
-        <p>Nur einmal ausfüllen, dann kann es losgehen.</p>
+        <div className="brand" style={{ fontSize: 13 }}>{t('Willkommen bei Hunt Mode')}</div>
+        <h1>{t('Dein Profil')}</h1>
+        <p>{t('Nur einmal ausfüllen, dann kann es losgehen.')}</p>
       </div>
       <form className="stack" onSubmit={submit}>
         <label className="field">
-          Benutzername (zum Finden und Einladen)
+          {t('Benutzername (zum Finden und Einladen)')}
           <input
             required
             value={username}
             onChange={(e) => setUsername(e.target.value)}
-            placeholder="z. B. marvin_92"
+            placeholder={t('z. B. marvin_92')}
             autoCapitalize="none"
             autoCorrect="off"
           />
         </label>
         <label className="field">
-          Anzeigename
+          {t('Anzeigename')}
           <input required maxLength={40} value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
         </label>
 
-        <div className="section-title" style={{ marginBottom: 0 }}>Alter</div>
+        <div className="section-title" style={{ marginBottom: 0 }}>{t('Alter')}</div>
         <label className="check box">
           <input type="checkbox" checked={ageOk} onChange={(e) => setAgeOk(e.target.checked)} />
-          <span>Ich bin mindestens {minAge} Jahre alt.</span>
+          <span>{t('Ich bin mindestens')} {minAge} {t('Jahre alt.')}</span>
         </label>
         <label className="check box">
           <input type="checkbox" checked={adult} onChange={(e) => setAdult(e.target.checked)} />
-          <span>Ich bin 18 oder älter. (Unter 18: bitte mit Einverständnis der Eltern spielen.)</span>
+          <span>{t('Ich bin 18 oder älter. (Unter 18: bitte mit Einverständnis der Eltern spielen.)')}</span>
         </label>
 
-        <div className="section-title" style={{ marginBottom: 0 }}>Notfallkontakt</div>
-        <p className="muted small">Nur bei einem Notfall sehen ihn die Hunter deines Spiels.</p>
+        <div className="section-title" style={{ marginBottom: 0 }}>{t('Notfallkontakt')}</div>
+        <p className="muted small">{t('Nur bei einem Notfall sehen ihn die Hunter deines Spiels.')}</p>
         <label className="field">
-          Name
+          {t('Name')}
           <input required maxLength={80} value={contactName} onChange={(e) => setContactName(e.target.value)} />
         </label>
         <label className="field">
-          Telefonnummer
+          {t('Telefonnummer')}
           <input
             required
             type="tel"
@@ -114,20 +115,18 @@ export default function OnboardingPage() {
           />
         </label>
 
-        <div className="section-title" style={{ marginBottom: 0 }}>Regeln</div>
+        <div className="section-title" style={{ marginBottom: 0 }}>{t('Regeln')}</div>
         <label className="check box">
           <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
           <span>
-            Ich akzeptiere die Nutzungsbedingungen und den <a href={`${import.meta.env.BASE_URL}datenschutz`} target="_blank" rel="noreferrer">Datenschutz</a>. Mein Standort wird nur während laufender Spiele
-            erfasst und nach Spielende automatisch gelöscht. Teilnahme auf eigenes Risiko; Gesetze und Verkehrsregeln
-            gelten immer.
+            {t('Ich akzeptiere die Nutzungsbedingungen und den')} <a href={`${import.meta.env.BASE_URL}datenschutz`} target="_blank" rel="noreferrer">{t('Datenschutz')}</a>{t('. Mein Standort wird nur während laufender Spiele erfasst und nach Spielende automatisch gelöscht. Teilnahme auf eigenes Risiko; Gesetze und Verkehrsregeln gelten immer.')}
           </span>
         </label>
 
         {error && <div className="notice error">{error}</div>}
-        <button className="primary block" disabled={busy}>Speichern und weiter</button>
+        <button className="primary block" disabled={busy}>{t('Speichern und weiter')}</button>
         <button type="button" className="ghost" onClick={() => db().auth.signOut()}>
-          Abmelden
+          {t('Abmelden')}
         </button>
       </form>
     </div>

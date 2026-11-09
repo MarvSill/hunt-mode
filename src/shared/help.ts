@@ -1,6 +1,8 @@
+import { lazy } from '../i18n';
 /** Ausführliche Erklärungen hinter den ⓘ-Knöpfen. */
 
-export const ZONE_HELP: Record<string, { title: string; text: string }> = {
+// Deutscher Ausgangstext; übersetzt wird erst beim Lesen (lazy).
+const ZONE_HELP_DE: Record<string, { title: string; text: string }> = {
   spielfeld: {
     title: 'Spielfeld',
     text: 'Der ganze Bereich, in dem gespielt wird. Spieler dürfen ihn nicht verlassen. Wer rausgeht, bekommt einen Alarm und 1 Minute Zeit, um zurückzukommen; sonst sehen ihn alle Hunter live. Ab dem 3. Verlassen gibt es keinen Countdown mehr, der Standort wird sofort live geteilt. Wer zu lange draussen bleibt, gilt als gefangen. Gefahrenzonen liegen darin. Das Spielfeld kann im Lauf des Spiels kleiner werden (Schritt "Kleiner werden").',
@@ -18,17 +20,18 @@ export const ZONE_HELP: Record<string, { title: string; text: string }> = {
     text: 'Orte, die aus Sicherheitsgründen nie betreten werden dürfen: Autobahnen, Bahngleise, Gewässer, Baustellen, Schulen, Privatgelände. Sie sind rot schraffiert mit Warnsymbol. Es gilt dieselbe Regel wie beim Verlassen des Spielfelds: wer hineingeht, bekommt einen Alarm und 1 Minute Zeit, wieder rauszugehen, sonst sehen ihn die Hunter live. Ab dem 3. Mal gibt es keinen Countdown mehr. Wer zu lange drin bleibt, gilt als gefangen. Bei Brücken oder Unterführungen kann "Überqueren erlaubt" eingeschaltet werden.',
   },
 };
+export const ZONE_HELP = lazy(ZONE_HELP_DE);
 
-export const STEP_HELP: Record<string, string> = {
-  feld: ZONE_HELP.spielfeld.text,
-  treff: ZONE_HELP.treffpunkt.text,
-  exit: ZONE_HELP.exit.text,
-  klein: 'Das Spielfeld kann im Lauf des Spiels kleiner werden. "Automatisch" verkleinert es um den eingestellten Prozentsatz Richtung Fluchtpunkt. "Selbst zeichnen" lässt dich jede Stufe selbst festlegen. Du stellst ein, alle wie viele Minuten es kleiner wird; alles muss in die Spieldauer passen. Vor jeder Verkleinerung wird angekündigt, und die neue Grenze ist gestrichelt zu sehen. Mit "Zeit zum Rauslaufen" haben Spieler nach der Verkleinerung noch etwas Zeit, bevor sie als ausserhalb gelten.',
-  gefahr: ZONE_HELP.sperrzone.text,
+export const STEP_HELP: Record<string, string> = lazy({
+  feld: ZONE_HELP_DE.spielfeld.text,
+  treff: ZONE_HELP_DE.treffpunkt.text,
+  exit: ZONE_HELP_DE.exit.text,
+  klein: 'Das Spielfeld kann im Lauf des Spiels kleiner werden. "Automatisch" verkleinert es um den eingestellten Prozentsatz Richtung Fluchtpunkt. "Selbst zeichnen" lässt dich jede Stufe selbst festlegen. Du stellst ein, alle wie viele Minuten es kleiner wird; alles muss in die Spieldauer passen. Vor jeder Verkleinerung wird angekündigt, und die neue Grenze ist gestrichelt zu sehen.',
+  gefahr: ZONE_HELP_DE.sperrzone.text,
   fertig: 'Hier siehst du, ob noch etwas fehlt oder nicht zusammenpasst. Rote Punkte verhindern den Start, gelbe sind nur Hinweise.',
-};
+});
 
-export const SETTING_HELP: Record<string, { title: string; text: string }> = {
+export const SETTING_HELP: Record<string, { title: string; text: string }> = lazy({
   roles: { title: 'Spieler und Hunter', text: 'Spieler verstecken sich und versuchen, bis zum Schluss nicht gefangen zu werden. Die Hunter jagen sie gemeinsam als Team, alle unterwegs. Die App regelt alles selbst: Pings und Fänge laufen automatisch. Bei einem Notfall wird das Spiel unterbrochen, und alle werden alarmiert. Auch du als Host wählst eine Rolle und spielst mit (oder schaust zu).' },
   times: { title: 'Zeit', text: 'Das Spiel läuft am Stück von Anfang bis Ende, ohne Pause. Alle Zeiten müssen in die Spieldauer passen: Verkleinerung, Pings, Blitzjagden, Joker und Meldungen. Passt etwas nicht, korrigiert die App den Wert automatisch und sagt dir, was sie geändert hat.' },
   head_start: { title: 'Vorsprung', text: 'So lange haben die Spieler Zeit, sich zu verteilen, bevor die Hunter vom Startpunkt loslaufen dürfen. Der Vorsprung kommt vor der Spieldauer dazu.' },
@@ -37,7 +40,7 @@ export const SETTING_HELP: Record<string, { title: string; text: string }> = {
   catch: { title: 'Fangen', text: 'Gefangen ist, wessen Fang-Code ein Hunter scannt oder wer die Berührung bestätigt. Der Fluchtpunkt ist das Ziel am Schluss.' },
   joker: { title: 'Joker', text: 'Joker sind Hilfen für die Spieler. Du legst fest, welche Joker es gibt und nach wie viel Spielzeit sie freigeschaltet werden. Dann bekommt jeder Spieler den Joker. Er wirkt erst, wenn der Spieler ihn in der App unter "Aktionen" selbst einsetzt.\n\n• Regeneration: der Spieler wird für eine Zeit nicht gepingt, und die Hunter können in dieser Zeit keine Blitzjagd auf ihn starten. Während einer laufenden Blitzjagd kann man sie nicht einsetzen.\n• Hunter-Standorte: beim Einsetzen bekommt der Spieler einmalig einen Ping aller Hunter, also wo sie in diesem Moment sind (nicht live).' },
   extras: { title: 'Extras', text: 'Verschanzen-Regel: niemand darf sich zu lange in einer Wohnung, einem Haus oder einem anderen nicht öffentlichen Ort verstecken.\n\nNähe-Alarm: kommen sich zwei Spieler zu nahe, bekommen die Hunter beide Standorte.\n\nZuschauer: Personen, die nur zuschauen.\n\nTippe bei jeder Einstellung auf das i für mehr.' },
-};
+});
 
 /** Erklärung zu jeder einzelnen Einstellung beim Erstellen (ⓘ neben der Einstellung), nach Beschriftung. */
 export const QUICK_HELP: Record<string, string> = {
@@ -58,7 +61,7 @@ export const QUICK_HELP: Record<string, string> = {
   'Joker im Spiel': 'Joker sind Hilfen für die Spieler. Du legst fest, welche es gibt und wann sie freigeschaltet werden. Wirken tun sie erst, wenn der Spieler sie selbst einsetzt.',
   'Freigeschaltet nach': 'Nach so viel Spielzeit (ab Jagdbeginn) bekommt jeder Spieler diesen Joker. Er kann ihn danach jederzeit einsetzen.',
   'Wirkt so lange': 'So lange wirkt der Joker, nachdem der Spieler ihn eingesetzt hat.',
-  'Verschanzen-Regel (nicht zu lange am selben Ort)': 'Damit sich niemand das ganze Spiel in einer Wohnung, einem Haus oder einem anderen nicht öffentlichen Ort versteckt, wo Hunter nicht hinkommen.\n\nSo funktioniert es: Bleibt ein Spieler länger am selben Ort, fragt die App "Bist du verschanzt?" (er kann es auch selbst melden). Ab dann läuft eine Uhr. Ist das Limit erreicht, gilt er als gefangen. Verlässt er den Ort vorher, muss er sich ein Stück davon entfernen und darf nicht sofort zurück.',
+  'Verschanzen-Regel (nicht zu lange am selben Ort)': 'Damit sich niemand das ganze Spiel in einer Wohnung, einem Haus oder einem anderen nicht öffentlichen Ort versteckt, wo Hunter nicht hinkommen.\n\nSo funktioniert es: Bleibt ein Spieler länger am selben Ort, fragt die App "Bist du verschanzt?" (er kann es auch selbst melden). Ab dann läuft eine Uhr. Ist das Limit erreicht, gilt er als gefangen. Verlässt er den Ort vorher, muss er sich ein Stück davon entfernen.',
   'Alarm, wenn Spieler zusammen laufen': 'Spieler sollen sich allein verstecken. Kommen sich zwei Spieler näher als den eingestellten Abstand:\n\n1. Beide bekommen einen Alarm und sehen, wo der andere ist.\n2. Sie haben die eingestellte Zeit, um sich voneinander zu entfernen.\n3. Sind sie danach immer noch zu nahe, bekommen die Hunter den Ping beider Spieler.\n\nDer Alarm ist erst ein paar Minuten nach Spielbeginn aktiv und ab der Bekanntgabe des Fluchtpunkts aus.',
   'Abstand für den Nähe-Alarm (m)': 'Kommen sich zwei Spieler näher als so viele Meter, gibt es den Nähe-Alarm.',
   'Zeit zum Auseinandergehen': 'So lange haben zwei Spieler nach dem Nähe-Alarm Zeit, sich voneinander zu entfernen. Danach bekommen die Hunter den Ping beider.',

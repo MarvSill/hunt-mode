@@ -144,3 +144,8 @@ Abweichungen von der Spezifikation und Annahmen, wo sie nichts festlegt.
 - Fluchtpunkt: mindestens 4 Kandidaten. Alle bleiben während des Spiels verborgen; erst bei der Bekanntgabe wählt die App zufällig einen (bevorzugt im aktuellen Spielfeld). Nur die Spieler sehen ihn, alle denselben; die Hunter nie. Die automatische Verkleinerung zielt deshalb auf die Mitte des Spielfelds.
 - Verkleinerung ohne Extra-Zeit: die Ankündigung reicht, danach gilt sofort die Regel "Spielfeld verlassen".
 - Verschanzen bleibt (Frage "Bist du verschanzt?" oder selbst melden, Uhr, danach gefangen); die Sperre für die Rückkehr an denselben Ort entfällt.
+
+## Runde 11: Deutsch, Französisch, Englisch
+- Jede Person wählt ihre Sprache selbst (Anmeldung und Profil); gespeichert auf dem Gerät (`localStorage` `hm-lang`) und im Profil (`profiles.locale`). Ohne Wahl gilt die Sprache des Handys.
+- Texte stehen im Code auf Deutsch und laufen durch `t('…')` (`src/i18n`). Der deutsche Text ist der Schlüssel in `fr.ts` und `en.ts`. Feste Listen auf Modulebene sind mit `lazy(…)` umhüllt, damit sie beim Lesen übersetzt werden. Ein Test prüft, dass jeder Text übersetzt ist und die Platzhalter stimmen.
+- Meldungen und Fehler vom Server bleiben in der Datenbank deutsch und werden auf dem Handy mit Mustern übersetzt (`src/i18n/server.ts`). So bekommt jede Person sie in ihrer Sprache, auch im selben Spiel. Neue Server-Texte brauchen dort eine Regel.

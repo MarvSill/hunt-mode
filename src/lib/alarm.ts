@@ -1,3 +1,4 @@
+import { lazy } from '../i18n';
 /**
  * Alarm für Spieler bei jedem Ping und jeder Blitzjagd: Klingelton, Vibration und Meldung.
  * Jeder Spieler stellt Ton, Klingelton, Lautstärke und Vibration auf seinem Handy selbst ein
@@ -16,7 +17,7 @@ export interface AlarmSettings {
   vibrate: boolean;
 }
 
-export const TONE_LABELS: Record<Tone, string> = { klingel: 'Telefon', sirene: 'Sirene', piep: 'Piepen' };
+export const TONE_LABELS: Record<Tone, string> = lazy({ klingel: 'Telefon', sirene: 'Sirene', piep: 'Piepen' });
 
 const KEY = 'hm-alarm';
 const DEFAULTS: AlarmSettings = { sound: true, tone: 'klingel', volume: 0.8, vibrate: true };

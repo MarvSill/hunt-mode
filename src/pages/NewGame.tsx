@@ -12,6 +12,7 @@ import { gameConfigSchema, type GameConfig } from '../shared/config';
 import { formatMinutes } from '../shared/format';
 import { PRESETS, configFromPreset } from '../shared/presets';
 import { validateConfig } from '../shared/validation';
+import { t, lazy } from '../i18n';
 
 const PRESET_ART: Record<string, string> = {
   schnell_90min: '⚡',
@@ -27,13 +28,13 @@ function presetConfig(id: string): GameConfig {
   return c;
 }
 
-const GUIDE: GuideStep[] = [
+const GUIDE: GuideStep[] = lazy([
   { title: 'Willkommen!', text: 'In vier Schritten ist dein Spiel bereit. Du kannst den Helfer jederzeit schliessen und über "?" wieder öffnen.' },
   { target: 'name', title: '1. Name', text: 'Gib dem Spiel einen Namen, z. B. den Ort. Den sehen alle, die mitspielen.' },
   { target: 'presets', title: '2. Spielart', text: 'Wähle eine Vorlage. Sie stellt alle Regeln passend ein: Dauer, Pings, Blitzjagden, Joker. Für den Anfang ist "Schnell 90 min" oder "Stadtabend 3 h" ideal.' },
   { target: 'adjust', title: '3. Anpassen (freiwillig)', text: 'Tippe einen Bereich an, um ihn zu ändern, z. B. die Anzahl Spieler oder wie oft gepingt wird. Bei jeder Einstellung erklärt das i, was sie bewirkt.' },
   { target: 'create', title: '4. Karte', text: 'Danach zeichnest du das Spielfeld auf der Karte. Erst dann bekommst du den Code, mit dem deine Freunde beitreten.' },
-];
+]);
 
 export default function NewGamePage() {
   const navigate = useNavigate();
@@ -73,7 +74,7 @@ export default function NewGamePage() {
       setConfig(parsed.data);
       setEditError(null);
     } else {
-      setEditError('Ungültiger Wert: ' + parsed.error.issues.map((i) => i.path.join('.')).join(', '));
+      setEditError(t('Ungültiger Wert: ') + parsed.error.issues.map((i) => i.path.join('.')).join(', '));
     }
   }
 
@@ -107,30 +108,30 @@ export default function NewGamePage() {
   return (
     <div className="app">
       <div className="topbar">
-        <Link to="/" className="button ghost back" aria-label="Zurück"><Icon name="back" /></Link>
-        <h1>Neues Spiel</h1>
-        <button type="button" className="ghost icon-btn" aria-label="Helfer" onClick={() => setGuide(true)}><Icon name="help" /></button>
+        <Link to="/" className="button ghost back" aria-label={t('Zurück')}><Icon name="back" /></Link>
+        <h1>{t('Neues Spiel')}</h1>
+        <button type="button" className="ghost icon-btn" aria-label={t('Helfer')} onClick={() => setGuide(true)}><Icon name="help" /></button>
       </div>
       {guide && <Guide steps={GUIDE} onClose={() => setGuide(false)} />}
 
       <form onSubmit={submit}>
-        <div className="step-head"><span className="n">1</span><h2>Wie heisst euer Spiel?</h2></div>
+        <div className="step-head"><span className="n">1</span><h2>{t('Wie heisst euer Spiel?')}</h2></div>
         <label className="field" data-guide="name">
-          <input required maxLength={60} value={name} onChange={(e) => setName(e.target.value)} placeholder="z. B. Zürich Altstadt" aria-label="Name des Spiels" />
+          <input required maxLength={60} value={name} onChange={(e) => setName(e.target.value)} placeholder={t('z. B. Zürich Altstadt')} aria-label={t('Name des Spiels')} />
         </label>
 
-        <div className="step-head"><span className="n">2</span><h2>Spielart wählen</h2></div>
+        <div className="step-head"><span className="n">2</span><h2>{t('Spielart wählen')}</h2></div>
         <div className="preset-grid" data-guide="presets">
           {presets.map((p) => {
             const pc = presetConfig(p.id);
             return (
               <button type="button" key={p.id} className={`preset-card${p.id === presetId ? ' on' : ''}`} aria-pressed={p.id === presetId} onClick={() => pickPreset(p.id)}>
                 <span className="emoji" aria-hidden="true">{PRESET_ART[p.id] ?? '🎯'}</span>
-                <strong>{p.name}</strong>
-                <span className="muted">{p.description}</span>
+                <strong>{t(p.name)}</strong>
+                <span className="muted">{t(p.description)}</span>
                 <span className="facts">
                   <span>{formatMinutes(pc.game.duration_minutes)}</span>
-                  <span>{p.suggested.players + p.suggested.hunters} Pers.</span>
+                  <span>{p.suggested.players + p.suggested.hunters} {t('Pers.')}</span>
                 </span>
               </button>
             );
@@ -138,21 +139,21 @@ export default function NewGamePage() {
         </div>
         <div className="summary-line" style={{ marginTop: 12 }}>
           <span>⏱️ {formatMinutes(c.game.duration_minutes)}</span>
-          <span>👥 {c.roles.players_max} Spieler · {c.roles.hunters_max} Hunter</span>
-          <span>📍 Ping alle {formatMinutes(c.ping.interval_minutes)}</span>
-          <span>⚡ {c.speedhunt.enabled ? `${c.speedhunt.quota_per_day[0] ?? 0} Blitzjagden` : 'ohne Blitzjagd'}</span>
-          {c.joker.enabled && <span>🃏 Joker</span>}
-          {c.exit.enabled && <span>🏁 Fluchtpunkt</span>}
-          {changed && <span style={{ borderColor: 'var(--yellow)', color: 'var(--yellow)' }}>✏️ angepasst</span>}
+          <span>👥 {c.roles.players_max} {t('Spieler ·')} {c.roles.hunters_max} {t('Hunter')}</span>
+          <span>{t('📍 Ping alle')} {formatMinutes(c.ping.interval_minutes)}</span>
+          <span>⚡ {c.speedhunt.enabled ? t('{0} Blitzjagden', { 0: c.speedhunt.quota_per_day[0] ?? 0 }) : t('ohne Blitzjagd')}</span>
+          {c.joker.enabled && <span>{t('🃏 Joker')}</span>}
+          {c.exit.enabled && <span>{t('🏁 Fluchtpunkt')}</span>}
+          {changed && <span style={{ borderColor: 'var(--yellow)', color: 'var(--yellow)' }}>{t('✏️ angepasst')}</span>}
         </div>
 
-        <div className="step-head"><span className="n">3</span><h2>Anpassen <span className="muted small" style={{ fontWeight: 400 }}>(freiwillig)</span></h2></div>
+        <div className="step-head"><span className="n">3</span><h2>{t('Anpassen')} <span className="muted small" style={{ fontWeight: 400 }}>{t('(freiwillig)')}</span></h2></div>
         <div data-guide="adjust">
           <QuickSettings config={c} onChange={edit} />
           <details className="acc">
             <summary>
               <span className="ico" aria-hidden="true">📌</span>
-              <span className="spacer"><span className="t">Eigene Zusatzregeln</span><span className="s" style={{ display: 'block' }}>{config.extras.rules.length ? `${config.extras.rules.length} Regeln` : 'z. B. „Kein Taxi“'}</span></span>
+              <span className="spacer"><span className="t">{t('Eigene Zusatzregeln')}</span><span className="s" style={{ display: 'block' }}>{config.extras.rules.length ? t('{0} Regeln', { 0: config.extras.rules.length }) : t('z. B. „Kein Taxi“')}</span></span>
               <Icon name="chevron" className="chev" />
             </summary>
             <div className="body">
@@ -162,19 +163,19 @@ export default function NewGamePage() {
           <details className="acc">
             <summary>
               <span className="ico" aria-hidden="true">📅</span>
-              <span className="spacer"><span className="t">Termin{groups.length > 0 && ' und Gruppe'}</span><span className="s" style={{ display: 'block' }}>{startAt ? new Date(startAt).toLocaleString('de-CH', { dateStyle: 'medium', timeStyle: 'short' }) : 'Start später in der Lobby'}</span></span>
+              <span className="spacer"><span className="t">{t('Termin')}{groups.length > 0 && t(' und Gruppe')}</span><span className="s" style={{ display: 'block' }}>{startAt ? new Date(startAt).toLocaleString('de-CH', { dateStyle: 'medium', timeStyle: 'short' }) : t('Start später in der Lobby')}</span></span>
               <Icon name="chevron" className="chev" />
             </summary>
             <div className="body">
               <label className="field">
-                Geplanter Start (nur zur Info, gestartet wird in der Lobby)
+                {t('Geplanter Start (nur zur Info, gestartet wird in der Lobby)')}
                 <input type="datetime-local" value={startAt} onChange={(e) => setStartAt(e.target.value)} />
               </label>
               {groups.length > 0 && (
                 <label className="field">
-                  Gruppe
+                  {t('Gruppe')}
                   <select value={groupId} onChange={(e) => setGroupId(e.target.value)}>
-                    <option value="">Keine</option>
+                    <option value="">{t('Keine')}</option>
                     {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
                   </select>
                 </label>
@@ -184,7 +185,7 @@ export default function NewGamePage() {
           <details className="acc">
             <summary>
               <span className="ico" aria-hidden="true">🧰</span>
-              <span className="spacer"><span className="t">Expertenmodus</span><span className="s" style={{ display: 'block' }}>Alle 150 Einstellungen einzeln</span></span>
+              <span className="spacer"><span className="t">{t('Expertenmodus')}</span><span className="s" style={{ display: 'block' }}>{t('Alle 150 Einstellungen einzeln')}</span></span>
               <Icon name="chevron" className="chev" />
             </summary>
             <div className="body">
@@ -194,15 +195,15 @@ export default function NewGamePage() {
           </details>
         </div>
 
-        <div className="step-head"><span className="n">4</span><h2>Karte zeichnen</h2></div>
-        <p className="muted small" style={{ marginTop: 0 }}>Im nächsten Schritt legst du auf der Karte das Spielfeld fest. Danach bekommst du den Code zum Einladen.</p>
+        <div className="step-head"><span className="n">4</span><h2>{t('Karte zeichnen')}</h2></div>
+        <p className="muted small" style={{ marginTop: 0 }}>{t('Im nächsten Schritt legst du auf der Karte das Spielfeld fest. Danach bekommst du den Code zum Einladen.')}</p>
 
         <div style={{ marginTop: 12 }} data-guide="issues"><IssueList issues={result.issues} compact /></div>
 
         <div className="sticky-cta">
           {error && <div className="notice error" style={{ marginBottom: 8 }}>{error}</div>}
           <button className="primary block big" data-guide="create" disabled={busy || !name.trim()}>
-            {busy ? 'Erstelle …' : name.trim() ? 'Weiter zur Karte' : 'Erst einen Namen eingeben'}
+            {busy ? t('Erstelle …') : name.trim() ? t('Weiter zur Karte') : t('Erst einen Namen eingeben')}
           </button>
         </div>
       </form>
