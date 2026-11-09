@@ -209,17 +209,6 @@ export const gameConfigSchema = z.object({
     })
     .default({})
     .describe('Fortbewegung und ÖV'),
-  budget: z
-    .object({
-      enabled: bool(false, 'Budget aktiv'),
-      currency: z.string().regex(/^[A-Z]{3}$/).default('CHF').describe('Währung (ISO)'),
-      start_amount: int(20, 0, 1000, 'Budget fürs ganze Spiel'),
-      reveal_amount: bool(false, 'Betrag an die Hunter'),
-      ping_delay_minutes: int(0, 0, 60, 'Verzögerung Kauf-Ping (min)'),
-      receipt_photo_required: bool(false, 'Belegfoto Pflicht'),
-    })
-    .default({})
-    .describe('Budget'),
   joker: z
     .object({
       enabled: bool(false, 'Joker aktiv'),

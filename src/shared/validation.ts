@@ -123,9 +123,6 @@ export function validateConfig(input: GameConfig, ctx: ValidationContext = {}): 
     add('error', 'handcuffs_minors', 'Fangmethode Handschellen ist mit Teilnehmenden unter 18 nicht erlaubt.', 'catch.method');
   }
 
-  if (config.budget.enabled && (!config.budget.currency || config.budget.start_amount <= 0)) {
-    add('error', 'budget_incomplete', 'Budget ist aktiv, aber Währung oder Betrag fehlen.', 'budget.currency', 'budget.start_amount');
-  }
 
   if (config.proximity.enabled && ctx.fieldWidthM !== undefined && config.proximity.distance_m > ctx.fieldWidthM / 2) {
     add('warning', 'proximity_always', 'Alarm wird fast dauernd ausgelöst.', 'proximity.distance_m');

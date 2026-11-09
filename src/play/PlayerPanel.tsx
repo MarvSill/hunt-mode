@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { api, clock, countdown, ITEM_HELP, ITEM_LABELS, PENALTY_LABELS, TRANSPORT_LABELS, uploadProof } from '../lib/engine';
+import { api, clock, countdown, ITEM_HELP, ITEM_LABELS, PENALTY_LABELS, TRANSPORT_LABELS } from '../lib/engine';
 import { formatMinutes } from '../shared/format';
 import CatchCode from './CatchCode';
 import { Confirm, nameOf, Section, type PanelProps } from './common';
@@ -14,10 +14,6 @@ export default function PlayerPanel({ s, now, act }: PanelProps) {
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [stops, setStops] = useState('');
-  const [amount, setAmount] = useState('');
-  const [cat, setCat] = useState('essen');
-  const [note, setNote] = useState('');
-  const [receipt, setReceipt] = useState<File | null>(null);
   const [explain, setExplain] = useState<Record<string, string>>({});
   const active = ['aktiv', 'ausserhalb'].includes(me.state);
   const running = ['laeuft', 'finale'].includes(g.status) && !g.paused;
@@ -88,7 +84,6 @@ export default function PlayerPanel({ s, now, act }: PanelProps) {
       <Section title="Status">
         <div className="grid2">
           <div><div className="muted small">Nächster Ping</div><div className="big-num">{me.next_ping_at ? countdown(me.next_ping_at, now) : '–'}</div></div>
-          {cfg.budget.enabled && <div><div className="muted small">Budget</div><div className="big-num">{Number(me.budget).toFixed(2)} {cfg.budget.currency}</div></div>}
           {me.hideout && (
             <div><div className="muted small">Verschanzt {me.hideout.inside ? '(drinnen)' : '(draussen)'}</div>
               <div className="big-num">{formatMinutes(Math.floor((me.hideout.max_s - me.hideout.accum_s) / 60))} übrig</div></div>
@@ -149,27 +144,6 @@ export default function PlayerPanel({ s, now, act }: PanelProps) {
               <div className="muted small">Live während der Fahrt{cfg.transport.live_after_base_minutes > 0 ? ` und ${cfg.transport.live_after_base_minutes} min danach` : ''}.</div>
             </>
           )}
-        </Section>
-      )}
-
-      {cfg.budget.enabled && (
-        <Section title="Kauf melden">
-          <div className="row">
-            <input type="number" min={0} step="0.05" placeholder={`Betrag (${cfg.budget.currency})`} value={amount} onChange={(e) => setAmount(e.target.value)} style={{ flex: 1 }} />
-            <select aria-label="Kategorie" value={cat} onChange={(e) => setCat(e.target.value)}>
-              <option value="essen">Essen</option><option value="transport">Transport</option><option value="unterkunft">Unterkunft</option>
-              <option value="kleidung">Kleidung</option><option value="sonstiges">Sonstiges</option>
-            </select>
-          </div>
-          <input placeholder="Notiz" value={note} onChange={(e) => setNote(e.target.value)} />
-          <label className="small">Beleg-Foto{cfg.budget.receipt_photo_required ? ' (Pflicht)' : ''}: <input type="file" accept="image/*" capture="environment" onChange={(e) => setReceipt(e.target.files?.[0] ?? null)} /></label>
-          <button disabled={!amount} onClick={async () => {
-            const ok = await act(async () => {
-              const path = receipt ? await uploadProof(g.id, receipt, receipt.name) : null;
-              return api.purchase(g.id, +amount, cat, note, path);
-            }, 'Kauf gemeldet. Die Hunter bekommen deinen Standort.');
-            if (ok) { setAmount(''); setNote(''); setReceipt(null); }
-          }}>Kauf melden</button>
         </Section>
       )}
 

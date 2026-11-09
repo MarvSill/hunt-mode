@@ -166,12 +166,7 @@ export default function QuickSettings({ config, onChange }: Props) {
         )}
       </Box>
 
-      <Box title="Extras" icon="✨" summary={[config.budget.enabled && 'Budget', config.hideout.enabled && 'Verschanzen', config.proximity.enabled && 'Nähe-Alarm', config.spectator.enabled && 'Zuschauer'].filter(Boolean).join(' · ') || 'keine'} info={SETTING_HELP.extras}>
-        <Toggle label="Budget für Spieler (Käufe verraten den Standort)" value={config.budget.enabled} onChange={(v) => set('budget', 'enabled', v)} />
-        {config.budget.enabled && (
-          <Stepper label={`Budget fürs ganze Spiel (${config.budget.currency})`} value={config.budget.start_amount} min={1} max={1000}
-            onChange={(v) => set('budget', 'start_amount', v)} />
-        )}
+      <Box title="Extras" icon="✨" summary={[config.hideout.enabled && 'Verschanzen', config.proximity.enabled && 'Nähe-Alarm', config.spectator.enabled && 'Zuschauer'].filter(Boolean).join(' · ') || 'keine'} info={SETTING_HELP.extras}>
         <Toggle label="Verschanzen-Regel (nicht zu lange am selben Ort)" value={config.hideout.enabled} onChange={(v) => set('hideout', 'enabled', v)} />
         <Toggle label="Alarm, wenn Spieler zusammen laufen" value={config.proximity.enabled} onChange={(v) => set('proximity', 'enabled', v)} />
         <Toggle label="Zuschauer erlaubt" value={config.spectator.enabled} onChange={(v) => set('spectator', 'enabled', v)} />

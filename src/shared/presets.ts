@@ -18,7 +18,7 @@ export const PRESETS: Preset[] = [
   {
     id: 'wochenende_24h',
     name: 'Wochenende 24 h',
-    description: '24 h am Stück, Budget 30 CHF, Joker, Spielfeld wird alle 6 h kleiner.',
+    description: '24 h am Stück, Joker, Spielfeld wird alle 6 h kleiner.',
     suggested: { players: 6, hunters: 3 },
     patch: {
       game: { duration_minutes: 1440 },
@@ -44,7 +44,6 @@ export const PRESETS: Preset[] = [
         stationary_minutes: 10,
       },
       transport: { live_after_base_minutes: 5, live_after_increment_minutes: 2 },
-      budget: { enabled: true, currency: 'CHF', start_amount: 30 },
       joker: {
         enabled: true,
         types: [
@@ -89,7 +88,6 @@ export const PRESETS: Preset[] = [
         stationary_minutes: 5,
       },
       transport: { live_after_base_minutes: 2, live_after_increment_minutes: 1 },
-      budget: { enabled: false },
       joker: {
         enabled: true,
         types: [
@@ -133,7 +131,6 @@ export const PRESETS: Preset[] = [
         stationary_minutes: 5,
       },
       transport: { allowed_modes: ['zu_fuss'], checkin_required: false, live_during: false },
-      budget: { enabled: false },
       joker: {
         enabled: true,
         types: [

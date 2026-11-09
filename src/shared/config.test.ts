@@ -12,7 +12,6 @@ describe('Konfiguration', () => {
     expect(c.game.day_length_minutes).toBe(180);
     expect(c.ping.interval_minutes).toBe(15);
     expect(c.speedhunt.quota_per_day).toEqual([2]);
-    expect(c.budget.currency).toBe('CHF');
     expect(c.transport.allowed_modes).not.toContain('eigenes_fahrzeug');
   });
 

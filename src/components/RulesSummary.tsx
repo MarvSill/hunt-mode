@@ -25,7 +25,6 @@ export function rulesInWords(c: GameConfig): [string, string][] {
     out.push(['🃏', `Joker für jeden Spieler: ${list}.`]);
   }
   if (c.hideout.enabled) out.push(['🏠', `Verschanzen: höchstens ${formatMinutes(c.hideout.max_minutes)} am selben Ort.`]);
-  if (c.budget.enabled) out.push(['💰', `Budget: ${c.budget.start_amount} ${c.budget.currency} fürs ganze Spiel. Jeder Kauf verrät den Standort.`]);
   return out;
 }
 

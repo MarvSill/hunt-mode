@@ -66,5 +66,5 @@ export const SETTING_HELP: Record<string, { title: string; text: string }> = {
   speedhunt: { title: 'Blitzjagd', text: 'Eine kurze Live-Jagd: die Hunter dürfen den Standort eines Spielers mehrmals kurz hintereinander abfragen. Im ganzen Spiel gibt es nur wenige Blitzjagden.' },
   catch: { title: 'Fangen', text: 'Gefangen ist, wessen Fang-Code ein Hunter scannt oder wer die Berührung bestätigt. Der Fluchtpunkt ist das Ziel am Schluss.' },
   joker: { title: 'Joker', text: 'Joker sind Hilfen für die Spieler. Du legst fest, welche Joker es gibt und nach wie viel Spielzeit sie freigeschaltet werden. Dann bekommt jeder Spieler den Joker und setzt ihn in der App unter "Aktionen" selbst ein.\n\n• Regeneration: der Spieler wird für eine Zeit nicht gepingt.\n• Hunter-Standorte: der Spieler sieht 5 Minuten lang, wo die Hunter sind.\n• Schutzschild: der Spieler kann für eine Zeit nicht gefangen werden.' },
-  extras: { title: 'Extras', text: 'Budget: Spieler haben Geld fürs ganze Spiel; jeder Kauf verrät ihren Standort. Verschanzen: niemand darf zu lange am selben Ort bleiben. Nähe-Alarm: Spieler, die zusammen laufen, werden gemeldet.' },
+  extras: { title: 'Extras', text: 'Verschanzen: niemand darf zu lange am selben Ort bleiben. Nähe-Alarm: Spieler, die zusammen laufen, werden gemeldet.' },
 };

@@ -52,7 +52,6 @@ const LABELS: Record<string, string> = {
   'hideout.stationary_minutes': 'Verschanzen-Erkennung',
   'hideout.lockout_after_first_entry_minutes': 'Ort gesperrt nach',
   'transport.live_after_base_minutes': 'Live-Nachlauf nach Fahrt',
-  'budget.ping_delay_minutes': 'Verzögerung Kauf-Ping',
   'proximity.active_after_minutes': 'Teambildungs-Alarm aktiv ab',
   'exit.reveal_minutes_before_end': 'Bekanntgabe des Fluchtpunkts vor Ende',
   'spectator.delay_minutes': 'Zuschauer-Verzögerung',
@@ -82,14 +81,13 @@ export function timeLimits(c: GameConfig): Record<string, TimeLimit> {
     'hideout.stationary_minutes': { max: Math.max(5, c.hideout.max_minutes), reason: `das Verschanzen-Limit nur ${c.hideout.max_minutes} min ist` },
     'hideout.lockout_after_first_entry_minutes': { max: d, reason: game },
     'transport.live_after_base_minutes': { max: d, reason: game },
-    'budget.ping_delay_minutes': { max: d, reason: game },
     'proximity.active_after_minutes': { max: Math.max(0, d - 5), reason: `der Alarm sonst nie aktiv wäre` },
     'exit.reveal_minutes_before_end': { max: d, reason: game },
     'spectator.delay_minutes': { max: Math.max(0, d - 5), reason: `Zuschauer sonst nichts sähen` },
   };
   // Nur Regeln prüfen, die im Spiel auch aktiv sind.
   const off: [boolean, string][] = [
-    [c.hideout.enabled, 'hideout.'], [c.budget.enabled, 'budget.'],
+    [c.hideout.enabled, 'hideout.'],
     [c.proximity.enabled, 'proximity.'], [c.exit.enabled, 'exit.'], [c.spectator.enabled, 'spectator.'],
   ];
   for (const [on, prefix] of off) if (!on) for (const k of Object.keys(out)) if (k.startsWith(prefix)) delete out[k];
