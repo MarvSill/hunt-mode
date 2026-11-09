@@ -208,6 +208,7 @@ const RULES: Rule[] = [
   r('Zeichne zuerst ein Spielfeld auf der Karte.', 'Dessine d’abord une zone de jeu sur la carte.', 'Draw a play area on the map first.'),
   r('Setze den Startpunkt auf der Karte.', 'Place le point de départ sur la carte.', 'Set the starting point on the map.'),
   r('Setze mindestens 4 Fluchtpunkt-Kandidaten auf der Karte (oder schalte den Fluchtpunkt aus).', 'Place au moins 4 points de fuite possibles sur la carte (ou désactive le point de fuite).', 'Set at least 4 possible escape points on the map (or turn the escape point off).'),
+  r('Alle Fluchtpunkte müssen in der innersten Zone liegen (Spielfeld der letzten Phase).', 'Tous les points de fuite doivent se trouver dans la zone la plus intérieure (zone de jeu de la dernière phase).', 'All escape points must lie in the innermost zone (play area of the last phase).'),
   r('Der Startpunkt liegt ausserhalb des Spielfelds.', 'Le point de départ est hors de la zone de jeu.', 'The starting point is outside the play area.'),
   r('Der Startpunkt oder ein Fluchtpunkt liegt in einer Gefahrenzone.', 'Le point de départ ou un point de fuite est dans une zone dangereuse.', 'The starting point or an escape point is in a danger zone.'),
   r('Nur wer das Spiel erstellt hat.', 'Seulement la personne qui a créé la partie.', 'Only the person who created the game.'),

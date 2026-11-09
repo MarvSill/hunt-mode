@@ -274,10 +274,10 @@ export default function MapEditorPage() {
     const out: (Area | null)[] = [];
     if (!config) return out;
     const f1 = fieldOfPhase(features, 1);
-    const exitPt = features.find((f) => f.properties.kind === 'exit' && f.geometry.type === 'Point');
     for (let p = 1; p <= phases; p++) {
       if (shrink === 'auto' && f1) {
-        out.push(p === 1 ? f1 : shrinkArea(f1, centerOf(f1, exitPt ? (exitPt.geometry as GeoJSON.Point).coordinates : null), config.zone.auto_shrink_percent, p - 1));
+        // Wie auf dem Server: Richtung Mitte des Spielfelds (der Fluchtpunkt steht noch nicht fest).
+        out.push(p === 1 ? f1 : shrinkArea(f1, centerOf(f1, null), config.zone.auto_shrink_percent, p - 1));
       } else {
         out.push(fieldOfPhase(features, p));
       }
@@ -448,8 +448,7 @@ export default function MapEditorPage() {
   function copyShrunk(phase: number, percent: number) {
     const prev = fieldOfPhase(features, phase - 1);
     if (!prev) return setMsg({ ok: false, text: t('Zeichne zuerst das Spielfeld von Phase {0}.', { 0: phase - 1 }) });
-    const exitPt = features.find((f) => f.properties.kind === 'exit' && f.geometry.type === 'Point');
-    const shape = shrinkArea(prev, centerOf(prev, exitPt ? (exitPt.geometry as GeoJSON.Point).coordinates : null), percent, 1);
+    const shape = shrinkArea(prev, centerOf(prev, null), percent, 1);
     for (const old of items.filter((x) => x.feature.properties.kind === 'spielfeld' && x.feature.properties.day_index === phase)) group.current?.removeLayer(old.layer);
     const it = addItem({ type: 'Feature', geometry: shape.geometry, properties: { kind: 'spielfeld', name: t('Spielfeld Phase {0}', { 0: phase }), day_index: phase } });
     setItems((prevItems) => [...prevItems.filter((x) => !(x.feature.properties.kind === 'spielfeld' && x.feature.properties.day_index === phase)), it]);
@@ -486,7 +485,7 @@ export default function MapEditorPage() {
     try {
       const list = await suggestHazards(field1);
       setHazards(list);
-      if (list.length === 0) setMsg({ ok: true, text: t('Keine Autobahnen, Gleise, Gewässer oder Schulen im Spielfeld gefunden.') });
+      if (list.length === 0) setMsg({ ok: true, text: t('Keine Autobahnen, Bahngleise oder grossen Gewässer im Spielfeld gefunden.') });
     } catch {
       setMsg({ ok: false, text: t('OpenStreetMap ist gerade nicht erreichbar. Versuch es später nochmals oder zeichne die Sperrzonen selbst.') });
     } finally {
@@ -627,9 +626,15 @@ export default function MapEditorPage() {
     return pt;
   }
 
-  function autoExits(n: number, meet?: GeoJSON.Position | null) {
+  function innermostField(): Area | null {
     const feats = itemsRef.current.map((x) => x.feature);
-    const f = fieldOfPhase(feats, phases) ?? fieldOfPhase(feats, 1);
+    if (shrink === 'auto') return phaseFields[phaseFields.length - 1] ?? fieldOfPhase(feats, 1);
+    return fieldOfPhase(feats, phases) ?? fieldOfPhase(feats, 1);
+  }
+
+  function autoExits(n: number, meet?: GeoJSON.Position | null) {
+    // Fluchtpunkte immer in die innerste Zone (Spielfeld der letzten Phase), sonst sind sie am Ende nicht erreichbar.
+    const f = innermostField();
     if (!f) return;
     for (const old of itemsRef.current.filter((x) => x.feature.properties.kind === 'exit')) group.current?.removeLayer(old.layer);
     itemsRef.current = itemsRef.current.filter((x) => x.feature.properties.kind !== 'exit');
@@ -663,7 +668,7 @@ export default function MapEditorPage() {
   const rec = recommendedKm2PerPlayer(config.game.duration_minutes);
   const issues = checkMap({
     features, exitEnabled: config.exit.enabled && config.win.mode !== 'letzter_ueberlebender', phases,
-    autoShrink: shrink === 'auto', manualShrink: shrink === 'manuell',
+    autoShrink: shrink === 'auto', manualShrink: shrink === 'manuell', finalField: phaseFields[phaseFields.length - 1] ?? null,
     players, durationMinutes: config.game.duration_minutes,
   });
   const sticking = field1 ? items.filter((it) => INSIDE_FIELD.includes(it.feature.properties.kind) && isArea(it.feature) && outsideShare(asArea(it.feature), field1) > 0.01) : [];
@@ -673,9 +678,9 @@ export default function MapEditorPage() {
   const steps: { id: string; icon: string; title: string; text: string; done: boolean; optional?: boolean }[] = [
     { id: 'feld', icon: '🟩', title: t('Spielfeld'), text: t('Der Bereich, in dem gespielt wird. Alle anderen Zonen liegen darin.'), done: !!field1 },
     { id: 'treff', icon: '📍', title: t('Startpunkt'), text: t('Hier starten alle, Spieler und Hunter. Die Spieler laufen zuerst los, die Hunter warten hier, bis der Vorsprung vorbei ist. Muss im Spielfeld liegen.'), done: has('treffpunkt') },
-    ...(config.exit.enabled ? [{ id: 'exit', icon: '🏁', title: t('Fluchtpunkt'), text: t('Setze mindestens 4 mögliche Fluchtpunkte. Erst kurz vor Schluss wählt die App zufällig einen davon und verrät ihn nur den Spielern. So weisst auch du nicht, welcher es wird.'), done: features.filter((f) => f.properties.kind === 'exit').length >= 4 }] : []),
+    ...(config.exit.enabled ? [{ id: 'exit', icon: '🏁', title: t('Fluchtpunkt'), text: t('Setze mindestens 4 mögliche Fluchtpunkte, alle in der innersten Zone (dem kleinsten Spielfeld am Schluss). Erst kurz vor Schluss wählt die App zufällig einen davon und verrät ihn nur den Spielern. So weisst auch du nicht, welcher es wird.'), done: features.filter((f) => f.properties.kind === 'exit').length >= 4 }] : []),
     { id: 'klein', icon: '⏳', title: t('Kleiner werden'), text: t('Soll das Spielfeld im Lauf des Spiels kleiner werden? Neue Grenzen werden vorher angekündigt und gestrichelt gezeigt.'), done: shrink !== 'aus', optional: true },
-    { id: 'gefahr', icon: '⚠️', title: t('Gefahren'), text: t('Orte, die nie betreten werden dürfen: Autobahn, Gleise, Gewässer, Schulen, Baustellen. Sie werden rot schraffiert mit Warnsymbol gezeigt, und Spieler werden beim Annähern gewarnt.'), done: has('sperrzone'), optional: true },
+    { id: 'gefahr', icon: '⚠️', title: t('Gefahren'), text: t('Nur aussergewöhnlich gefährliche Orte: Autobahnen, Bahngleise, grosse Gewässer. Unterführungen und Brücken bleiben frei. Für alles andere ist jeder selbst verantwortlich.'), done: has('sperrzone'), optional: true },
     { id: 'fertig', icon: '✅', title: t('Prüfen'), text: t('Hier siehst du, ob die Karte bereit ist.'), done: !issues.some((i) => i.level === 'error') },
   ];
   const cur = steps[Math.min(stepIdx, steps.length - 1)];

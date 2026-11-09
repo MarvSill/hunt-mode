@@ -46,7 +46,7 @@ const SLIDES: { art: string; title: string; lead: string; points: [string, strin
   {
     art: '🛡️',
     title: 'Sicherheit geht vor',
-    lead: 'Es ist ein Spiel. Verkehrsregeln und Gesetze gelten immer.',
+    lead: 'Es ist ein Spiel. Verkehrsregeln und Gesetze gelten immer, und jeder trägt die Verantwortung für sich selbst.',
     points: [
       ['🚨', 'Notfall', 'Der rote SOS-Knopf unterbricht das Spiel und alarmiert sofort alle.'],
       ['📞', 'Notrufe', '117 Polizei, 144 Sanität, 112 Notruf. Direkt aus der App anrufbar.'],

@@ -13,11 +13,11 @@ const ZONE_HELP_DE: Record<string, { title: string; text: string }> = {
   },
   exit: {
     title: 'Fluchtpunkt',
-    text: 'Am Schluss müssen die Spieler zum Fluchtpunkt, um zu gewinnen. Du setzt mindestens 4 mögliche Fluchtpunkte. Erst kurz vor Schluss wählt die App zufällig einen davon und verrät ihn nur den Spielern, allen denselben. Die Hunter erfahren ihn nie. Ab diesem Moment dürfen die Spieler auch zusammen sein (kein Nähe-Alarm mehr). Der gestrichelte Kreis zeigt, wie nah man herankommen muss.',
+    text: 'Am Schluss müssen die Spieler zum Fluchtpunkt, um zu gewinnen. Du setzt mindestens 4 mögliche Fluchtpunkte, alle in der innersten Zone (dem Spielfeld der letzten Phase), damit sie am Ende erreichbar sind. Erst kurz vor Schluss wählt die App zufällig einen davon und verrät ihn nur den Spielern, allen denselben. Die Hunter erfahren ihn nie. Ab diesem Moment dürfen die Spieler auch zusammen sein (kein Nähe-Alarm mehr). Der gestrichelte Kreis zeigt, wie nah man herankommen muss.',
   },
   sperrzone: {
     title: 'Gefahrenzone (Sperrzone)',
-    text: 'Orte, die aus Sicherheitsgründen nie betreten werden dürfen: Autobahnen, Bahngleise, Gewässer, Baustellen, Schulen, Privatgelände. Sie sind rot schraffiert mit Warnsymbol. Es gilt dieselbe Regel wie beim Verlassen des Spielfelds: wer hineingeht, bekommt einen Alarm und 1 Minute Zeit, wieder rauszugehen, sonst sehen ihn die Hunter live. Ab dem 3. Mal gibt es keinen Countdown mehr. Wer zu lange drin bleibt, gilt als gefangen. Bei Brücken oder Unterführungen kann "Überqueren erlaubt" eingeschaltet werden.',
+    text: 'Nur aussergewöhnlich gefährliche Orte, die nie betreten werden dürfen: Autobahnen, Bahngleise und grosse Gewässer (Fluss, See). Unterführungen, Brücken und Stege gehören nicht dazu. Strassen, Schulen, kleine Gewässer, Baustellen, Bahnhöfe oder Einkaufszentren sind keine Gefahrenzonen: dort passt jeder selbst auf sich auf, jeder trägt die Verantwortung für sich. Gefahrenzonen sind rot schraffiert mit Warnsymbol. Es gilt dieselbe Regel wie beim Verlassen des Spielfelds: wer hineingeht, bekommt einen Alarm und 1 Minute Zeit, wieder rauszugehen, sonst sehen ihn die Hunter live. Ab dem 3. Mal gibt es keinen Countdown mehr. Wer zu lange drin bleibt, gilt als gefangen. Wo man eine Gefahrenzone gefahrlos überqueren kann, lässt sich "Überqueren erlaubt" einschalten.',
   },
 };
 export const ZONE_HELP = lazy(ZONE_HELP_DE);

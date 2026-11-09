@@ -10,18 +10,12 @@ import { t, lazy } from '../i18n';
 export type Area = Feature<Polygon | MultiPolygon>;
 
 /** Arten von Sperrzonen mit Symbol (Spezifikation 22.3). */
+// Nur aussergewöhnlich gefährliche Orte. Für alles andere (Strassen, Schulen, kleine Gewässer …) passt jeder selbst auf sich auf.
 export const RESTRICTED_TYPES: Record<string, { label: string; icon: string }> = lazy({
-  strasse: { label: 'Strasse / Autobahn', icon: '🚗' },
+  strasse: { label: 'Autobahn', icon: '🚗' },
   gleise: { label: 'Bahngleise', icon: '🚆' },
-  gewaesser: { label: 'Gewässer', icon: '🌊' },
-  baustelle: { label: 'Baustelle', icon: '🚧' },
-  privat: { label: 'Privatgelände', icon: '🏠' },
-  schule: { label: 'Schule / Kita', icon: '🏫' },
-  spital: { label: 'Spital', icon: '🏥' },
-  bahnhof: { label: 'Bahnhof innen', icon: '🚉' },
-  einkauf: { label: 'Einkaufszentrum innen', icon: '🛒' },
-  militaer: { label: 'Polizei / Militär', icon: '👮' },
-  andere: { label: 'Andere Gefahr', icon: '⚠️' },
+  gewaesser: { label: 'Grosses Gewässer (Fluss, See)', icon: '🌊' },
+  andere: { label: 'Andere aussergewöhnliche Gefahr', icon: '⚠️' },
 });
 
 export function restrictedInfo(type?: string | null) {
@@ -107,6 +101,8 @@ export interface MapCheckInput {
   phases: number;
   autoShrink: boolean;
   manualShrink: boolean;
+  /** Innerste Zone (Spielfeld der letzten Phase), falls bekannt. */
+  finalField?: Area | null;
   players: number;
   durationMinutes: number;
 }
@@ -135,9 +131,11 @@ export function checkMap(i: MapCheckInput): MapIssue[] {
   if (i.exitEnabled && exits.length < 4) out.push({ level: 'error', text: t('Setze mindestens 4 Fluchtpunkt-Kandidaten (jetzt {0}) oder schalte den Fluchtpunkt in den Regeln aus.', { 0: exits.length }) });
   if (field1) {
     if (meet.some((p) => !pointInside(p, field1))) out.push({ level: 'error', text: t('Der Startpunkt liegt ausserhalb des Spielfelds.') });
-    const lastField = i.autoShrink ? field1 : last ?? field1;
+    const lastField = i.finalField ?? last ?? field1;
     if (exits.some((p) => !pointInside(p, lastField))) {
-      out.push({ level: 'error', text: i.manualShrink ? t('Ein Fluchtpunkt liegt ausserhalb des Spielfelds der letzten Phase.') : t('Ein Fluchtpunkt liegt ausserhalb des Spielfelds.') });
+      out.push({ level: 'error', text: i.phases > 1
+        ? t('Alle Fluchtpunkte müssen in der innersten Zone liegen (Spielfeld der letzten Phase), sonst sind sie am Ende nicht erreichbar.')
+        : t('Ein Fluchtpunkt liegt ausserhalb des Spielfelds.') });
     }
     const km2 = areaKm2(field1);
     if (km2 > 500) out.push({ level: 'warning', text: t('Das Spielfeld ist grösser als 500 km².') });
