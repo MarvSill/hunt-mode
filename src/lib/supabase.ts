@@ -7,8 +7,27 @@ const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const key = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
 
 /** null, solange die Supabase-Zugangsdaten fehlen (siehe README). */
+/**
+ * Handy-App: Anfragen laufen über die native Verbindung (läuft auch im Hintergrund).
+ * Scheitert sie (z. B. "Unable to resolve host" auf manchen Android-Handys), sofort über die
+ * WebView-Verbindung senden und für 5 Minuten dabei bleiben.
+ */
+let preferWebUntil = 0;
+const smartFetch: typeof fetch = async (input, init) => {
+  const webFetch = (globalThis as { CapacitorWebFetch?: typeof fetch }).CapacitorWebFetch;
+  if (!isNative || !webFetch) return fetch(input, init);
+  if (Date.now() < preferWebUntil) return webFetch.call(globalThis, input, init);
+  try {
+    return await fetch(input, init);
+  } catch (err) {
+    console.warn('[hm-net] native Verbindung fehlgeschlagen, nutze WebView', err);
+    preferWebUntil = Date.now() + 5 * 60000;
+    return webFetch.call(globalThis, input, init);
+  }
+};
+
 export const supabase: SupabaseClient | null =
-  url && key ? createClient(url, key, { auth: { persistSession: true, autoRefreshToken: true } }) : null;
+  url && key ? createClient(url, key, { auth: { persistSession: true, autoRefreshToken: true }, global: { fetch: smartFetch } }) : null;
 
 export function db(): SupabaseClient {
   if (!supabase) throw new Error('Supabase ist nicht konfiguriert.');
