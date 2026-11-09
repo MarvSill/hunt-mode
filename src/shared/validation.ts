@@ -55,16 +55,6 @@ export function validateConfig(input: GameConfig, ctx: ValidationContext = {}): 
     add('warning', 'few_pings', 'Es gibt weniger als drei Pings im ganzen Spiel.', 'ping.interval_minutes', 'game.duration_minutes');
   }
 
-  if (config.speedhunt.enabled && config.speedhunt.max_duration_minutes > duration) {
-    add(
-      'error',
-      'speedhunt_longer_than_game',
-      'Eine Blitzjagd darf nicht länger dauern als das Spiel.',
-      'speedhunt.max_duration_minutes',
-      'game.duration_minutes',
-    );
-  }
-
   if (config.joker.enabled && config.joker.types.some((j) => (j.minutes ?? 0) >= duration)) {
     add('warning', 'joker_whole_game', 'Ein Joker wirkt das ganze Spiel.', 'joker.types');
   }

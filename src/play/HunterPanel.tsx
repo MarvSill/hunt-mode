@@ -16,7 +16,7 @@ export default function HunterPanel({ s, now, act, pos }: PanelProps) {
   const live = ['laeuft', 'finale'].includes(g.status) && !g.paused;
   const myProof = s.catches.filter((c) => c.hunter_id === s.me.id && c.status === 'wartet_auf_beweis');
   const myPending = s.catches.filter((c) => c.hunter_id === s.me.id && c.status === 'wartet_auf_bestaetigung');
-  const canTrigger = cfg.speedhunt.enabled && cfg.speedhunt.trigger_mode === 'taskforce';
+  const canTrigger = cfg.speedhunt.enabled;
 
   const onCode = useCallback((code: string) => {
     setScan(false);
@@ -54,7 +54,7 @@ export default function HunterPanel({ s, now, act, pos }: PanelProps) {
               <strong className="spacer">{sh.is_penalty ? 'Straf-Blitzjagd' : 'Blitzjagd'}: {nameOf(s, sh.target_id)}</strong>
               <span className="badge red">{sh.queries_used}/{sh.queries_total}</span>
             </div>
-            <div className="muted small">Endet spätestens in {countdown(sh.deadline_at, now)}</div>
+            <div className="muted small">Ohne Zeitlimit: endet nach der letzten Abfrage oder beim Fang.</div>
             <button className="primary" disabled={!live || sh.queries_used >= sh.queries_total} onClick={() => act(() => api.speedhuntQuery(sh.id), 'Standort abgefragt.')}>
               Standort abfragen ({sh.queries_total - sh.queries_used} übrig)
             </button>
@@ -70,7 +70,7 @@ export default function HunterPanel({ s, now, act, pos }: PanelProps) {
             <Confirm className="primary" disabled={!live || !target || g.speedhunts_left <= 0} label="Starten" confirm="Blitzjagd starten?"
               onYes={() => act(() => api.speedhuntStart(g.id, target), 'Blitzjagd läuft.')} />
           </div>
-        ) : cfg.speedhunt.enabled ? <div className="muted small">Blitzjagden startet in diesem Spiel der Zufall.</div> : <div className="muted small">In diesem Spiel gibt es keine Blitzjagden.</div>}
+        ) : <div className="muted small">In diesem Spiel gibt es keine Blitzjagden.</div>}
       </Section>
 
       <Section title={`Spieler (${free.length} frei)`}>
@@ -82,7 +82,7 @@ export default function HunterPanel({ s, now, act, pos }: PanelProps) {
             return (
               <li key={p.id}>
                 <div className="spacer">
-                  <div>{p.name} {p.catch_free && <span className="badge">Schutzschild</span>} {p.protected && <span className="badge">geschützt</span>} {livePos && <span className="badge red">LIVE</span>}</div>
+                  <div>{p.name} {p.protected && <span className="badge">geschützt</span>} {livePos && <span className="badge red">LIVE</span>}</div>
                   <div className="muted small">
                     {STATE_LABELS[p.state] ?? p.state}
                     {last && ` · ${SOURCE_LABELS[last.source] ?? last.source} ${clock(last.at)}${last.stale_seconds ? ` (${Math.round(last.stale_seconds / 60)} min alt)` : ''}`}

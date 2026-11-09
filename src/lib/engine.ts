@@ -167,13 +167,13 @@ export const STATE_LABELS: Record<string, string> = {
 };
 
 export const SOURCE_LABELS: Record<string, string> = {
-  silent: 'Ping', speedhunt: 'Blitzjagd', transit: 'ÖV', proximity: 'Teambildung', fake: 'Fake',
+  silent: 'Ping', speedhunt: 'Blitzjagd', transit: 'ÖV', proximity: 'Nähe-Alarm', fake: 'Fake',
   hotel_end: 'Hotel', out_of_bounds: 'Ausserhalb', penalty: 'Strafe', gm: 'Sonder-Ping', kein_signal: 'Kein Signal',
   challenge: 'Aufgabe', device_switch: 'Gerätewechsel',
 };
 
 export const PENALTY_LABELS: Record<string, string> = {
-  verwarnung: 'Verwarnung', straf_speedhunt: 'Straf-Blitzjagd', disqualifikation: 'Disqualifikation', catch: 'Als gefangen werten',
+  verwarnung: 'Verwarnung', straf_speedhunt: '15 min live', disqualifikation: 'Disqualifikation', catch: 'Als gefangen werten',
   live_standort: '15 min live', sofort_ping: 'Sofort-Ping',
 };
 

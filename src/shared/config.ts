@@ -33,11 +33,11 @@ export const TRANSPORT_MODES = [
   'eigenes_fahrzeug',
 ] as const;
 
-export const JOKER_TYPES = ['regeneration', 'hunter_erfragen', 'catch_free'] as const;
+export const JOKER_TYPES = ['regeneration', 'hunter_erfragen'] as const;
 
 export const CATCH_METHODS = ['qr', 'touch_confirm', 'nfc', 'bluetooth', 'handcuffs'] as const;
 
-export const PENALTY_STEPS = ['verwarnung', 'straf_speedhunt', 'disqualifikation'] as const;
+export const PENALTY_STEPS = ['verwarnung', 'live_standort', 'disqualifikation'] as const;
 
 /** Ein Joker: welche Art, wie lange er wirkt und nach wie viel Spielzeit er freigeschaltet wird. */
 const jokerTypeSchema = z.object({
@@ -107,7 +107,6 @@ export const gameConfigSchema = z.object({
       interval_minutes: int(15, 1, 720, 'Ping-Intervall (min)'),
       offset_minutes: int(0, 0, 719, 'Versatz (min)'),
       jitter_minutes: int(0, 0, 30, 'Zufallsversatz (min)'),
-      notify_player: bool(false, 'Spieler merkt den Ping'),
       during_speedhunt: choice(['weiterlaufen', 'aussetzen'], 'weiterlaufen', 'Pings während einer Blitzjagd'),
       first_ping_delay_minutes: int(0, 0, 600, 'Erster Ping nach Vorsprung (min)'),
       precision_blur_m: int(0, 0, 1000, 'Unschärfe (m)'),
@@ -128,10 +127,8 @@ export const gameConfigSchema = z.object({
         .array(z.number().int().min(0).max(20))
         .default([2])
         .describe('Blitzjagden im ganzen Spiel'),
-      trigger_mode: choice(['taskforce', 'random'], 'taskforce', 'Auslöser'),
       queries: int(3, 1, 20, 'Abfragen pro Blitzjagd'),
       query_min_gap_minutes: int(0, 0, 60, 'Mindestabstand Abfragen (min)'),
-      max_duration_minutes: int(15, 5, 480, 'Maximale Dauer (min)'),
       min_minutes_after_silent_ping: int(0, 0, 120, 'Abstand zum letzten Ping (min)'),
       early_start_policy: choice(
         ['verbieten', 'silent_zaehlt_als_abfrage'],
@@ -206,11 +203,15 @@ export const gameConfigSchema = z.object({
     .object({
       enabled: bool(false, 'Joker aktiv'),
       // Jeder Eintrag wird nach `after_minutes` Spielzeit einmal an jeden Spieler vergeben.
+      // Ältere Spiele können entfernte Joker enthalten; die werden beim Lesen weggelassen.
       types: z
-        .array(jokerTypeSchema)
+        .preprocess(
+          (v) => (Array.isArray(v) ? v.filter((x) => (JOKER_TYPES as readonly string[]).includes((x as { type?: string })?.type ?? '')) : v),
+          z.array(jokerTypeSchema),
+        )
         .default([
           { type: 'regeneration', minutes: 15, after_minutes: 30 },
-          { type: 'catch_free', minutes: 10, after_minutes: 60 },
+          { type: 'hunter_erfragen', after_minutes: 60 },
         ])
         .describe('Joker und wann sie freigeschaltet werden'),
     })
@@ -218,14 +219,14 @@ export const gameConfigSchema = z.object({
     .describe('Joker'),
   proximity: z
     .object({
-      enabled: bool(true, 'Teambildungs-Alarm aktiv'),
+      enabled: bool(true, 'Nähe-Alarm aktiv'),
       distance_m: int(150, 10, 2000, 'Abstand (m)'),
       active_after_minutes: int(10, 0, 600, 'Aktiv ab Start (min)'),
       hysteresis_m: int(50, 0, 500, 'Hysterese (m)'),
       repeat_minutes: int(0, 0, 120, 'Wiederholung (min)'),
     })
     .default({})
-    .describe('Teambildung / Nähe'),
+    .describe('Nähe-Alarm'),
   taskforce: z
     .object({
       hq_required: bool(true, 'Zentrale muss besetzt sein'),
@@ -257,9 +258,13 @@ export const gameConfigSchema = z.object({
   penalty: z
     .object({
       auto_apply_delay_seconds: int(60, 0, 600, 'Strafe nach (s)'),
+      // Frühere Stufe "Straf-Blitzjagd" gilt als "15 min live".
       escalation: z
-        .array(z.enum(PENALTY_STEPS))
-        .default(['verwarnung', 'straf_speedhunt', 'disqualifikation'])
+        .preprocess(
+          (v) => (Array.isArray(v) ? v.map((x) => (x === 'straf_speedhunt' ? 'live_standort' : x)) : v),
+          z.array(z.enum(PENALTY_STEPS)),
+        )
+        .default(['verwarnung', 'live_standort', 'disqualifikation'])
         .describe('Eskalation'),
       after_game_end: bool(false, 'Nachträgliche Strafen'),
     })

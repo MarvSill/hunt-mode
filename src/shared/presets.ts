@@ -30,7 +30,6 @@ export const PRESETS: Preset[] = [
       speedhunt: {
         quota_per_day: [5],
         queries: 4,
-        max_duration_minutes: 45,
         no_consecutive_same_target: true,
         max_parallel: 2,
         vehicle_live_seconds: 60,
@@ -48,9 +47,9 @@ export const PRESETS: Preset[] = [
         enabled: true,
         types: [
           { type: 'regeneration', minutes: 60, after_minutes: 120 },
-          { type: 'catch_free', minutes: 45, after_minutes: 480 },
+          { type: 'hunter_erfragen', after_minutes: 480 },
           { type: 'regeneration', minutes: 60, after_minutes: 840 },
-          { type: 'catch_free', minutes: 45, after_minutes: 1200 },
+          { type: 'hunter_erfragen', after_minutes: 1200 },
         ],
       },
       proximity: { enabled: true, distance_m: 200, active_after_minutes: 30 },
@@ -74,7 +73,6 @@ export const PRESETS: Preset[] = [
       speedhunt: {
         quota_per_day: [4],
         queries: 3,
-        max_duration_minutes: 15,
         no_consecutive_same_target: true,
         max_parallel: 2,
         vehicle_live_seconds: 60,
@@ -92,7 +90,7 @@ export const PRESETS: Preset[] = [
         enabled: true,
         types: [
           { type: 'regeneration', minutes: 15, after_minutes: 30 },
-          { type: 'catch_free', minutes: 10, after_minutes: 75 },
+          { type: 'hunter_erfragen', after_minutes: 75 },
           { type: 'regeneration', minutes: 15, after_minutes: 120 },
         ],
       },
@@ -117,7 +115,6 @@ export const PRESETS: Preset[] = [
       speedhunt: {
         quota_per_day: [3],
         queries: 3,
-        max_duration_minutes: 8,
         no_consecutive_same_target: false,
         max_parallel: 1,
         vehicle_live_seconds: 0,

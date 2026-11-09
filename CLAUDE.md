@@ -27,9 +27,10 @@ Live: https://marvsill.github.io/hunt-mode/ · Repo: github.com/MarvSill/hunt-mo
 ## Regeln, die gelten
 - Keine Spielleitung: die App regelt alles, der Host wählt selbst eine Rolle.
 - Das Spiel läuft am Stück: keine Spieltage, keine jagdfreien Zeiten, keine Pause.
-- Begriffe: Hunter-Team, Blitzjagd, Ping, Fluchtpunkt, Schutzschild.
+- Begriffe: Hunter-Team, Blitzjagd, Ping, Fluchtpunkt, Nähe-Alarm. Blitzjagden starten nur die Hunter, ohne Zeitlimit.
 - Notfall geht immer an alle Hunter (und den Host); Nummern 117 / 144 / 112.
 - Chat: Spieler schreiben den Huntern (alle Hunter lesen mit), Hunter einem oder allen Spielern, Hunter-Team unter sich. Spieler nie mit anderen Spielern.
 - Nur ein Spielfeld (kann kleiner werden) plus Gefahrenzonen; keine weiteren Gebiete. Kein Budget.
-- Joker nur für Spieler (Regeneration, Hunter-Standorte, Schutzschild), jeweils nach einer eingestellten Spielzeit.
+- Joker nur für Spieler (Regeneration, Hunter-Standorte): nach einer eingestellten Spielzeit freigeschaltet, wirken erst beim Einsetzen.
+- Bei jedem Ping und jeder Blitzjagd klingelt das Handy aller Spieler (Ton, Lautstärke, Vibration stellt jeder selbst ein).
 - Standort wird nur gesendet, solange die App offen ist (Browser-Grenze).

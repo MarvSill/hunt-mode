@@ -117,3 +117,11 @@ Abweichungen von der Spezifikation und Annahmen, wo sie nichts festlegt.
 ## Runde 7: nur ein Spielfeld (Migration 0014)
 - Es gibt nur noch ein Spielfeld (es kann weiterhin alle X Minuten kleiner werden), dazu Gefahrenzonen und die Punkte Treffpunkt, HQ und Fluchtpunkt.
 - Entfernt: Kern- und Aussengebiet (eigene Ping-Abstände, `ping.zone_overrides`), Center (`transport.forbidden_in_zone_types`), Sektionen pro Spieler (`zone.sections_per_player`, `zone.release_on_catch`), Startzone und Schutzzone. Bestehende Zonen dieser Art sind gelöscht, `save_map` speichert sie nicht mehr.
+
+## Runde 8: Alarm, Blitzjagd nur durch Hunter, ohne Schutzschild (Migration 0015)
+- Bei jedem Ping bekommen alle Spieler eine Meldung, der gepingte Spieler "Du wurdest gepingt". Bei jeder Blitzjagd (Start und jede Abfrage) ebenso. Das Handy klingelt, vibriert und zeigt die Meldung. Jeder Spieler stellt Ton (an/aus), Klingelton, Lautstärke und Vibration im Spiel unter Aktionen selbst ein; gespeichert nur auf dem Gerät (`localStorage` `hm-alarm`). Die Einstellung "Spieler merkt den Ping" gibt es nicht mehr. Grenze: nur solange die App offen ist; iPhones vibrieren im Browser nicht.
+- Blitzjagden starten nur die Hunter: keine Zufalls-Blitzjagden, keine Straf-Blitzjagden. Die mittlere Strafstufe ist "15 min live sichtbar" (`live_standort`).
+- Eine Blitzjagd hat kein Zeitlimit (`deadline_at` leer): sie endet nach der letzten Abfrage oder beim Fang.
+- Der Joker "Schutzschild" ist entfernt; es bleiben Regeneration und Hunter-Standorte. Joker werden nach der eingestellten Zeit freigeschaltet und wirken erst, wenn der Spieler sie einsetzt.
+- "Teambildungs-Alarm" heisst jetzt Nähe-Alarm.
+- Jede Einstellung beim Erstellen hat ein ⓘ mit Erklärung (`QUICK_HELP` in `src/shared/help.ts`).

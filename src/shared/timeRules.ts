@@ -8,7 +8,7 @@
  */
 import type { GameConfig } from './config';
 
-const JOKER_NAMES: Record<string, string> = { regeneration: 'Regeneration', hunter_erfragen: 'Hunter-Standorte', catch_free: 'Schutzschild' };
+const JOKER_NAMES: Record<string, string> = { regeneration: 'Regeneration', hunter_erfragen: 'Hunter-Standorte' };
 
 export interface TimeFix {
   path: string;
@@ -44,7 +44,6 @@ const LABELS: Record<string, string> = {
   'ping.first_ping_delay_minutes': 'Erster Ping nach',
   'ping.offset_minutes': 'Ping-Versatz',
   'ping.jitter_minutes': 'Ping-Zufallsversatz',
-  'speedhunt.max_duration_minutes': 'Dauer einer Blitzjagd',
   'speedhunt.query_min_gap_minutes': 'Abstand der Abfragen einer Blitzjagd',
   'speedhunt.min_minutes_after_silent_ping': 'Abstand der Blitzjagd zum Ping',
   'out_of_bounds.max_minutes': 'Limit ausserhalb',
@@ -52,7 +51,7 @@ const LABELS: Record<string, string> = {
   'hideout.stationary_minutes': 'Verschanzen-Erkennung',
   'hideout.lockout_after_first_entry_minutes': 'Ort gesperrt nach',
   'transport.live_after_base_minutes': 'Live-Nachlauf nach Fahrt',
-  'proximity.active_after_minutes': 'Teambildungs-Alarm aktiv ab',
+  'proximity.active_after_minutes': 'Nähe-Alarm aktiv ab',
   'exit.reveal_minutes_before_end': 'Bekanntgabe des Fluchtpunkts vor Ende',
   'spectator.delay_minutes': 'Zuschauer-Verzögerung',
 };
@@ -92,12 +91,10 @@ export function timeLimits(c: GameConfig): Record<string, TimeLimit> {
   ];
   for (const [on, prefix] of off) if (!on) for (const k of Object.keys(out)) if (k.startsWith(prefix)) delete out[k];
   if (c.speedhunt.enabled) {
-    const sd = Math.max(5, d);
-    out['speedhunt.max_duration_minutes'] = { max: sd, reason: game };
     const gaps = Math.max(1, c.speedhunt.queries - 1);
     out['speedhunt.query_min_gap_minutes'] = {
-      max: Math.floor(Math.min(c.speedhunt.max_duration_minutes, sd) / gaps),
-      reason: `${c.speedhunt.queries} Abfragen in ${Math.min(c.speedhunt.max_duration_minutes, sd)} min passen müssen`,
+      max: Math.max(0, Math.floor(d / gaps)),
+      reason: `${c.speedhunt.queries} Abfragen in ${durationText(d)} passen müssen`,
     };
     out['speedhunt.min_minutes_after_silent_ping'] = { max: Math.max(0, c.ping.interval_minutes - 1), reason: `der Ping alle ${c.ping.interval_minutes} min kommt` };
   }

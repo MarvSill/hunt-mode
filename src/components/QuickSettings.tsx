@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { CATCH_METHODS, JOKER_TYPES, type GameConfig } from '../shared/config';
-import { SETTING_HELP } from '../shared/help';
+import { QUICK_HELP, SETTING_HELP } from '../shared/help';
 import { optionLabel } from '../shared/schemaMeta';
 import { timeLimits } from '../shared/timeRules';
 import Icon from './Icon';
@@ -10,7 +10,6 @@ import { formatMinutes } from '../shared/format';
 export const JOKER_LABELS: Record<string, string> = {
   regeneration: 'Regeneration (keine Pings)',
   hunter_erfragen: 'Hunter-Standorte sehen (5 min)',
-  catch_free: 'Schutzschild (nicht fangbar)',
 };
 
 /**
@@ -88,7 +87,6 @@ export default function QuickSettings({ config, onChange }: Props) {
           onChange={(v) => set('ping', 'first_ping_delay_minutes', v)} />
         <Stepper label="Ungenauigkeit (m)" value={config.ping.precision_blur_m} min={0} max={1000} step={25}
           onChange={(v) => set('ping', 'precision_blur_m', v)} />
-        <Toggle label="Spieler merkt, wenn er gepingt wird" value={config.ping.notify_player} onChange={(v) => set('ping', 'notify_player', v)} />
         <Toggle label="Hunter sehen, wann der nächste Ping kommt" value={config.ping.reveal_schedule_to_taskforce}
           onChange={(v) => set('ping', 'reveal_schedule_to_taskforce', v)} />
       </Box>
@@ -101,21 +99,14 @@ export default function QuickSettings({ config, onChange }: Props) {
               onChange={(v) => set('speedhunt', 'quota_per_day', [v])} />
             <Stepper label="Standort-Abfragen pro Blitzjagd" value={config.speedhunt.queries} min={1} max={20}
               onChange={(v) => set('speedhunt', 'queries', v)} />
-            <Duration label="Blitzjagd dauert höchstens" value={config.speedhunt.max_duration_minutes} min={5} max={lim('speedhunt.max_duration_minutes', 480)}
-              onChange={(v) => set('speedhunt', 'max_duration_minutes', v)} />
-            <Choice
-              label="Wer löst Blitzjagden aus?"
-              value={config.speedhunt.trigger_mode}
-              options={[['taskforce', 'Die Hunter'], ['random', 'Zufall']]}
-              onChange={(v) => set('speedhunt', 'trigger_mode', v)}
-            />
+            <div className="muted small">Blitzjagden starten nur die Hunter. Eine Blitzjagd hat kein Zeitlimit: sie endet, wenn alle Abfragen gemacht sind oder das Ziel gefangen ist.</div>
           </>
         )}
       </Box>
 
       <Box title="Fangen und Gewinnen" icon="🏁" summary={`${config.catch.method.includes('qr') ? 'QR-Code' : 'Berühren'}${config.exit.enabled ? ' · mit Fluchtpunkt' : ''}`} info={SETTING_HELP.catch}>
         <div className="field">
-          <span>Wie wird gefangen?</span>
+          <span>Wie wird gefangen? <Hint label="Wie wird gefangen?" /></span>
           <div className="chips">
             {CATCH_METHODS.filter((m) => m === 'qr' || m === 'touch_confirm').map((m) => {
               const on = config.catch.method.includes(m);
@@ -138,7 +129,7 @@ export default function QuickSettings({ config, onChange }: Props) {
         <Toggle label="Joker im Spiel" value={j.enabled} onChange={(v) => set('joker', 'enabled', v)} />
         {j.enabled && (
           <>
-            <div className="muted small">Jeder Joker wird nach der eingestellten Spielzeit für alle Spieler freigeschaltet.</div>
+            <div className="muted small">Jeder Joker wird nach der eingestellten Spielzeit für alle Spieler freigeschaltet. Wirken tut er erst, wenn der Spieler ihn einsetzt.</div>
             {j.types.map((x, i) => (
               <div key={i} className="sub stack" style={{ gap: 4 }}>
                 <div className="row" style={{ flexWrap: 'nowrap' }}>
@@ -200,7 +191,7 @@ function Stepper({ label, value, min, max, step = 1, onChange }: {
 }) {
   return (
     <div className="quick-row">
-      <span className="spacer">{label}</span>
+      <span className="spacer">{label} <Hint label={label} /></span>
       <div className="stepper">
         <button type="button" aria-label={`${label} weniger`} disabled={value <= min} onClick={() => onChange(clamp(value - step, min, max))}>−</button>
         <input type="number" inputMode="numeric" aria-label={label} value={value} min={min} max={max}
@@ -220,7 +211,7 @@ function Duration({ label, value, min, max, onChange }: {
   const put = (hh: number, mm: number) => onChange(clamp(hh * 60 + mm, min, max));
   return (
     <div className="quick-row">
-      <span className="spacer">{label}</span>
+      <span className="spacer">{label} <Hint label={label} /></span>
       <div className="duration">
         <input type="number" inputMode="numeric" aria-label={`${label} Stunden`} min={0} value={h}
           onChange={(e) => put(Math.max(0, Math.round(Number(e.target.value) || 0)), m)} />
@@ -237,7 +228,7 @@ function Toggle({ label, value, onChange }: { label: string; value: boolean; onC
   return (
     <label className="check">
       <input type="checkbox" checked={value} onChange={(e) => onChange(e.target.checked)} />
-      <span>{label}</span>
+      <span>{label} <Hint label={label} /></span>
     </label>
   );
 }
@@ -247,7 +238,7 @@ function Choice({ label, value, options, onChange }: {
 }) {
   return (
     <div className="field">
-      <span>{label}</span>
+      <span>{label} <Hint label={label} /></span>
       <div className="chips">
         {options.map(([v, text]) => (
           <button key={v} type="button" className={`chip${v === value ? ' on' : ''}`} aria-pressed={v === value} onClick={() => onChange(v)}>
@@ -257,4 +248,10 @@ function Choice({ label, value, options, onChange }: {
       </div>
     </div>
   );
+}
+
+/** ⓘ-Knopf mit der Erklärung zur Einstellung, falls es eine gibt. */
+function Hint({ label }: { label: string }) {
+  const text = QUICK_HELP[label];
+  return text ? <Info title={label} text={text} /> : null;
 }
