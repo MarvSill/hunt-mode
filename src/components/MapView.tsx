@@ -8,7 +8,8 @@ import { useEffect, useRef } from 'react';
 import { bbox, circle, pointOnFeature } from '@turf/turf';
 import { ZONE_INFO, type MapFeature } from '../lib/engine';
 import { restrictedInfo } from '../lib/geo';
-import { nextStyle, resolveStyle, setMapSettings, useMapSettings } from '../lib/mapStyle';
+import { resolveStyle, setMapSettings, useMapSettings } from '../lib/mapStyle';
+import MapStylePicker from './MapStylePicker';
 import { t } from '../i18n';
 import { esc } from './leafletZones';
 
@@ -195,7 +196,6 @@ class Buttons implements maplibregl.IControl {
       navigator.geolocation?.getCurrentPosition((p) => m.easeTo({ center: [p.coords.longitude, p.coords.latitude], zoom: Math.max(m.getZoom(), 16) }), () => undefined, { timeout: 8000 });
     });
     btn('3D', t('3D an/aus'), () => setMapSettings({ tilt: !this.opts.tilt() }));
-    btn('🎨', t('Kartenstil wechseln'), () => setMapSettings({ style: nextStyle(getStyleId()) }));
     this.box = box;
     return box;
   }
@@ -203,7 +203,6 @@ class Buttons implements maplibregl.IControl {
     this.box?.remove();
   }
 }
-let getStyleId: () => import('../lib/mapStyle').MapStyleId = () => 'auto';
 
 export default function MapView({ zones, markers, lines, onClick, fitKey, height = '60dvh', showDay }: Props) {
   const settings = useMapSettings();
@@ -221,7 +220,6 @@ export default function MapView({ zones, markers, lines, onClick, fitKey, height
   props.current = { zones, markers, lines, showDay };
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
-  getStyleId = () => settingsRef.current.style;
 
   function bounds(): maplibregl.LngLatBoundsLike | null {
     const areas = props.current.zones.filter((z) => z.geometry.type !== 'Point' && ZONE_INFO[z.properties.kind]);
@@ -306,7 +304,7 @@ export default function MapView({ zones, markers, lines, onClick, fitKey, height
     const s = resolveStyle(settingsRef.current.style);
     const m = new maplibregl.Map({
       container: el.current,
-      style: s.url,
+      style: s.url as string | StyleSpecification,
       center: [8.5417, 47.3769],
       zoom: 13,
       pitch: settingsRef.current.tilt ? TILT : 0,
@@ -347,16 +345,17 @@ export default function MapView({ zones, markers, lines, onClick, fitKey, height
   fitKeyRef.current = fitKey;
 
   // Stil gewechselt: neue Grundkarte, Zonen und Marker werden in "style.load" neu gezeichnet.
-  const styleUrl = resolveStyle(settings.style).url;
-  const lastUrl = useRef(styleUrl);
+  const styleId = resolveStyle(settings.style).id;
+  const lastId = useRef(styleId);
   useEffect(() => {
     const m = map.current;
-    if (!m || lastUrl.current === styleUrl) return;
-    lastUrl.current = styleUrl;
+    if (!m || lastId.current === styleId) return;
+    lastId.current = styleId;
+    const styleUrl = resolveStyle(settings.style).url;
     ready.current = false;
     // Ganz neu laden (ohne Diff), damit "style.load" sicher kommt und die eigenen Ebenen neu gezeichnet werden.
     m.setStyle(styleUrl as unknown as StyleSpecification, { diff: false });
-  }, [styleUrl]);
+  }, [styleId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 3D an/aus
   useEffect(() => {
@@ -378,5 +377,10 @@ export default function MapView({ zones, markers, lines, onClick, fitKey, height
     drawMarkers();
   }, [markers, lines]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  return <div className="map-wrap"><div ref={el} className="map" style={{ height }} /></div>;
+  return (
+    <div className="map-wrap">
+      <div ref={el} className="map" style={{ height }} />
+      <div className="map-overlay-tl"><MapStylePicker /></div>
+    </div>
+  );
 }

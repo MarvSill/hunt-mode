@@ -7,7 +7,8 @@ import { addMapButtons } from '../lib/mapControls';
 import 'leaflet/dist/leaflet.css';
 import { maplibreGL } from '@maplibre/maplibre-gl-leaflet';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { getMapSettings, resolveStyle } from '../lib/mapStyle';
+import { getMapSettings, OSM_TILES, resolveStyle, useMapSettings } from '../lib/mapStyle';
+import MapStylePicker from '../components/MapStylePicker';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import Info from '../components/Info';
@@ -90,6 +91,21 @@ export default function MapEditorPage() {
   const stepPicked = useRef(false);
   const el = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
+  const base = useRef<L.Layer | null>(null);
+  const mapSettings = useMapSettings();
+  /** Grundkarte wechseln: klassisch als Kacheln, sonst als MapLibre-Stil. */
+  function setBase(m: L.Map, styleId: Parameters<typeof resolveStyle>[0]) {
+    if (base.current) m.removeLayer(base.current);
+    const s = resolveStyle(styleId);
+    base.current = s.raster
+      ? L.tileLayer(OSM_TILES, { maxZoom: 19, attribution: '&copy; OpenStreetMap' })
+      : (maplibreGL({ style: s.url, interactive: false } as Parameters<typeof maplibreGL>[0]) as unknown as L.Layer);
+    base.current.addTo(m);
+    (base.current as L.GridLayer).bringToBack?.();
+  }
+  useEffect(() => {
+    if (map.current) setBase(map.current, mapSettings.style);
+  }, [mapSettings.style]); // eslint-disable-line react-hooks/exhaustive-deps
   const group = useRef<L.FeatureGroup | null>(null);
   const badges = useRef<L.LayerGroup | null>(null);
   const previewLayer = useRef<L.LayerGroup | null>(null);
@@ -188,7 +204,7 @@ export default function MapEditorPage() {
     if (!el.current || map.current || !gameId) return;
     const m = L.map(el.current).setView([47.3769, 8.5417], 13);
     // Grundkarte im gewählten Stil (flach, damit man genau zeichnen kann).
-    maplibreGL({ style: resolveStyle(getMapSettings().style).url, interactive: false } as Parameters<typeof maplibreGL>[0]).addTo(m);
+    setBase(m, getMapSettings().style);
     previewLayer.current = L.layerGroup().addTo(m);
     group.current = L.featureGroup().addTo(m);
     badges.current = L.layerGroup().addTo(m);
@@ -722,6 +738,7 @@ export default function MapEditorPage() {
 
       <div className="map-wrap">
         <div ref={el} className="map" style={{ height: '48dvh' }} />
+        <div className="map-overlay-tl"><MapStylePicker /></div>
         {pending && (
           <div className="draw-hint">
             <strong>{ICON[pending.kind]} {pending.kind === 'spielfeld' && pending.phase && pending.phase > 1 ? t('Spielfeld {0} {1}', { 0: unitLabel, 1: pending.phase }) : ZONE_INFO[pending.kind].label}</strong>

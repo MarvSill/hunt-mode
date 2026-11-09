@@ -386,3 +386,8 @@ details.acc > summary .chev { transform-origin: 50% 50%; }
 .hm-mk.num.ping { box-shadow: 0 0 0 2px rgba(0,0,0,.35), 0 0 0 5px rgba(240,136,62,.35), 0 3px 8px rgba(0,0,0,.35); }
 .tag { display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 5px; border-radius: 11px; font-size: 12px; font-weight: 800; color: #fff; background: #30363d; margin-right: 6px; }
 .tag.hunter { background: #f85149; }
+.map-wrap { position: relative; }
+.map-overlay-tl { position: absolute; top: 10px; left: 10px; z-index: 1000; }
+.map-style-picker { display: inline-flex; align-items: center; gap: 4px; background: rgba(255,255,255,.95); color: #1f2328; border-radius: 10px; padding: 2px 4px 2px 8px; box-shadow: 0 2px 8px rgba(0,0,0,.3); font-size: 14px; }
+.map-style-picker select { border: none; background: transparent; color: #1f2328; font-size: 14px; font-weight: 600; padding: 6px 4px; width: auto; min-height: 0; }
+.map-fullscreen .map-overlay-tl { top: calc(10px + env(safe-area-inset-top)); }
