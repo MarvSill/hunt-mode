@@ -149,3 +149,4 @@ Abweichungen von der Spezifikation und Annahmen, wo sie nichts festlegt.
 - Jede Person wählt ihre Sprache selbst (Anmeldung und Profil); gespeichert auf dem Gerät (`localStorage` `hm-lang`) und im Profil (`profiles.locale`). Ohne Wahl gilt die Sprache des Handys.
 - Texte stehen im Code auf Deutsch und laufen durch `t('…')` (`src/i18n`). Der deutsche Text ist der Schlüssel in `fr.ts` und `en.ts`. Feste Listen auf Modulebene sind mit `lazy(…)` umhüllt, damit sie beim Lesen übersetzt werden. Ein Test prüft, dass jeder Text übersetzt ist und die Platzhalter stimmen.
 - Meldungen und Fehler vom Server bleiben in der Datenbank deutsch und werden auf dem Handy mit Mustern übersetzt (`src/i18n/server.ts`). So bekommt jede Person sie in ihrer Sprache, auch im selben Spiel. Neue Server-Texte brauchen dort eine Regel.
+- Vor dem Start sieht der Host alle Zonen seiner Karte (auch Fluchtpunkt-Kandidaten), ab Spielstart gelten für ihn die normalen Sichtregeln (Migration 0018).
