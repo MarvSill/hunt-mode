@@ -96,8 +96,7 @@ export const gameConfigSchema = z.object({
       shrink_every_minutes: int(0, 0, 1440, 'Verkleinerung alle (min)'),
       shrink_announce_minutes: int(180, 0, 1440, 'Vorankündigung Verkleinerung (min)'),
       shrink_grace_minutes: int(0, 0, 120, 'Übergangsfrist (min)'),
-      restricted_counts_as_outside: bool(false, 'Sperrzone zählt als ausserhalb'),
-      restricted_crossing_max_seconds: int(60, 0, 600, 'Sperrzone überqueren erlaubt (s)'),
+      restricted_crossing_max_seconds: int(60, 0, 600, 'Gefahrenzone mit "Überqueren erlaubt": so lange (s)'),
     })
     .default({})
     .describe('Spielfeld und Zonen'),
@@ -160,10 +159,10 @@ export const gameConfigSchema = z.object({
   out_of_bounds: z
     .object({
       live_visible: bool(true, 'Live für die Hunter'),
-      max_minutes: int(10, 1, 600, 'Limit (min)'),
+      max_minutes: int(10, 1, 600, 'Limit draussen bzw. in Gefahrenzone (min)'),
       count_mode: choice(['pro_ausflug', 'pro_tag'], 'pro_ausflug', 'Zählweise'),
       on_timeout: choice(['catch', 'disqualify', 'penalty'], 'catch', 'Folge bei Ablauf'),
-      grace_seconds: int(60, 0, 600, 'Countdown zum Zurückkehren (s, beim 1. und 2. Mal)'),
+      grace_seconds: int(60, 0, 600, 'Countdown beim Verlassen des Spielfelds oder Betreten einer Gefahrenzone (s, 1. und 2. Mal)'),
     })
     .default({})
     .describe('Ausserhalb des Spielfelds'),

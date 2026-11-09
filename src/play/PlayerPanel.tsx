@@ -83,7 +83,19 @@ export default function PlayerPanel({ s, now, act }: PanelProps) {
           <strong>Du bist ausserhalb des Spielfelds!</strong> Die Hunter sehen dich live. Zeit draussen: {formatMinutes(Math.floor(me.out_accum_s / 60))} von {formatMinutes(cfg.out_of_bounds.max_minutes)}.
         </div>
       )}
-      {me.in_restricted && <div className="notice error"><strong>Sperrzone!</strong> Sofort verlassen.</div>}
+      {me.in_restricted && (() => {
+        // Gefahrenzone: gleicher Countdown wie beim Verlassen des Spielfelds.
+        const warn = s.notifications.find((n) => n.kind === 'danger_warning' || n.kind === 'danger_live');
+        const deadline = warn?.kind === 'danger_warning' ? (warn.payload.deadline as string | undefined) : undefined;
+        const live = !deadline || new Date(deadline).getTime() <= now;
+        return (
+          <div className="notice error pulse stack" role="alert">
+            <strong style={{ fontSize: 20 }}>Gefahrenzone! Sofort raus</strong>
+            {!live && deadline && <div className="big-num red">{countdown(deadline, now)}</div>}
+            <span className="small">{live ? 'Die Hunter sehen dich live, bis du die Gefahrenzone verlassen hast.' : 'Bist du bis dann nicht draussen, sehen dich die Hunter live. Ab dem 3. Mal gibt es keinen Countdown mehr.'}</span>
+          </div>
+        );
+      })()}
 
       {shRunning.length > 0 && (
         <div className="notice error pulse">

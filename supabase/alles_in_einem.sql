@@ -7663,6 +7663,7 @@ end; $$;
 -- * Die Rolle "Zentrale" gibt es nicht mehr: alle Hunter jagen gemeinsam unterwegs.
 -- * Pings zeigen immer den genauen Ort (keine Ungenauigkeit).
 -- * Spielfeld verlassen: 1. und 2. Mal Alarm und 1 Minute Countdown, danach live; ab dem 3. Mal sofort live.
+-- * Gefahrenzone betreten: gleiche Regel mit eigener Zählung; zu lange drin = Folge wie ausserhalb.
 -- * Joker Hunter-Standorte: einmaliger Ping aller Hunter im Moment des Einsetzens, bleibt mit Uhrzeit auf der Karte.
 
 -- Rolle Zentrale wird Hunter.
@@ -7926,6 +7927,7 @@ end; $$;
 
 -- Spielfeld verlassen: wie oft jemand draussen war.
 alter table public.participants add column if not exists out_exits int not null default 0;
+alter table public.participants add column if not exists danger_exits int not null default 0;
 
 -- check_player_zone: Countdown beim 1. und 2. Verlassen, ab dem 3. Mal sofort live (zuletzt in 0012_ohne_spielleitung_am_stueck.sql)
 create or replace function public.check_player_zone(p_game public.games, p_p public.participants, p_point extensions.geometry, p_now timestamptz)
@@ -7940,29 +7942,64 @@ declare
   v_restricted public.zones;
   v_cross int := public.cfg_int(v_cfg, 'zone', 'restricted_crossing_max_seconds', 60);
   v_exits int := p_p.out_exits;
+  v_danger int := p_p.danger_exits;
 begin
   v_area := public.allowed_area(p_game.id, p_p.id, p_game.current_day, public.cfg_bool(v_cfg, 'zone', 'sections_per_player', false));
   v_inside := v_area is null or ST_DWithin(v_area::geography, p_point::geography, v_tol);
 
-  -- Sperrzonen (22.3)
+  -- Gefahrenzonen: gleiche Regel wie beim Verlassen des Spielfelds, mit eigener Zählung.
+  -- 1. und 2. Mal: Alarm und Countdown, danach live. Ab dem 3. Mal: sofort live. Zu lange drin: Folge wie ausserhalb.
+  -- Zonen mit "Überqueren erlaubt" (z. B. Brücken) lösen nichts aus, solange man sie in der erlaubten Zeit überquert.
   select * into v_restricted from public.zones where game_id = p_game.id and kind = 'sperrzone' and ST_Covers(geom, p_point) limit 1;
-  if v_restricted.id is not null then
-    if public.cfg_bool(v_cfg, 'zone', 'restricted_counts_as_outside', false) then v_inside := false; end if;
+  if v_restricted.id is not null and v_restricted.crossing_allowed then
     if p_p.restricted_zone_id is distinct from v_restricted.id then
       update public.participants set restricted_zone_id = v_restricted.id, restricted_since = p_now, restricted_violated = false where id = p_p.id;
-      perform public.notify(p_game.id, null, p_p.id, 'restricted', 'Sperrzone! Sofort verlassen', coalesce(nullif(v_restricted.name, ''), 'Sperrzone'), '{}', 'kritisch');
-      p_p.restricted_since := p_now;
-      p_p.restricted_violated := false;
-    end if;
-    if not p_p.restricted_violated and (not v_restricted.crossing_allowed or p_now - p_p.restricted_since > make_interval(secs => v_cross)) then
+    elsif not p_p.restricted_violated and p_now - p_p.restricted_since > make_interval(secs => v_cross) then
       update public.participants set restricted_violated = true where id = p_p.id;
       perform public.create_violation(p_game, p_p.id, 'sperrzone',
         jsonb_build_object('zone', v_restricted.name, 'lat', ST_Y(p_point), 'lng', ST_X(p_point)), p_now);
     end if;
+  elsif v_restricted.id is not null then
+    if p_p.restricted_zone_id is distinct from v_restricted.id then
+      update public.participants set restricted_zone_id = v_restricted.id, restricted_since = p_now, restricted_violated = false,
+        danger_exits = danger_exits + 1 where id = p_p.id
+      returning danger_exits into v_danger;
+      p_p.restricted_since := p_now;
+      p_p.restricted_violated := false;
+      if v_grace > 0 and v_danger <= 2 then
+        perform public.notify(p_game.id, null, p_p.id, 'danger_warning', 'Gefahrenzone! Sofort raus',
+          coalesce(nullif(v_restricted.name, ''), 'Gefahrenzone') || ': du hast ' || v_grace || ' Sekunden Zeit, sonst sehen dich die Hunter live ('
+          || v_danger || '. Mal von 2 mit Countdown).',
+          jsonb_build_object('deadline', p_now + make_interval(secs => v_grace), 'exits', v_danger), 'kritisch');
+      else
+        p_p.restricted_since := p_now - make_interval(secs => v_grace);
+      end if;
+    end if;
+    if not p_p.restricted_violated and p_now - p_p.restricted_since >= make_interval(secs => v_grace) then
+      update public.participants set restricted_violated = true where id = p_p.id;
+      perform public.open_live_window(p_game.id, p_p.id, 'gefahrenzone', p_now, null);
+      perform public.notify(p_game.id, null, p_p.id, 'danger_live', 'Du bist in einer Gefahrenzone!',
+        'Die Hunter sehen dich live. Verlass die Zone sofort. Nach ' || v_max || ' min gilt: ' ||
+        case public.cfg_text(v_cfg, 'out_of_bounds', 'on_timeout', 'catch') when 'catch' then 'gefangen' when 'disqualify' then 'disqualifiziert' else 'Strafe' end || '.',
+        '{}', 'kritisch');
+      perform public.notify(p_game.id, 'taskforce', null, 'danger_live', public.pname(p_p.id) || ' ist in einer Gefahrenzone', 'Live-Standort sichtbar.', '{}', 'hoch');
+    elsif p_p.restricted_violated and p_now - p_p.restricted_since >= make_interval(secs => v_grace) + make_interval(mins => v_max) then
+      update public.participants set restricted_zone_id = null, restricted_since = null, restricted_violated = false where id = p_p.id;
+      perform public.close_live_windows(p_p.id, 'gefahrenzone', p_now);
+      case public.cfg_text(v_cfg, 'out_of_bounds', 'on_timeout', 'catch')
+        when 'catch' then perform public.auto_catch(p_game, p_p.id, 'Zu lange in einer Gefahrenzone', p_now);
+        when 'disqualify' then perform public.disqualify(p_game, p_p.id, 'Zu lange in einer Gefahrenzone', p_now);
+        else perform public.create_violation(p_game, p_p.id, 'sperrzone', jsonb_build_object('zone', v_restricted.name, 'lat', ST_Y(p_point), 'lng', ST_X(p_point)), p_now);
+      end case;
+      return;
+    end if;
   elsif p_p.restricted_zone_id is not null then
+    if p_p.restricted_violated then
+      perform public.close_live_windows(p_p.id, 'gefahrenzone', p_now);
+      perform public.notify(p_game.id, 'taskforce', null, 'back_inside', public.pname(p_p.id) || ' hat die Gefahrenzone verlassen', 'Live-Standort beendet.', '{}', 'normal');
+    end if;
     update public.participants set restricted_zone_id = null, restricted_since = null, restricted_violated = false where id = p_p.id;
   end if;
-
   if v_inside or (p_p.grace_until is not null and p_p.grace_until > p_now) then
     if p_p.state = 'ausserhalb' then
       update public.participants set state = 'aktiv', out_pending_since = null,

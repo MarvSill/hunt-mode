@@ -15,7 +15,7 @@ export const ZONE_HELP: Record<string, { title: string; text: string }> = {
   },
   sperrzone: {
     title: 'Gefahrenzone (Sperrzone)',
-    text: 'Orte, die aus Sicherheitsgründen nie betreten werden dürfen: Autobahnen, Bahngleise, Gewässer, Baustellen, Schulen, Privatgelände. Sie sind rot schraffiert mit Warnsymbol. Wer hineingeht, wird sofort gewarnt; bleibt man drin, gibt es eine Verwarnung. Bei Brücken oder Unterführungen kann "Überqueren erlaubt" eingeschaltet werden.',
+    text: 'Orte, die aus Sicherheitsgründen nie betreten werden dürfen: Autobahnen, Bahngleise, Gewässer, Baustellen, Schulen, Privatgelände. Sie sind rot schraffiert mit Warnsymbol. Es gilt dieselbe Regel wie beim Verlassen des Spielfelds: wer hineingeht, bekommt einen Alarm und 1 Minute Zeit, wieder rauszugehen, sonst sehen ihn die Hunter live. Ab dem 3. Mal gibt es keinen Countdown mehr. Wer zu lange drin bleibt, gilt als gefangen. Bei Brücken oder Unterführungen kann "Überqueren erlaubt" eingeschaltet werden.',
   },
 };
 
