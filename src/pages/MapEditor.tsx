@@ -1,4 +1,5 @@
 import '../lib/leafletGlobal';
+import NumberField from '../components/NumberField';
 import Icon from '../components/Icon';
 import '@geoman-io/leaflet-geoman-free';
 import '@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css';
@@ -969,8 +970,7 @@ function NumberRow({ label, value, min, max, step, onChange }: { label: string; 
       <span className="spacer">{label}</span>
       <div className="stepper">
         <button type="button" aria-label={`${label} weniger`} disabled={value <= min} onClick={() => onChange(clamp(value - step))}>−</button>
-        <input type="number" inputMode="numeric" aria-label={label} value={value} min={min} max={max}
-          onChange={(e) => { const v = Number(e.target.value); if (Number.isFinite(v)) onChange(clamp(Math.round(v))); }} />
+        <NumberField label={label} value={value} min={min} max={max} onChange={onChange} />
         <button type="button" aria-label={`${label} mehr`} disabled={value >= max} onClick={() => onChange(clamp(value + step))}>+</button>
       </div>
     </div>

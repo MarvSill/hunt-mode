@@ -178,8 +178,9 @@ function NumberInput({ field, value, readOnly, onChange }: { field: FieldMeta; v
   }
   return (
     <input
-      type="number"
+      type="text"
       inputMode="numeric"
+      pattern="-?[0-9]*"
       min={field.min}
       max={field.max}
       value={text}
