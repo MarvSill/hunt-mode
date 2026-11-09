@@ -11,8 +11,7 @@ const JOKER_NAMES: Record<string, string> = {
 export function rulesInWords(c: GameConfig): [string, string][] {
   const out: [string, string][] = [];
   out.push(['⏱️', `Das Spiel dauert ${formatMinutes(c.game.duration_minutes)} am Stück, ohne Pause. Die Spieler haben ${formatMinutes(c.start.head_start_minutes)} Vorsprung.`]);
-  const kern = c.ping.zone_overrides.kern;
-  out.push(['📍', `Alle ${formatMinutes(c.ping.interval_minutes)} sehen die Hunter, wo die Spieler gerade sind${kern && kern !== c.ping.interval_minutes ? ` (im Kern-Gebiet alle ${formatMinutes(kern)})` : ''}.`]);
+  out.push(['📍', `Alle ${formatMinutes(c.ping.interval_minutes)} sehen die Hunter, wo die Spieler gerade sind.`]);
   if (c.speedhunt.enabled) {
     out.push(['⚡', `Blitzjagd: ${c.speedhunt.quota_per_day[0] ?? 0} im ganzen Spiel, dabei ${c.speedhunt.queries} Standort-Abfragen auf einen Spieler, höchstens ${formatMinutes(c.speedhunt.max_duration_minutes)}.`]);
   }

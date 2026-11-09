@@ -19,7 +19,7 @@ describe('Schema-Metadaten', () => {
     expect(all.find((x) => x.path === 'roles.assignment')?.kind).toBe('enum');
     expect(all.find((x) => x.path === 'catch.method')?.kind).toBe('enumList');
     expect(all.find((x) => x.path === 'speedhunt.quota_per_day')?.kind).toBe('numberList');
-    expect(all.find((x) => x.path === 'ping.zone_overrides')?.kind).toBe('json');
+    expect(all.find((x) => x.path === 'joker.types')?.kind).toBe('json');
   });
 
   it('macht Auswahlwerte lesbar', () => {

@@ -84,8 +84,6 @@ export default function QuickSettings({ config, onChange }: Props) {
       <Box title="Pings" icon="📍" summary={`alle ${formatMinutes(config.ping.interval_minutes)}`} info={SETTING_HELP.pings}>
         <Duration label="Ping alle" value={config.ping.interval_minutes} min={1} max={lim('ping.interval_minutes', 720)}
           onChange={(v) => set('ping', 'interval_minutes', v)} />
-        <Duration label="Im Kern-Gebiet alle" value={config.ping.zone_overrides.kern ?? config.ping.interval_minutes} min={1} max={Math.min(720, g.duration_minutes)}
-          onChange={(v) => set('ping', 'zone_overrides', { ...config.ping.zone_overrides, kern: v })} />
         <Duration label="Erster Ping nach dem Vorsprung" value={config.ping.first_ping_delay_minutes} min={0} max={lim('ping.first_ping_delay_minutes', 600)}
           onChange={(v) => set('ping', 'first_ping_delay_minutes', v)} />
         <Stepper label="Ungenauigkeit (m)" value={config.ping.precision_blur_m} min={0} max={1000} step={25}

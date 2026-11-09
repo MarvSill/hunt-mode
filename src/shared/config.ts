@@ -97,8 +97,6 @@ export const gameConfigSchema = z.object({
       shrink_every_minutes: int(0, 0, 1440, 'Verkleinerung alle (min)'),
       shrink_announce_minutes: int(180, 0, 1440, 'Vorankündigung Verkleinerung (min)'),
       shrink_grace_minutes: int(0, 0, 120, 'Übergangsfrist (min)'),
-      release_on_catch: bool(false, 'Sektion wird bei Fang frei'),
-      sections_per_player: bool(false, 'Eigene Sektion pro Spieler'),
       restricted_counts_as_outside: bool(false, 'Sperrzone zählt als ausserhalb'),
       restricted_crossing_max_seconds: int(60, 0, 600, 'Sperrzone überqueren erlaubt (s)'),
     })
@@ -107,10 +105,6 @@ export const gameConfigSchema = z.object({
   ping: z
     .object({
       interval_minutes: int(15, 1, 720, 'Ping-Intervall (min)'),
-      zone_overrides: z
-        .record(z.string(), z.number().int().min(1).max(720))
-        .default({})
-        .describe('Intervall je Zonentyp (min)'),
       offset_minutes: int(0, 0, 719, 'Versatz (min)'),
       jitter_minutes: int(0, 0, 30, 'Zufallsversatz (min)'),
       notify_player: bool(false, 'Spieler merkt den Ping'),
@@ -202,7 +196,6 @@ export const gameConfigSchema = z.object({
       live_after_base_minutes: int(10, 0, 120, 'Nachlauf (min)'),
       live_after_increment_minutes: int(5, 0, 60, 'Zuwachs je Fahrt (min)'),
       ferry_max_stops_per_day: int(10, 0, 100, 'Fähren-Limit (Stationen)'),
-      forbidden_in_zone_types: z.array(z.string()).default([]).describe('Verboten in Zonentypen'),
       violation_repeat_minutes: int(10, 1, 60, 'Wiederholungsverstoss (min)'),
       speed_threshold_kmh: int(8, 5, 25, 'Erkennung ab (km/h)'),
       detect_seconds: int(90, 30, 600, 'Erkennungsdauer (s)'),

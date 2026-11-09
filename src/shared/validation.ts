@@ -22,8 +22,6 @@ export interface ValidationContext {
   hunters?: number;
   /** Mindestens eine teilnehmende Person ist unter 18. */
   hasMinors?: boolean;
-  /** Anzahl gezeichneter Sektionen (Karte, ab Schritt 2). */
-  sections?: number;
   /** Breite des Spielfelds in Metern (Karte, ab Schritt 2). */
   fieldWidthM?: number;
 }
@@ -126,10 +124,6 @@ export function validateConfig(input: GameConfig, ctx: ValidationContext = {}): 
 
   if (config.proximity.enabled && ctx.fieldWidthM !== undefined && config.proximity.distance_m > ctx.fieldWidthM / 2) {
     add('warning', 'proximity_always', 'Alarm wird fast dauernd ausgelöst.', 'proximity.distance_m');
-  }
-
-  if (config.zone.sections_per_player && ctx.sections !== undefined && ctx.sections < (ctx.players ?? 1)) {
-    add('error', 'sections_missing', 'Sektionen pro Spieler sind aktiv, aber es fehlen Sektionen auf der Karte.', 'zone.sections_per_player');
   }
 
   if (config.win.mode === 'letzter_ueberlebender' && config.exit.enabled) {

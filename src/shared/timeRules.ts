@@ -148,13 +148,7 @@ export function fitTimes(input: GameConfig): { config: GameConfig; fixes: TimeFi
     if (!changed) break;
   }
 
-  // Ping-Intervalle je Zone und Joker-/Effektdauern
-  for (const [zone, min] of Object.entries(c.ping.zone_overrides)) {
-    if (min > d) {
-      c.ping.zone_overrides[zone] = d;
-      fixes.push({ path: 'ping.zone_overrides', from: min, to: d, message: `Ping-Intervall im Gebiet "${zone}": ${d} statt ${min} min, weil das Spiel nur ${durationText(d)} dauert.` });
-    }
-  }
+  // Joker-Dauern und Freischaltzeiten
   const latest = Math.max(0, d - 5);
   for (const j of c.joker.enabled ? c.joker.types : []) {
     const name = JOKER_NAMES[j.type] ?? j.type;

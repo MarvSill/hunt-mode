@@ -90,18 +90,13 @@ export interface ZoneProps {
   visible_from?: string | null;
 }
 
-export const ZONE_KINDS = ['spielfeld', 'sektion', 'startzone', 'center', 'kern', 'aussen', 'sperrzone', 'sicher', 'exit', 'hq', 'treffpunkt'] as const;
+/** Es gibt nur ein Spielfeld, dazu Gefahrenzonen und Punkte (Treffpunkt, HQ, Fluchtpunkt). */
+export const ZONE_KINDS = ['spielfeld', 'sperrzone', 'exit', 'hq', 'treffpunkt'] as const;
 export type ZoneKind = (typeof ZONE_KINDS)[number];
 
 export const ZONE_INFO: Record<ZoneKind, { label: string; color: string; point: boolean; help: string }> = {
   spielfeld: { label: 'Spielfeld', color: '#3fb950', point: false, help: 'Wo gespielt wird. Kann im Lauf des Spiels kleiner werden.' },
-  sektion: { label: 'Sektion', color: '#58a6ff', point: false, help: 'Eigenes Gebiet pro Spieler.' },
-  startzone: { label: 'Startzone', color: '#a371f7', point: false, help: 'Gemeinsamer Bereich in Sektions-Spielen.' },
-  center: { label: 'Center', color: '#d29922', point: false, help: 'Eigene Ping-Regeln, z. B. kein Fahrzeug.' },
-  kern: { label: 'Kernzone', color: '#db6d28', point: false, help: 'Häufigere Pings.' },
-  aussen: { label: 'Aussenzone', color: '#8b949e', point: false, help: 'Eigenes Ping-Intervall.' },
   sperrzone: { label: 'Sperrzone', color: '#f85149', point: false, help: 'Betreten verboten (z. B. Bahnhof, Schule).' },
-  sicher: { label: 'Sichere Zone', color: '#2ea043', point: false, help: 'Hier darf nicht gefangen werden.' },
   exit: { label: 'Fluchtpunkt-Kandidat', color: '#f0f6fc', point: true, help: 'Einer davon wird zufällig der Fluchtpunkt.' },
   hq: { label: 'HQ', color: '#f85149', point: true, help: 'Startort der Hunter.' },
   treffpunkt: { label: 'Treffpunkt', color: '#58a6ff', point: true, help: 'Treffpunkt vor dem Start.' },

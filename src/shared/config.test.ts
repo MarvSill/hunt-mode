@@ -30,6 +30,13 @@ describe('Konfiguration', () => {
     expect('quiet_hours' in c.game).toBe(false);
   });
 
+  it('es gibt nur ein Spielfeld: Einstellungen für weitere Gebiete werden ignoriert', () => {
+    const c = parseConfig({ ping: { zone_overrides: { kern: 30 } }, zone: { sections_per_player: true }, transport: { forbidden_in_zone_types: ['center'] } });
+    expect('zone_overrides' in c.ping).toBe(false);
+    expect('sections_per_player' in c.zone).toBe(false);
+    expect('forbidden_in_zone_types' in c.transport).toBe(false);
+  });
+
   it('Joker ohne Freischaltzeit kommen ab Jagdbeginn', () => {
     const c = parseConfig({ joker: { enabled: true, types: [{ type: 'catch_free', minutes: 10 }] } });
     expect(c.joker.types[0].after_minutes).toBe(0);
@@ -48,8 +55,8 @@ describe('Konfiguration', () => {
   });
 
   it('mergeConfig ersetzt Listen statt sie zu mischen', () => {
-    const c = mergeConfig(defaultConfig(), { ping: { zone_overrides: {} }, speedhunt: { quota_per_day: [1] } });
-    expect(c.ping.zone_overrides).toEqual({});
+    const c = mergeConfig(defaultConfig(), { joker: { types: [{ type: 'catch_free', minutes: 5, after_minutes: 10 }] }, speedhunt: { quota_per_day: [1] } });
+    expect(c.joker.types).toEqual([{ type: 'catch_free', minutes: 5, after_minutes: 10 }]);
     expect(c.speedhunt.quota_per_day).toEqual([1]);
     expect(c.ping.interval_minutes).toBe(15);
   });

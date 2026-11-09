@@ -26,7 +26,7 @@ export const PRESETS: Preset[] = [
       start: { head_start_minutes: 30 },
       time: { align_to_full_hour: false },
       zone: { shrink_mode: 'auto', auto_shrink_percent: 20, shrink_every_minutes: 360, shrink_announce_minutes: 60 },
-      ping: { interval_minutes: 45, zone_overrides: { kern: 30 } },
+      ping: { interval_minutes: 45 },
       speedhunt: {
         quota_per_day: [5],
         queries: 4,
@@ -70,7 +70,7 @@ export const PRESETS: Preset[] = [
       start: { head_start_minutes: 10 },
       time: { align_to_full_hour: false },
       zone: { shrink_mode: 'auto', auto_shrink_percent: 15, shrink_every_minutes: 45, shrink_announce_minutes: 15 },
-      ping: { interval_minutes: 15, zone_overrides: {} },
+      ping: { interval_minutes: 15 },
       speedhunt: {
         quota_per_day: [4],
         queries: 3,
@@ -113,7 +113,7 @@ export const PRESETS: Preset[] = [
       start: { head_start_minutes: 5 },
       time: { align_to_full_hour: false },
       zone: { shrink_mode: 'aus' },
-      ping: { interval_minutes: 10, zone_overrides: {} },
+      ping: { interval_minutes: 10 },
       speedhunt: {
         quota_per_day: [3],
         queries: 3,

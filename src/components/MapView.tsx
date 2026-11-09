@@ -63,7 +63,7 @@ export function addZones(layer: L.LayerGroup, zones: MapFeature[], day?: number)
       l = L.geoJSON(f as GeoJSON.Feature, { style: () => zoneStyle(f, day) });
     }
     const dayText = f.properties.day_index ? ` (Phase ${f.properties.day_index})` : '';
-    if (k === 'sperrzone' || k === 'sicher') layer.addLayer(zoneBadge(f));
+    if (k === 'sperrzone') layer.addLayer(zoneBadge(f));
     // Exit und HQ immer beschriftet, alles andere beim Antippen.
     const permanent = k === 'exit' || k === 'hq';
     const prefix = k === 'exit' ? 'EXIT: ' : k === 'sperrzone' ? `GEFAHR (${restrictedInfo(f.properties.restricted_type).label}): ` : '';
@@ -85,7 +85,7 @@ export function pointIcon(kind: string): L.DivIcon {
   });
 }
 
-/** Symbol in der Mitte einer Gefahren- oder Schutzzone, damit man sie sofort erkennt. */
+/** Symbol in der Mitte einer Gefahrenzone, damit man sie sofort erkennt. */
 export function zoneBadge(f: MapFeature): L.Marker {
   const k = f.properties.kind;
   let lat: number;

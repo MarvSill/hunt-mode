@@ -113,3 +113,7 @@ Abweichungen von der Spezifikation und Annahmen, wo sie nichts festlegt.
 
 ## Runde 6: ohne Budget (Migration 0013)
 - Budget ist ganz entfernt: keine Einstellung, keine Anzeige, kein "Kauf melden", kein Kauf-Ping. Noch nicht gestartete Spiele haben es ausgeschaltet, `make_purchase` ist auf dem Server gesperrt. Die Tabelle `purchases` bleibt für alte Spiele stehen.
+
+## Runde 7: nur ein Spielfeld (Migration 0014)
+- Es gibt nur noch ein Spielfeld (es kann weiterhin alle X Minuten kleiner werden), dazu Gefahrenzonen und die Punkte Treffpunkt, HQ und Fluchtpunkt.
+- Entfernt: Kern- und Aussengebiet (eigene Ping-Abstände, `ping.zone_overrides`), Center (`transport.forbidden_in_zone_types`), Sektionen pro Spieler (`zone.sections_per_player`, `zone.release_on_catch`), Startzone und Schutzzone. Bestehende Zonen dieser Art sind gelöscht, `save_map` speichert sie nicht mehr.

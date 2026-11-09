@@ -30,5 +30,6 @@ Live: https://marvsill.github.io/hunt-mode/ · Repo: github.com/MarvSill/hunt-mo
 - Begriffe: Hunter-Team, Blitzjagd, Ping, Fluchtpunkt, Schutzschild.
 - Notfall geht immer an alle Hunter (und den Host); Nummern 117 / 144 / 112.
 - Chat: Spieler schreiben den Huntern (alle Hunter lesen mit), Hunter einem oder allen Spielern, Hunter-Team unter sich. Spieler nie mit anderen Spielern.
+- Nur ein Spielfeld (kann kleiner werden) plus Gefahrenzonen; keine weiteren Gebiete. Kein Budget.
 - Joker nur für Spieler (Regeneration, Hunter-Standorte, Schutzschild), jeweils nach einer eingestellten Spielzeit.
 - Standort wird nur gesendet, solange die App offen ist (Browser-Grenze).
