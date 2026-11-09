@@ -1058,4 +1058,9 @@ export const en: Record<string, string> = {
   "Einstellungen öffnen": "Open settings",
   "Der Standort wird auch im Hintergrund und bei gesperrtem Bildschirm geteilt. Erlaube den Standort auf „Immer“.": "Your location is shared even in the background and with the screen locked. Allow location as \"Always\".",
   "Bei jedem Ping und jeder Blitzjagd klingelt und vibriert dein Handy, und die Meldung erscheint, auch wenn die App im Hintergrund ist.": "At every ping and blitz hunt your phone rings, vibrates and shows the message, even when the app is in the background.",
+  "Standort wird nicht gesendet: {0}": "Location is not being sent: {0}",
+  "gesendet vor {0} s": "sent {0} s ago",
+  "noch nicht gesendet": "not sent yet",
+  "Nur letzter Ping je Spieler": "Only the last ping per player",
+  "Alle Pings": "All pings",
 };

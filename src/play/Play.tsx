@@ -99,6 +99,13 @@ export default function PlayPage() {
   const tracking = !!s && role !== 'zuschauer' && !['beendet', 'archiviert'].includes(s.game.status)
     && !(role === 'spieler' && ['gefangen', 'disqualifiziert', 'aufgegeben', 'verloren'].includes(s.me.state) && !s.game.config.catch.track_after_catch);
   const [kick, setKick] = useState(0);
+  const [onlyLastPing, setOnlyLastPingState] = useState(() => {
+    try { return localStorage.getItem('hm-pings') === 'last'; } catch { return false; }
+  });
+  const setOnlyLastPing = (v: boolean) => {
+    setOnlyLastPingState(v);
+    try { localStorage.setItem('hm-pings', v ? 'last' : 'all'); } catch { /* nur für diese Sitzung */ }
+  };
   const tracker = useTracker(id, tracking, kick);
   const pos = tracker.last ? { lat: tracker.last.lat, lng: tracker.last.lng } : null;
 
@@ -132,8 +139,16 @@ export default function PlayPage() {
     const list: Marker[] = [];
     const tf = role === 'hunter';
     const fade = s.game.config.ping.fade_after_minutes * 60000;
+    // Hunter wählen: alle bisherigen Pings oder nur den letzten je Spieler.
+    const lastPing = new Map<string, string>();
+    for (const p of s.pings) {
+      if (p.lat == null) continue;
+      const prev = s.pings.find((x) => x.id === lastPing.get(p.participant_id));
+      if (!prev || new Date(p.at) >= new Date(prev.at)) lastPing.set(p.participant_id, p.id);
+    }
     for (const p of s.pings) {
       if (p.lat == null || p.lng == null) continue;
+      if (onlyLastPing && role !== 'spieler' && lastPing.get(p.participant_id) !== p.id) continue;
       if (role === 'spieler' && p.participant_id === s.me.id && p.source === 'proximity') continue;
       const age = now - new Date(p.at).getTime();
       const label = `${nameOf(s, p.participant_id)} · ${SOURCE_LABELS[p.source] ?? p.source}${p.n ? ` ${p.n}` : ''} · ${clock(p.at)}${p.stale_seconds ? t(' ({0} min alt)', { 0: Math.round(p.stale_seconds / 60) }) : ''}${p.is_fake ? t(' · FAKE') : ''}`;
@@ -168,7 +183,7 @@ export default function PlayPage() {
       if (e.lat != null && e.lng != null) list.push({ id: `e${e.id}`, lat: e.lat, lng: e.lng, color: '#ff0000', kind: 'emergency', label: t('NOTFALL {0}', { 0: nameOf(s, e.participant_id) }), pulse: true });
     }
     return list;
-  }, [s, now, pos, role, tracker.last?.acc]);
+  }, [s, now, pos, role, tracker.last?.acc, onlyLastPing]);
 
   if (!s) {
     return (
@@ -247,6 +262,9 @@ export default function PlayPage() {
             : tracker.status === 'warte' ? t('Warte auf GPS …') : t('GPS-Problem: {0}', { 0: tracker.error ?? '' })}
         </div>
       )}
+      {tracking && tracker.sendError && (
+        <div className="notice error" style={{ marginBottom: 8 }}>{t('Standort wird nicht gesendet: {0}', { 0: tracker.sendError })}</div>
+      )}
       {tracker.queued > 3 && <div className="notice" style={{ marginBottom: 8 }}>{t('Offline:')} {tracker.queued} {t('Standorte warten auf Verbindung.')}</div>}
       {!ended && notifPerm === 'default' && typeof Notification !== 'undefined' && (
         <button className="small block" style={{ marginBottom: 8 }} onClick={() => void Notification.requestPermission().then(setNotifPerm)}>{t('Benachrichtigungen erlauben')}</button>
@@ -272,6 +290,10 @@ export default function PlayPage() {
               <span className="badge">{s.free_players}/{players.length} {t('Spieler frei')}</span>
               {s.speedhunts.some((x) => x.status === 'laeuft') && <span className="badge red pulse">{t('Blitzjagd')}</span>}
               {tracker.last && <span className="badge">{t('GPS ±')}{tracker.last.acc} m</span>}
+              {tracking && <span className={`badge${tracker.sentAt && Date.now() - tracker.sentAt < 60000 ? '' : ' red'}`}>📡 {tracker.sentAt ? t('gesendet vor {0} s', { 0: Math.max(0, Math.round((Date.now() - tracker.sentAt) / 1000)) }) : t('noch nicht gesendet')}</span>}
+              {role !== 'spieler' && s.pings.some((p) => p.lat != null) && (
+                <button className="small" onClick={() => setOnlyLastPing(!onlyLastPing)}>{onlyLastPing ? t('Nur letzter Ping je Spieler') : t('Alle Pings')} ⇄</button>
+              )}
             </div>
           </div>
 

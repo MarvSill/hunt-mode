@@ -25,6 +25,8 @@ const RULES: Rule[] = [
   r('Die Hunter sehen jetzt, wo du gerade bist.', 'Les hunters voient maintenant où tu es.', 'The hunters can now see where you are.'),
   r('Ping', 'Ping', 'Ping'),
   r('Die Hunter haben gerade den Standort eines Spielers bekommen.', 'Les hunters viennent de recevoir la position d’un joueur.', 'The hunters just received a player’s location.'),
+  r('Kein Standort: {N}', 'Pas de position : $1', 'No location: $1'),
+  r('Das Handy hat noch keinen Standort gesendet (App geschlossen oder kein GPS).', 'Le téléphone n’a pas encore envoyé de position (app fermée ou pas de GPS).', 'The phone has not sent a location yet (app closed or no GPS).'),
   r('BLITZJAGD!', 'CHASSE ÉCLAIR !', 'BLITZ HUNT!'),
   r('{N} Einer von euch wird gejagt.', '$1 L’un de vous est traqué.', '$1 One of you is being hunted.'),
   r('Blitzjagd gestartet!', 'Chasse éclair lancée !', 'Blitz hunt started!'),

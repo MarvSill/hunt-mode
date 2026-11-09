@@ -109,7 +109,7 @@ export const gameConfigSchema = z.object({
       fresh_fix_wait_seconds: int(30, 5, 120, 'Wartezeit auf frischen Standort (s)'),
       show_suppressed_to_taskforce: bool(false, '"Kein Signal" den Huntern anzeigen'),
       fade_after_minutes: int(60, 5, 600, 'Marker verblassen nach (min)'),
-      history_per_player: int(5, 1, 50, 'Sichtbare Pings pro Spieler'),
+      history_per_player: int(200, 1, 500, 'Sichtbare Pings pro Spieler'),
       reveal_schedule_to_taskforce: bool(true, 'Nächster Ping-Zeitpunkt sichtbar'),
     })
     .default({})
@@ -302,6 +302,8 @@ export function normalizeConfig(c: GameConfig): GameConfig {
   c.hideout.lockout_after_first_entry_minutes = 0;
   c.transport.checkin_required = false;
   c.transport.live_during = false;
+  // Hunter sehen alle bisherigen Pings (auf der Karte wahlweise nur den letzten).
+  c.ping.history_per_player = Math.max(c.ping.history_per_player, 200);
   return c;
 }
 
