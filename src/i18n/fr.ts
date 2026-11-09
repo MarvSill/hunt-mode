@@ -1058,4 +1058,9 @@ export const fr: Record<string, string> = {
   "Einstellungen öffnen": "Ouvrir les réglages",
   "Der Standort wird auch im Hintergrund und bei gesperrtem Bildschirm geteilt. Erlaube den Standort auf „Immer“.": "La position est partagée même en arrière-plan et écran verrouillé. Autorise la position sur « Toujours ».",
   "Bei jedem Ping und jeder Blitzjagd klingelt und vibriert dein Handy, und die Meldung erscheint, auch wenn die App im Hintergrund ist.": "À chaque ping et chaque chasse éclair, ton téléphone sonne, vibre et affiche le message, même si l’app est en arrière-plan.",
+  "Standort wird nicht gesendet: {0}": "La position n’est pas envoyée : {0}",
+  "gesendet vor {0} s": "envoyée il y a {0} s",
+  "noch nicht gesendet": "pas encore envoyée",
+  "Nur letzter Ping je Spieler": "Seulement le dernier ping par joueur",
+  "Alle Pings": "Tous les pings",
 };

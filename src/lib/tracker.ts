@@ -14,12 +14,16 @@ export interface TrackerInfo {
   queued: number;
   error: string | null;
   wakeLock: boolean;
+  /** Zeitpunkt, an dem der Server den letzten Standort angenommen hat. */
+  sentAt: number | null;
+  /** Fehler beim letzten Senden (null = ok). */
+  sendError: string | null;
 }
 
 interface BatteryManager { level: number; charging: boolean; addEventListener(t: string, f: () => void): void }
 
 export function useTracker(gameId: string | undefined, enabled: boolean, kick = 0) {
-  const [info, setInfo] = useState<TrackerInfo>({ status: 'aus', last: null, queued: 0, error: null, wakeLock: false });
+  const [info, setInfo] = useState<TrackerInfo>({ status: 'aus', last: null, queued: 0, error: null, wakeLock: false, sentAt: null, sendError: null });
   const queue = useRef<Sample[]>([]);
   const lastSent = useRef(0);
   const interval = useRef(15);
@@ -94,11 +98,13 @@ export function useTracker(gameId: string | undefined, enabled: boolean, kick = 
         lastSent.current = Date.now();
         if (res?.interval_s) interval.current = res.interval_s;
         if (res?.request_now) interval.current = 5;
-        setInfo((i) => ({ ...i, queued: 0, error: null }));
+        setInfo((i) => ({ ...i, queued: 0, error: null, sentAt: Date.now(), sendError: null }));
       } catch (err) {
         // Offline: Punkte behalten und später senden (max. 200).
         queue.current = queue.current.slice(-200);
-        setInfo((i) => ({ ...i, queued: queue.current.length, error: (err as Error).message ?? t('Senden fehlgeschlagen') }));
+        const m = (err as Error)?.message || t('Senden fehlgeschlagen');
+        console.warn('[hm-track] Senden fehlgeschlagen', m);
+        setInfo((i) => ({ ...i, queued: queue.current.length, sendError: m }));
       } finally {
         sending.current = false;
       }
@@ -115,27 +121,60 @@ export function useTracker(gameId: string | undefined, enabled: boolean, kick = 
       void flush();
     };
     let stopWatch: () => void = () => undefined;
-    if (isNative) {
-      // Echte App: Standort auch im Hintergrund und bei gesperrtem Bildschirm.
-      void watchNative(
-        (f) => onSample({ ...f, battery: battery.current }),
-        (code, message) => setInfo((i) => ({ ...i, status: code === 'NOT_AUTHORIZED' ? 'verweigert' : 'fehler', error: message })),
-      ).then((stop) => {
-        if (stopped) stop();
-        else stopWatch = stop;
-      });
-    } else {
-      const id = navigator.geolocation.watchPosition(
+    let webId: number | null = null;
+    const startWeb = () => {
+      if (webId != null || stopped || !('geolocation' in navigator)) return;
+      webId = navigator.geolocation.watchPosition(
         (p) => onSample({
           lat: p.coords.latitude, lng: p.coords.longitude, acc: Math.round(p.coords.accuracy),
           speed: p.coords.speed, heading: p.coords.heading, t: p.timestamp || Date.now(), battery: battery.current,
         }),
         (err) => {
-          setInfo((i) => ({ ...i, status: err.code === err.PERMISSION_DENIED ? 'verweigert' : 'fehler', error: err.message }));
+          console.warn('[hm-track] GPS-Fehler', err.code, err.message);
+          setInfo((i) => (i.last ? i : { ...i, status: err.code === err.PERMISSION_DENIED ? 'verweigert' : 'fehler', error: err.message }));
         },
         { enableHighAccuracy: true, maximumAge: 5000, timeout: 30000 },
       );
-      stopWatch = () => navigator.geolocation.clearWatch(id);
+    };
+    if (isNative) {
+      // Echte App: Standort auch im Hintergrund und bei gesperrtem Bildschirm.
+      // Bei einem Fehler (z. B. Erlaubnis erst später erteilt) neu versuchen; kommt nach 20 s
+      // kein Standort, zusätzlich den Standort der Web-Ansicht nutzen.
+      let nativeStop: (() => void) | null = null;
+      let gotNative = false;
+      let retry: ReturnType<typeof setTimeout> | undefined;
+      const startNative = () => {
+        watchNative(
+          (f) => {
+            gotNative = true;
+            onSample({ ...f, battery: battery.current });
+          },
+          (code, message) => {
+            console.warn('[hm-track] Standort-Fehler', code, message);
+            setInfo((i) => ({ ...i, status: code === 'NOT_AUTHORIZED' ? 'verweigert' : 'fehler', error: message }));
+            nativeStop?.();
+            nativeStop = null;
+            if (!stopped) retry = setTimeout(startNative, 8000);
+          },
+        ).then((stop) => {
+          if (stopped) stop();
+          else nativeStop = stop;
+        }, (err) => {
+          console.warn('[hm-track] Standort-Plugin fehlt', err);
+          startWeb();
+        });
+      };
+      startNative();
+      const fallback = setTimeout(() => { if (!gotNative) startWeb(); }, 20000);
+      stopWatch = () => {
+        clearTimeout(fallback);
+        clearTimeout(retry);
+        nativeStop?.();
+        if (webId != null) navigator.geolocation.clearWatch(webId);
+      };
+    } else {
+      startWeb();
+      stopWatch = () => { if (webId != null) navigator.geolocation.clearWatch(webId); };
     }
     const timer = setInterval(() => void flush(), 2500);
     return () => {
