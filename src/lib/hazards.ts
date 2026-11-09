@@ -1,11 +1,16 @@
 /**
- * "Gefahrenstellen vorschlagen" (Spezifikation 22.3): fragt OpenStreetMap (Overpass) im Spielfeld ab
- * und macht aus Autobahnen, Gleisen, Gewässern, Schulen und Militärgelände Sperrzonen-Vorschläge.
+ * "Gefahrenstellen vorschlagen": fragt OpenStreetMap (Overpass) im Spielfeld ab und schlägt nur
+ * aussergewöhnlich gefährliche Orte als Gefahrenzonen vor: Autobahnen, Bahngleise und grosse
+ * Gewässer. Strassen, Schulen, kleine Gewässer, Baustellen usw. werden bewusst nicht vorgeschlagen:
+ * dort passt jeder selbst auf sich auf.
+ *
+ * Wichtig: Unterführungen, Brücken und Tunnel dürfen keine Gefahrenzone sein. Strecken auf Brücken
+ * oder in Tunneln werden weggelassen, und wo ein Weg unter oder über den Gleisen/der Autobahn/dem
+ * Wasser durchführt, wird die Zone ausgeschnitten.
  */
-import { bbox, featureCollection, union } from '@turf/turf';
+import { area, bbox, buffer, difference, featureCollection, union } from '@turf/turf';
 import type { Position } from 'geojson';
 import { bandFromLine, clipTo, type Area } from './geo';
-
 export interface HazardSuggestion {
   key: string;
   name: string;
@@ -22,16 +27,27 @@ interface OsmElement {
 
 const ENDPOINT = 'https://overpass-api.de/api/interpreter';
 
+/** Gewässer erst ab dieser Fläche (Quadratmeter) – kleine Teiche und Bäche nicht. */
+const MIN_WATER_M2 = 20000;
+
 function classify(tags: Record<string, string>): { type: string; width?: number; label: string } | null {
+  // Strecken auf Brücken oder in Tunneln: darunter bzw. darüber kann man gefahrlos durch.
+  if (tags.bridge && tags.bridge !== 'no') return null;
+  if (tags.tunnel && tags.tunnel !== 'no') return null;
+  if (tags.covered === 'yes') return null;
   const hw = tags.highway;
-  if (hw === 'motorway' || hw === 'trunk' || hw === 'motorway_link' || hw === 'trunk_link') return { type: 'strasse', width: 60, label: tags.ref || tags.name || 'Autobahn' };
-  if (tags.railway === 'rail' || tags.railway === 'light_rail') return { type: 'gleise', width: 30, label: tags.name || 'Bahngleise' };
+  if (hw === 'motorway' || hw === 'motorway_link') return { type: 'strasse', width: 50, label: tags.ref || tags.name || 'Autobahn' };
+  if (tags.railway === 'rail') return { type: 'gleise', width: 24, label: tags.name || 'Bahngleise' };
   if (tags.natural === 'water' || tags.waterway === 'riverbank' || tags.water) return { type: 'gewaesser', label: tags.name || 'Gewässer' };
-  if (tags.waterway === 'river' || tags.waterway === 'canal') return { type: 'gewaesser', width: 20, label: tags.name || 'Fluss' };
-  if (tags.amenity === 'school' || tags.amenity === 'kindergarten') return { type: 'schule', label: tags.name || 'Schule' };
-  if (tags.landuse === 'military' || tags.military) return { type: 'militaer', label: tags.name || 'Militärgelände' };
-  if (tags.landuse === 'construction') return { type: 'baustelle', label: tags.name || 'Baustelle' };
+  if (tags.waterway === 'river') return { type: 'gewaesser', width: 20, label: tags.name || 'Fluss' };
   return null;
+}
+
+/** Wege, die unter oder über einer Gefahr hindurchführen (Unterführung, Brücke, Steg). */
+function isCrossing(tags: Record<string, string>): boolean {
+  if (!tags.highway && tags.railway !== 'platform') return false;
+  return (!!tags.tunnel && tags.tunnel !== 'no') || (!!tags.bridge && tags.bridge !== 'no') || tags.covered === 'yes'
+    || (tags.layer !== undefined && Number(tags.layer) !== 0);
 }
 
 function closed(ring: Position[]): boolean {
@@ -45,16 +61,26 @@ export async function suggestHazards(field: Area, fetcher: typeof fetch = fetch)
   const [w, s, e, n] = bbox(field);
   const b = `${s},${w},${n},${e}`;
   const q = `[out:json][timeout:25];(
-    way["highway"~"^(motorway|trunk|motorway_link|trunk_link)$"](${b});
-    way["railway"~"^(rail|light_rail)$"]["service"!~"."](${b});
+    way["highway"~"^(motorway|motorway_link)$"](${b});
+    way["railway"="rail"]["service"!~"."](${b});
     way["natural"="water"](${b});
-    way["waterway"~"^(river|canal|riverbank)$"](${b});
-    way["amenity"~"^(school|kindergarten)$"](${b});
-    way["landuse"~"^(military|construction)$"](${b});
-  );out geom 400;`;
+    way["waterway"~"^(river|riverbank)$"](${b});
+    way["highway"]["tunnel"](${b});
+    way["highway"]["bridge"](${b});
+    way["highway"]["layer"](${b});
+    way["highway"]["covered"="yes"](${b});
+  );out geom 800;`;
   const res = await fetcher(ENDPOINT, { method: 'POST', body: new URLSearchParams({ data: q }) });
   if (!res.ok) throw new Error(`Overpass ${res.status}`);
   const json = (await res.json()) as { elements: OsmElement[] };
+  // Durchgänge (Unterführungen, Brücken, Stege) als Flächen, die aus den Gefahrenzonen ausgeschnitten werden.
+  const gaps: Area[] = [];
+  for (const el of json.elements) {
+    if (!el.geometry || el.geometry.length < 2 || !el.tags || !isCrossing(el.tags)) continue;
+    const coords: Position[] = el.geometry.map((g) => [g.lon, g.lat]);
+    gaps.push(bandFromLine(coords, 16));
+  }
+  const gapArea = gaps.length ? (union(featureCollection(gaps)) as Area | null) ?? (buffer(gaps[0], 0) as Area) : null;
   const out: HazardSuggestion[] = [];
   // Gleiche Strecken (z. B. Gleis-Paare) zusammenfassen: pro Name und Typ ein Vorschlag.
   const byName = new Map<string, HazardSuggestion>();
@@ -67,8 +93,14 @@ export async function suggestHazards(field: Area, fetcher: typeof fetch = fetch)
     if (c.width) shape = bandFromLine(coords, c.width);
     else if (closed(coords)) shape = { type: 'Feature', geometry: { type: 'Polygon', coordinates: [coords] }, properties: {} };
     else continue;
-    const clipped = clipTo(shape, field);
+    if (!c.width && c.type === 'gewaesser' && area(shape) < MIN_WATER_M2) continue;
+    let clipped = clipTo(shape, field);
     if (!clipped) continue;
+    if (gapArea) {
+      const cut = difference(featureCollection([clipped, gapArea])) as Area | null;
+      if (!cut) continue;
+      clipped = cut;
+    }
     const k = `${c.type}:${c.label}`;
     const prev = byName.get(k);
     if (prev && c.width) {

@@ -100,7 +100,7 @@ export type ZoneKind = (typeof ZONE_KINDS)[number];
 
 export const ZONE_INFO: Record<ZoneKind, { label: string; color: string; point: boolean; help: string }> = lazy({
   spielfeld: { label: 'Spielfeld', color: '#3fb950', point: false, help: 'Wo gespielt wird. Kann im Lauf des Spiels kleiner werden.' },
-  sperrzone: { label: 'Sperrzone', color: '#f85149', point: false, help: 'Betreten verboten (z. B. Bahnhof, Schule).' },
+  sperrzone: { label: 'Sperrzone', color: '#f85149', point: false, help: 'Betreten verboten: nur aussergewöhnlich gefährliche Orte (Autobahn, Gleise, grosse Gewässer).' },
   exit: { label: 'Fluchtpunkt-Kandidat', color: '#f0f6fc', point: true, help: 'Einer davon wird zufällig der Fluchtpunkt.' },
   treffpunkt: { label: 'Startpunkt', color: '#58a6ff', point: true, help: 'Hier starten alle, Spieler und Hunter.' },
 });
