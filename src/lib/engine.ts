@@ -11,6 +11,8 @@ export interface Participant {
   battery: number | null; last_seen_at: string | null; bounty: number;
   device_check: Record<string, unknown> | null; next_ping_at: string | null; protected: boolean | null;
   catch_free: boolean | null; briefing_done: boolean;
+  /** Feste Nummer ab Spielstart: Spieler "1", "2" …, Hunter "H1", "H2" … */
+  tag: string | null;
 }
 export interface Position { participant_id: string; lat: number; lng: number; accuracy_m: number | null; speed_mps: number | null; heading: number | null; at: string; live: boolean }
 export interface Ping {

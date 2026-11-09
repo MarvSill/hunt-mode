@@ -155,3 +155,7 @@ Abweichungen von der Spezifikation und Annahmen, wo sie nichts festlegt.
 - Fluchtpunkt-Kandidaten müssen in der innersten Zone liegen (Spielfeld der letzten Phase). Der Karten-Editor setzt sie automatisch dort und meldet einen Fehler, sonst lehnt der Server den Start ab. Die automatische Verkleinerung zielt im Editor wie auf dem Server auf die Mitte des Spielfelds.
 - Gefahrenzonen nur für aussergewöhnlich gefährliche Orte: Autobahnen, Bahngleise, grosse Gewässer (ab 2 ha) und "andere aussergewöhnliche Gefahr" von Hand. Keine Schulen, Strassen, kleinen Gewässer, Baustellen, Kitas, Bahnhöfe oder Einkaufszentren mehr: jeder trägt die Verantwortung für sich.
 - Vorschläge aus OpenStreetMap lassen Strecken auf Brücken oder in Tunneln weg und schneiden Unterführungen, Brücken und Stege (16 m breit) aus den Gefahrenzonen aus.
+
+## Runde 13: moderne Karte und Nummern
+- Spielkarte und Wiederholung mit MapLibre (Stile von OpenFreeMap und CARTO, ohne Konto). Jede Person wählt Stil (automatisch, Stadt in 3D, Klar und ruhig, Nacht) und 3D an/aus selbst, gespeichert auf dem Gerät (`localStorage` `hm-map`). Der Karten-Editor bleibt Leaflet (Zeichnen mit Geoman), bekommt aber den gewählten Stil als flache Grundkarte.
+- Feste Nummern ab Spielstart (Migration 0020, `participants.tag`): Spieler 1, 2, 3 …, Hunter H1, H2 … in der Reihenfolge der Lobby. Die Nummer steht in jedem Punkt auf der Karte (Pings, Positionen, Hunter-Standorte-Joker) und neben den Namen. Sie bleibt, auch wenn jemand gefangen wird.

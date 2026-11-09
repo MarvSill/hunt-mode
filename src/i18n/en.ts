@@ -1040,4 +1040,5 @@ export const en: Record<string, string> = {
   "hell, mit 3D-Gebäuden": "light, with 3D buildings",
   "hell und schlicht": "light and simple",
   "dunkel, leuchtende Zonen": "dark, glowing zones",
+  "Deine Nummer": "Your number",
 };

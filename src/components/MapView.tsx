@@ -23,6 +23,8 @@ export interface Marker {
   opacity?: number;
   pulse?: boolean;
   popup?: string;
+  /** Kurzer Text im Punkt, z. B. die Nummer der Person ("3", "H1"). */
+  text?: string;
 }
 
 interface Props {
@@ -88,9 +90,11 @@ function hatchImage(): ImageData {
 function markerEl(m: Marker): HTMLElement {
   const d = document.createElement('div');
   const ping = m.kind === 'ping' || m.kind === 'fake';
-  const size = ping ? 16 : m.kind === 'me' ? 20 : 18;
-  d.className = `hm-mk${m.pulse ? ' pulse' : ''}${m.kind === 'emergency' ? ' sos' : ''}`;
-  d.style.cssText = `width:${size}px;height:${size}px;background:${m.color};opacity:${m.opacity ?? 1};border-radius:${ping ? '3px' : '50%'};${ping ? 'transform:rotate(45deg);' : ''}`;
+  // Mit Nummer etwas grösser, damit sie gut lesbar ist; Pings als abgerundete Raute, Personen rund.
+  const size = m.text ? (m.text.length > 2 ? 30 : 26) : ping ? 16 : m.kind === 'me' ? 20 : 18;
+  d.className = `hm-mk${m.pulse ? ' pulse' : ''}${m.kind === 'emergency' ? ' sos' : ''}${m.text ? ' num' : ''}${ping ? ' ping' : ''}`;
+  d.style.cssText = `width:${size}px;height:${size}px;background:${m.color};opacity:${m.opacity ?? 1};border-radius:${ping ? (m.text ? '8px' : '3px') : '50%'};${ping && !m.text ? 'transform:rotate(45deg);' : ''}`;
+  if (m.text) d.textContent = m.text;
   d.title = m.label;
   return d;
 }

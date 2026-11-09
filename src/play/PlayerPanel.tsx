@@ -113,6 +113,7 @@ export default function PlayerPanel({ s, now, act }: PanelProps) {
 
       <Section title={t('Status')}>
         <div className="grid2">
+          {s.participants.find((p) => p.id === me.id)?.tag && <div><div className="muted small">{t('Deine Nummer')}</div><div className="big-num">{s.participants.find((p) => p.id === me.id)?.tag}</div></div>}
           <div><div className="muted small">{t('Nächster Ping')}</div><div className="big-num">{me.next_ping_at ? countdown(me.next_ping_at, now) : '–'}</div></div>
           {me.hideout && (
             <div><div className="muted small">{t('Verschanzt')} {me.hideout.inside ? t('(drinnen)') : t('(draussen)')}</div>
