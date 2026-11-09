@@ -350,7 +350,8 @@ export default function MapView({ zones, markers, lines, onClick, fitKey, height
     if (!m || lastUrl.current === styleUrl) return;
     lastUrl.current = styleUrl;
     ready.current = false;
-    m.setStyle(styleUrl as unknown as StyleSpecification);
+    // Ganz neu laden (ohne Diff), damit "style.load" sicher kommt und die eigenen Ebenen neu gezeichnet werden.
+    m.setStyle(styleUrl as unknown as StyleSpecification, { diff: false });
   }, [styleUrl]);
 
   // 3D an/aus
