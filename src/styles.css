@@ -20,7 +20,7 @@
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
 html, body { margin: 0; background: var(--bg); color: var(--text); }
-html { overflow-x: hidden; }
+html { overflow-x: hidden; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 
 body {
   font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
@@ -85,6 +85,8 @@ label.check.box input[type=checkbox]:checked { background: var(--red) url("data:
 
 input, select, textarea {
   font: inherit;
+  /* Mindestens 16 px, sonst zoomt das iPhone beim Antippen hinein und bleibt vergrössert. */
+  font-size: max(16px, 1em);
   color: var(--text);
   background: var(--surface-2);
   border: 1px solid var(--border);

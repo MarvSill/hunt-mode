@@ -7,6 +7,12 @@ import { useLang } from './i18n';
 import { ensureNotifyPermission, isNative, setupNotifyChannel } from './lib/native';
 
 // Echte App: Benachrichtigungen erlauben (auch nötig für die Standort-Meldung auf Android 13+).
+if (isNative) {
+  // Handy-App: die Seite selbst nie zoomen (die Karte zoomt trotzdem mit zwei Fingern).
+  document
+    .querySelector('meta[name=viewport]')
+    ?.setAttribute('content', 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover');
+}
 if (isNative) void setupNotifyChannel().then(() => ensureNotifyPermission());
 import './styles.css';
 
