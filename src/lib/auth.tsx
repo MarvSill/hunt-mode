@@ -1,5 +1,5 @@
 import type { Session } from '@supabase/supabase-js';
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { supabase } from './supabase';
 import { t, setLang } from '../i18n';
 
@@ -31,6 +31,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [hasEmergencyContact, setHasEmergencyContact] = useState(false);
   const [recovering, setRecovering] = useState(false);
 
+  const loadRef = useRef<(s: Session | null) => Promise<void>>(async () => undefined);
   const loadProfile = useCallback(async (s: Session | null) => {
     if (!supabase || !s) {
       setProfile(null);
@@ -41,6 +42,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       supabase.from('profiles').select('*').eq('user_id', s.user.id).maybeSingle(),
       supabase.from('profile_private').select('user_id').eq('user_id', s.user.id).maybeSingle(),
     ]);
+    // Fehler (kein Netz, Anmeldung wird gerade erneuert): bekanntes Profil behalten und
+    // später nochmals laden, statt das Profil-Formular zu zeigen.
+    if (p.error || e.error) {
+      console.warn('[hm-auth] Profil laden fehlgeschlagen', p.error?.message ?? e.error?.message);
+      setTimeout(() => void loadRef.current(s), 3000);
+      return;
+    }
     setProfile((p.data as Profile | null) ?? null);
     // Sprache aus dem Profil, wenn auf diesem Gerät noch keine gewählt ist.
     const loc = (p.data as Profile | null)?.locale;
@@ -51,6 +59,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     setHasEmergencyContact(!!e.data);
   }, []);
+
+  loadRef.current = loadProfile;
 
   useEffect(() => {
     if (!supabase) {

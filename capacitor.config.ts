@@ -11,6 +11,8 @@ const config: CapacitorConfig = {
   android: {
     // Sonst stoppt Android die Standort-Updates nach 5 Minuten im Hintergrund.
     useLegacyBridge: true,
+    // Vorübergehend: Fehlersuche per USB-Kabel (chrome://inspect), um das Standort-Problem zu finden.
+    webContentsDebuggingEnabled: true,
   },
   plugins: {
     // Anfragen an den Server über die native Verbindung: Android bremst die WebView im Hintergrund.
