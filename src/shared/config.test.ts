@@ -140,13 +140,6 @@ describe('Validierung', () => {
     expect(c.penalty.escalation).toEqual(['verwarnung', 'live_standort', 'disqualifikation']);
   });
 
-  it('schaltet "Zentrale besetzt" bei nur einem Hunter automatisch aus', () => {
-    const r = validateConfig(defaultConfig(), { players: 3, hunters: 1 });
-    expect(r.config.taskforce.hq_required).toBe(false);
-    expect(r.issues.some((i) => i.level === 'autofix')).toBe(true);
-    expect(r.canStart).toBe(true);
-  });
-
   it('Handschellen mit Minderjährigen sind verboten', () => {
     const c = mergeConfig(defaultConfig(), { catch: { method: ['qr', 'handcuffs'] } });
     expect(validateConfig(c, { hasMinors: true }).canStart).toBe(false);

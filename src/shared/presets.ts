@@ -136,7 +136,7 @@ export const PRESETS: Preset[] = [
         ],
       },
       proximity: { enabled: true, distance_m: 100, active_after_minutes: 5 },
-      taskforce: { hq_required: false, bounty_per_catch: 0 },
+      taskforce: { bounty_per_catch: 0 },
       exit: { enabled: false },
       win: { prize: 'Punkte' },
     },

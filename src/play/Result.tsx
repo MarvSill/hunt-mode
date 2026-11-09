@@ -78,7 +78,7 @@ export default function Result({ s, zones }: { s: GameState; zones: MapFeature[]
               {r?.mode === 'punkte' && <span className="badge">{r.scores[p.id] ?? 0} P</span>}
             </li>
           ))}
-          {s.participants.filter((p) => p.role === 'hunter' || p.role === 'zentrale').map((p) => (
+          {s.participants.filter((p) => p.role === 'hunter').map((p) => (
             <li key={p.id}><span className="dot" style={{ background: '#f85149' }} /><span className="spacer">{p.name}</span><span className="badge red">Kopfgeld {p.bounty}</span></li>
           ))}
         </ul>

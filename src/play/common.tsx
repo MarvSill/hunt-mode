@@ -24,7 +24,7 @@ export const PLAYER_COLORS = ['#3fb950', '#58a6ff', '#d29922', '#a371f7', '#db6d
 export function colorFor(s: GameState, id: string) {
   const p = s.participants.find((x) => x.id === id);
   if (p?.color) return p.color;
-  if (p && (p.role === 'hunter' || p.role === 'zentrale')) return '#f85149';
+  if (p && p.role === 'hunter') return '#f85149';
   const players = s.participants.filter((x) => x.role === 'spieler' || x.state === 'gefangen');
   const i = Math.max(0, players.findIndex((x) => x.id === id));
   return PLAYER_COLORS[i % PLAYER_COLORS.length];

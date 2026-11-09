@@ -18,7 +18,7 @@ export function channelsFor(s: GameState): { id: string; label: string; write: b
       { id: 'spieler', label: 'Von den Huntern an alle', write: false },
     ];
   }
-  if (r === 'hunter' || r === 'zentrale') {
+  if (r === 'hunter') {
     return [
       { id: 'taskforce', label: 'Hunter-Team', write: true },
       { id: 'spieler', label: 'An alle Spieler', write: true },

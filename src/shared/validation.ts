@@ -83,17 +83,6 @@ export function validateConfig(input: GameConfig, ctx: ValidationContext = {}): 
     add('warning', 'align_short_game', 'Bei kurzen Spielen besser ab Spielstart zählen.', 'time.align_to_full_hour');
   }
 
-  const hunters = ctx.hunters ?? config.roles.hunters_max;
-  if (config.taskforce.hq_required && hunters <= 1) {
-    config.taskforce.hq_required = false;
-    add(
-      'autofix',
-      'hq_single_hunter',
-      'Mit nur einem Hunter kann die Zentrale nicht dauernd besetzt sein. "Zentrale muss besetzt sein" wurde ausgeschaltet.',
-      'taskforce.hq_required',
-    );
-  }
-
   if (config.speedhunt.enabled) {
     const players = Math.max(ctx.players ?? config.roles.players_max, 1);
     const hours = Math.max(1, duration / 60);

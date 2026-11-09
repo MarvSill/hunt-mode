@@ -69,9 +69,8 @@ export const gameConfigSchema = z.object({
   start: z
     .object({
       head_start_minutes: int(60, 0, 600, 'Vorsprung (min)'),
-      hq_min_distance_m: int(300, 0, 10000, 'Mindestabstand HQ zu Treffpunkt (m)'),
-      hq_radius_m: int(100, 20, 1000, 'HQ-Kreis (m)'),
-      hunters_must_stay_in_hq: bool(true, 'Hunter bleiben im HQ während Vorsprung'),
+      hq_radius_m: int(100, 20, 1000, 'Wartebereich der Hunter am Startpunkt (m)'),
+      hunters_must_stay_in_hq: bool(true, 'Hunter warten am Startpunkt während Vorsprung'),
     })
     .default({})
     .describe('Start'),
@@ -109,7 +108,6 @@ export const gameConfigSchema = z.object({
       jitter_minutes: int(0, 0, 30, 'Zufallsversatz (min)'),
       during_speedhunt: choice(['weiterlaufen', 'aussetzen'], 'weiterlaufen', 'Pings während einer Blitzjagd'),
       first_ping_delay_minutes: int(0, 0, 600, 'Erster Ping nach Vorsprung (min)'),
-      precision_blur_m: int(0, 0, 1000, 'Unschärfe (m)'),
       max_age_seconds: int(60, 10, 600, 'Frische-Regel (s)'),
       fresh_fix_wait_seconds: int(30, 5, 120, 'Wartezeit auf frischen Standort (s)'),
       show_suppressed_to_taskforce: bool(false, '"Kein Signal" den Huntern anzeigen'),
@@ -229,7 +227,6 @@ export const gameConfigSchema = z.object({
     .describe('Nähe-Alarm'),
   taskforce: z
     .object({
-      hq_required: bool(true, 'Zentrale muss besetzt sein'),
       bounty_per_catch: int(0, 0, 100000, 'Punkte pro Fang (Hunter)'),
       share_positions_internally: bool(true, 'Hunter sehen sich gegenseitig'),
     })

@@ -25,7 +25,8 @@ Live: https://marvsill.github.io/hunt-mode/ · Repo: github.com/MarvSill/hunt-mo
 - `scripts/supabase-setup.mjs` richtet Supabase aus der GitHub Action ein.
 
 ## Regeln, die gelten
-- Keine Spielleitung: die App regelt alles, der Host wählt selbst eine Rolle.
+- Keine Spielleitung und keine Zentrale: die App regelt alles, der Host wählt selbst eine Rolle (Spieler, Hunter, Zuschauer).
+- Ein Startpunkt für alle: Spieler laufen los, Hunter warten dort bis Ende Vorsprung. Pings sind immer genau.
 - Das Spiel läuft am Stück: keine Spieltage, keine jagdfreien Zeiten, keine Pause.
 - Begriffe: Hunter-Team, Blitzjagd, Ping, Fluchtpunkt, Nähe-Alarm. Blitzjagden starten nur die Hunter, ohne Zeitlimit.
 - Notfall geht immer an alle Hunter (und den Host); Nummern 117 / 144 / 112.

@@ -49,6 +49,8 @@ export function zoneStyle(f: MapFeature, day?: number): L.PathOptions {
 export function addZones(layer: L.LayerGroup, zones: MapFeature[], day?: number) {
   for (const f of zones) {
     const k = f.properties.kind;
+    // Den Wartebereich der Hunter (am Startpunkt) und entfernte Zonenarten nicht zeichnen.
+    if (!ZONE_INFO[k]) continue;
     const info = ZONE_INFO[k] ?? ZONE_INFO.spielfeld;
     const name = f.properties.name || info.label;
     let l: L.Layer;
@@ -57,24 +59,24 @@ export function addZones(layer: L.LayerGroup, zones: MapFeature[], day?: number)
       // Punkt mit Symbol; der Radius nur gestrichelt darum.
       l = L.marker([lat, lng], { icon: pointIcon(k) });
       if (k !== 'treffpunkt') {
-        layer.addLayer(L.circle([lat, lng], { radius: f.properties.radius_m || (k === 'hq' ? 100 : 30), color: info.color, weight: 2, dashArray: '6 6', fill: false, interactive: false }));
+        layer.addLayer(L.circle([lat, lng], { radius: f.properties.radius_m || 30, color: info.color, weight: 2, dashArray: '6 6', fill: false, interactive: false }));
       }
     } else {
       l = L.geoJSON(f as GeoJSON.Feature, { style: () => zoneStyle(f, day) });
     }
     const dayText = f.properties.day_index ? ` (Phase ${f.properties.day_index})` : '';
     if (k === 'sperrzone') layer.addLayer(zoneBadge(f));
-    // Exit und HQ immer beschriftet, alles andere beim Antippen.
-    const permanent = k === 'exit' || k === 'hq';
-    const prefix = k === 'exit' ? 'EXIT: ' : k === 'sperrzone' ? `GEFAHR (${restrictedInfo(f.properties.restricted_type).label}): ` : '';
+    // Fluchtpunkt immer beschriftet, alles andere beim Antippen.
+    const permanent = k === 'exit';
+    const prefix = k === 'exit' ? 'FLUCHTPUNKT: ' : k === 'sperrzone' ? `GEFAHR (${restrictedInfo(f.properties.restricted_type).label}): ` : '';
     (l as L.Path).bindTooltip(esc(`${prefix}${name}${dayText}`), permanent ? { permanent: true, direction: 'top' } : { sticky: true });
     layer.addLayer(l);
   }
 }
 
-const POINT_ICON: Record<string, string> = { hq: '🚓', treffpunkt: '📍', exit: '🏁' };
+const POINT_ICON: Record<string, string> = { treffpunkt: '📍', exit: '🏁' };
 
-/** Punkt-Symbol für HQ, Treffpunkt und Exit (gut antipp- und verschiebbar). */
+/** Punkt-Symbol für Startpunkt und Fluchtpunkt (gut antipp- und verschiebbar). */
 export function pointIcon(kind: string): L.DivIcon {
   const color = ZONE_INFO[kind as keyof typeof ZONE_INFO]?.color ?? '#fff';
   return L.divIcon({

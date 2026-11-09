@@ -27,7 +27,7 @@ export default function EmergencyBox({ s, act, showMap }: {
 }) {
   const [contact, setContact] = useState<Record<string, string>>({});
   const role = s.me.role;
-  const helper = role === 'hunter' || role === 'zentrale' || s.game.host;
+  const helper = role === 'hunter' || s.game.host;
   const mine = s.emergencies.find((e) => e.participant_id === s.me.id && e.status === 'offen');
   const others = helper ? s.emergencies.filter((e) => e.participant_id !== s.me.id && e.status === 'offen') : [];
   if (!mine && others.length === 0) return null;

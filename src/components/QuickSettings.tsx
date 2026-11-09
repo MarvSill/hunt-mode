@@ -76,7 +76,7 @@ export default function QuickSettings({ config, onChange }: Props) {
         <Duration label="Spieldauer (am Stück)" value={g.duration_minutes} min={15} max={20160} onChange={setDuration} />
         <Duration label="Vorsprung der Spieler" value={config.start.head_start_minutes} min={0} max={600}
           onChange={(v) => set('start', 'head_start_minutes', v)} />
-        <Toggle label="Hunter warten im HQ während des Vorsprungs" value={config.start.hunters_must_stay_in_hq}
+        <Toggle label="Hunter warten am Startpunkt während des Vorsprungs" value={config.start.hunters_must_stay_in_hq}
           onChange={(v) => set('start', 'hunters_must_stay_in_hq', v)} />
       </Box>
 
@@ -85,8 +85,6 @@ export default function QuickSettings({ config, onChange }: Props) {
           onChange={(v) => set('ping', 'interval_minutes', v)} />
         <Duration label="Erster Ping nach dem Vorsprung" value={config.ping.first_ping_delay_minutes} min={0} max={lim('ping.first_ping_delay_minutes', 600)}
           onChange={(v) => set('ping', 'first_ping_delay_minutes', v)} />
-        <Stepper label="Ungenauigkeit (m)" value={config.ping.precision_blur_m} min={0} max={1000} step={25}
-          onChange={(v) => set('ping', 'precision_blur_m', v)} />
         <Toggle label="Hunter sehen, wann der nächste Ping kommt" value={config.ping.reveal_schedule_to_taskforce}
           onChange={(v) => set('ping', 'reveal_schedule_to_taskforce', v)} />
       </Box>

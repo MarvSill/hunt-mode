@@ -106,7 +106,6 @@ export interface MapCheckInput {
   phases: number;
   autoShrink: boolean;
   manualShrink: boolean;
-  hqMinDistanceM: number;
   players: number;
   durationMinutes: number;
 }
@@ -130,13 +129,11 @@ export function checkMap(i: MapCheckInput): MapIssue[] {
 
   if (!field1) out.push({ level: 'error', text: 'Es fehlt das Spielfeld.' });
   const meet = pts('treffpunkt');
-  const hq = pts('hq');
   const exits = pts('exit');
-  if (meet.length === 0) out.push({ level: 'warning', text: 'Kein Treffpunkt gesetzt (empfohlen).' });
-  if (hq.length === 0) out.push({ level: 'warning', text: 'Kein HQ für die Hunter gesetzt (empfohlen).' });
+  if (meet.length === 0) out.push({ level: 'error', text: 'Setze den Startpunkt, an dem alle starten.' });
   if (i.exitEnabled && exits.length === 0) out.push({ level: 'error', text: 'Setze mindestens einen Fluchtpunkt-Kandidaten oder schalte den Fluchtpunkt in den Regeln aus.' });
   if (field1) {
-    if (meet.some((p) => !pointInside(p, field1))) out.push({ level: 'error', text: 'Der Treffpunkt liegt ausserhalb des Spielfelds.' });
+    if (meet.some((p) => !pointInside(p, field1))) out.push({ level: 'error', text: 'Der Startpunkt liegt ausserhalb des Spielfelds.' });
     const lastField = i.autoShrink ? field1 : last ?? field1;
     if (exits.some((p) => !pointInside(p, lastField))) {
       out.push({ level: 'error', text: i.manualShrink ? 'Ein Fluchtpunkt liegt ausserhalb des Spielfelds der letzten Phase.' : 'Ein Fluchtpunkt liegt ausserhalb des Spielfelds.' });
@@ -152,10 +149,7 @@ export function checkMap(i: MapCheckInput): MapIssue[] {
     }
   }
   if (restricted) {
-    if ([...meet, ...hq, ...exits].some((p) => pointInside(p, restricted))) out.push({ level: 'error', text: 'Treffpunkt, HQ oder ein Fluchtpunkt liegt in einer Sperrzone.' });
-  }
-  if (meet.length && hq.length && distM(meet[0], hq[0]) < i.hqMinDistanceM) {
-    out.push({ level: 'warning', text: `Das HQ ist nur ${Math.round(distM(meet[0], hq[0]))} m vom Treffpunkt entfernt (Regel: mindestens ${i.hqMinDistanceM} m).` });
+    if ([...meet, ...exits].some((p) => pointInside(p, restricted))) out.push({ level: 'error', text: 'Der Startpunkt oder ein Fluchtpunkt liegt in einer Gefahrenzone.' });
   }
   if (i.manualShrink && i.phases > 1) {
     for (let p = 2; p <= i.phases; p++) {

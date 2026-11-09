@@ -12,7 +12,7 @@ import { esc, pointIcon, zoneBadge, zoneStyle } from '../components/MapView';
 import { STEP_HELP, ZONE_HELP } from '../shared/help';
 import { api, ZONE_INFO, ZONE_KINDS, type MapFeature, type ZoneKind } from '../lib/engine';
 import {
-  areaKm2, bandFromLine, centerOf, checkMap, circleWithArea, clipTo, fieldOfPhase, INSIDE_FIELD, middleOf, outsideShare, pointAtDistance, pointInside,
+  areaKm2, bandFromLine, centerOf, checkMap, circleWithArea, clipTo, fieldOfPhase, INSIDE_FIELD, middleOf, outsideShare, pointInside,
   recommendedKm2PerPlayer, RESTRICTED_TYPES, restrictedInfo, shrinkArea, spreadPoints, unionAll, type Area,
 } from '../lib/geo';
 import { diffConfig, getGame, updateConfig, type Game } from '../lib/games';
@@ -30,7 +30,7 @@ const newKey = () => `z${Date.now()}_${seq++}`;
 
 /** Symbol je Zonenart (Liste und Knöpfe). */
 const ICON: Record<ZoneKind, string> = {
-  spielfeld: '🟩', sperrzone: '⚠️', exit: '🏁', hq: '🚓', treffpunkt: '📍',
+  spielfeld: '🟩', sperrzone: '⚠️', exit: '🏁', treffpunkt: '📍',
 };
 
 const TOOL_HINT: Record<Tool, string> = {
@@ -127,7 +127,7 @@ export default function MapEditorPage() {
     }
     if (layer instanceof L.Marker) {
       const c = layer.getLatLng();
-      return { type: 'Feature', geometry: { type: 'Point', coordinates: [c.lng, c.lat] }, properties: { ...props, radius_m: props.radius_m ?? (k === 'hq' ? 100 : 30) } };
+      return { type: 'Feature', geometry: { type: 'Point', coordinates: [c.lng, c.lat] }, properties: { ...props, radius_m: props.radius_m ?? 30 } };
     }
     const gj = (layer as L.Polygon).toGeoJSON() as GeoJSON.Feature;
     return { type: 'Feature', geometry: gj.geometry, properties: props };
@@ -202,7 +202,8 @@ export default function MapEditorPage() {
     let cancelled = false;
     void (async () => {
       try {
-        const list = (await api.map(gameId)).map((f) => addItem(f));
+        // Den Wartebereich der Hunter legt die Datenbank selbst an den Startpunkt; er wird nicht gezeichnet.
+        const list = (await api.map(gameId)).filter((f) => (f.properties.kind as string) !== 'hq').map((f) => addItem(f));
         if (cancelled) return;
         // Was schon gezeichnet oder importiert wurde, bleibt erhalten.
         setItems((prev) => [...list, ...prev]);
@@ -232,9 +233,9 @@ export default function MapEditorPage() {
     const f = itemsRef.current.map((x) => x.feature);
     const has = (k: ZoneKind) => f.some((x) => x.properties.kind === k);
     const exit = config.exit.enabled;
-    const order: boolean[] = [!!fieldOfPhase(f, 1), has('treffpunkt'), has('hq'), ...(exit ? [has('exit')] : [])];
+    const order: boolean[] = [!!fieldOfPhase(f, 1), has('treffpunkt'), ...(exit ? [has('exit')] : [])];
     const open = order.findIndex((d) => !d);
-    setStepIdx(open >= 0 ? open : (exit ? 8 : 7) - 1);
+    setStepIdx(open >= 0 ? open : (exit ? 6 : 5) - 1);
   }, [loaded, config]);
 
   // Symbole auf Gefahrenzonen
@@ -243,15 +244,14 @@ export default function MapEditorPage() {
     if (!b) return;
     b.clearLayers();
     for (const f of features) if (f.properties.kind === 'sperrzone') b.addLayer(zoneBadge(f));
-    // Gestrichelte Kreise: Mindestabstand um das HQ, Ankunftsradius um den Exit.
+    // Gestrichelter Kreis: Ankunftsradius um den Fluchtpunkt.
     for (const f of features) {
       if (f.geometry.type !== 'Point' || !config) continue;
       const [lng, lat] = (f.geometry as GeoJSON.Point).coordinates;
       const k = f.properties.kind;
-      const r = k === 'hq' ? config.start.hq_min_distance_m : k === 'exit' ? config.exit.radius_m : 0;
+      const r = k === 'exit' ? config.exit.radius_m : 0;
       if (!r) continue;
       const ring = L.circle([lat, lng], { radius: r, color: ZONE_INFO[k].color, weight: 2, dashArray: '6 6', fill: false, interactive: false });
-      if (k === 'hq') ring.bindTooltip(`${r} m Mindestabstand zum Treffpunkt`, { direction: 'top', opacity: 0.8 });
       b.addLayer(ring);
     }
   }, [features, config]);
@@ -326,7 +326,7 @@ export default function MapEditorPage() {
         setMsg({ ok: false, text: `${ZONE_INFO[p.kind].label} muss im Spielfeld liegen. Bitte innerhalb antippen.` });
         return;
       }
-      if (p.kind === 'treffpunkt' || p.kind === 'hq') {
+      if (p.kind === 'treffpunkt') {
         // Nur einen davon: der alte wird ersetzt.
         for (const old of itemsRef.current.filter((x) => x.feature.properties.kind === p.kind)) group.current?.removeLayer(old.layer);
         setItems((prev) => prev.filter((x) => x.feature.properties.kind !== p.kind));
@@ -367,7 +367,6 @@ export default function MapEditorPage() {
     // Pflicht-Schritte: nach dem Setzen gleich weiter zum nächsten Schritt.
     if (p.kind === 'spielfeld' && !p.phase && !field1) setStepIdx(1);
     if (p.kind === 'treffpunkt') setStepIdx(2);
-    if (p.kind === 'hq') setStepIdx(3);
   };
 
   function startDraw(p: Pending) {
@@ -517,8 +516,7 @@ export default function MapEditorPage() {
     try {
       const list = itemsRef.current.map((it) => {
         const { id: _id, released: _r, visible_from: _v, ...props } = it.feature.properties;
-        // Punkte: Radius kommt aus den Regeln (HQ-Kreis, Exit-Radius).
-        if (props.kind === 'hq') props.radius_m = config.start.hq_radius_m;
+        // Punkte: Radius kommt aus den Regeln (Fluchtpunkt-Radius).
         if (props.kind === 'exit') props.radius_m = config.exit.radius_m;
         if (props.kind === 'treffpunkt') props.radius_m = 30;
         return { type: 'Feature' as const, geometry: it.feature.geometry, properties: props };
@@ -586,9 +584,9 @@ export default function MapEditorPage() {
     }
   }
 
-  /** Punkt (Treffpunkt, HQ, Exit) setzen; Treffpunkt und HQ gibt es nur einmal. */
+  /** Punkt (Startpunkt, Fluchtpunkt) setzen; den Startpunkt gibt es nur einmal. */
   function placePoints(kind: ZoneKind, coords: GeoJSON.Position[], radius: number) {
-    const replace = kind === 'treffpunkt' || kind === 'hq';
+    const replace = kind === 'treffpunkt';
     if (replace) for (const old of itemsRef.current.filter((x) => x.feature.properties.kind === kind)) group.current?.removeLayer(old.layer);
     const added = coords.map((c) => addItem({ type: 'Feature', geometry: { type: 'Point', coordinates: c }, properties: { kind, name: '', radius_m: radius } }));
     const next = [...itemsRef.current.filter((x) => !(replace && x.feature.properties.kind === kind)), ...added];
@@ -628,13 +626,6 @@ export default function MapEditorPage() {
     return pt;
   }
 
-  function autoHq(meet?: GeoJSON.Position | null) {
-    const f = fieldOfPhase(itemsRef.current.map((x) => x.feature), 1);
-    const from = meet ?? meetPoint() ?? (f ? middleOf(f) : null);
-    if (!from || !config) return;
-    placePoints('hq', [pointAtDistance(from, config.start.hq_min_distance_m + 50, f, blockedArea())], 100);
-  }
-
   function autoExits(n: number, meet?: GeoJSON.Position | null) {
     const feats = itemsRef.current.map((x) => x.feature);
     const f = fieldOfPhase(feats, phases) ?? fieldOfPhase(feats, 1);
@@ -647,10 +638,9 @@ export default function MapEditorPage() {
 
   function autoPoints() {
     const meet = autoMeet();
-    autoHq(meet);
     if (config?.exit.enabled) autoExits(3, meet);
-    setMsg({ ok: true, text: 'Treffpunkt, HQ' + (config?.exit.enabled ? ' und 3 Fluchtpunkt-Kandidaten' : '') + ' gesetzt. Zum Verschieben antippen und ziehen.' });
-    setStepIdx(config?.exit.enabled ? 4 : 3);
+    setMsg({ ok: true, text: 'Startpunkt' + (config?.exit.enabled ? ' und 3 Fluchtpunkt-Kandidaten' : '') + ' gesetzt. Zum Verschieben antippen und ziehen.' });
+    setStepIdx(config?.exit.enabled ? 3 : 2);
   }
 
   function goStep(i: number) {
@@ -672,7 +662,7 @@ export default function MapEditorPage() {
   const rec = recommendedKm2PerPlayer(config.game.duration_minutes);
   const issues = checkMap({
     features, exitEnabled: config.exit.enabled && config.win.mode !== 'letzter_ueberlebender', phases,
-    autoShrink: shrink === 'auto', manualShrink: shrink === 'manuell', hqMinDistanceM: config.start.hq_min_distance_m,
+    autoShrink: shrink === 'auto', manualShrink: shrink === 'manuell',
     players, durationMinutes: config.game.duration_minutes,
   });
   const sticking = field1 ? items.filter((it) => INSIDE_FIELD.includes(it.feature.properties.kind) && isArea(it.feature) && outsideShare(asArea(it.feature), field1) > 0.01) : [];
@@ -681,8 +671,7 @@ export default function MapEditorPage() {
   const draw = (p: Pending) => () => startDraw(p);
   const steps: { id: string; icon: string; title: string; text: string; done: boolean; optional?: boolean }[] = [
     { id: 'feld', icon: '🟩', title: 'Spielfeld', text: 'Der Bereich, in dem gespielt wird. Alle anderen Zonen liegen darin.', done: !!field1 },
-    { id: 'treff', icon: '📍', title: 'Treffpunkt', text: 'Hier sammeln sich alle vor dem Start. Muss im Spielfeld liegen.', done: has('treffpunkt') },
-    { id: 'hq', icon: '🚓', title: 'HQ', text: `Hier warten die Hunter während des Vorsprungs. Mindestens ${config.start.hq_min_distance_m} m vom Treffpunkt entfernt.`, done: has('hq') },
+    { id: 'treff', icon: '📍', title: 'Startpunkt', text: 'Hier starten alle, Spieler und Hunter. Die Spieler laufen zuerst los, die Hunter warten hier, bis der Vorsprung vorbei ist. Muss im Spielfeld liegen.', done: has('treffpunkt') },
     ...(config.exit.enabled ? [{ id: 'exit', icon: '🏁', title: 'Fluchtpunkt', text: 'Mehrere Kandidaten möglich. Einer wird zufällig gewählt und erst gegen Schluss verraten.', done: has('exit') }] : []),
     { id: 'klein', icon: '⏳', title: 'Kleiner werden', text: 'Soll das Spielfeld im Lauf des Spiels kleiner werden? Neue Grenzen werden vorher angekündigt und gestrichelt gezeigt.', done: shrink !== 'aus', optional: true },
     { id: 'gefahr', icon: '⚠️', title: 'Gefahren', text: 'Orte, die nie betreten werden dürfen: Autobahn, Gleise, Gewässer, Schulen, Baustellen. Sie werden rot schraffiert mit Warnsymbol gezeigt, und Spieler werden beim Annähern gewarnt.', done: has('sperrzone'), optional: true },
@@ -697,7 +686,7 @@ export default function MapEditorPage() {
       { label: 'Gross', km2: n * rec[1] },
     ];
   })();
-  const legend = (['spielfeld', 'sperrzone', 'treffpunkt', 'hq', 'exit'] as ZoneKind[]).filter((k) => k === 'spielfeld' || has(k));
+  const legend = (['spielfeld', 'sperrzone', 'treffpunkt', 'exit'] as ZoneKind[]).filter((k) => k === 'spielfeld' || has(k));
 
   return (
     <div className="app wide map-editor">
@@ -708,7 +697,7 @@ export default function MapEditorPage() {
       </div>
       {setup && editable && (
         <div className="notice" style={{ marginBottom: 8 }}>
-          <strong>Letzter Schritt: das Spielfeld.</strong> Zeichne, wo gespielt wird, und setze Treffpunkt und HQ. Danach bekommst du den Code, mit dem deine Freunde beitreten.
+          <strong>Letzter Schritt: das Spielfeld.</strong> Zeichne, wo gespielt wird, und setze den Startpunkt. Danach bekommst du den Code, mit dem deine Freunde beitreten.
         </div>
       )}
       {!editable && <div className="notice">Das Spiel läuft: die Karte ist gesperrt.</div>}
@@ -788,15 +777,8 @@ export default function MapEditorPage() {
 
           {cur.id === 'treff' && (
             <>
-              <button className="primary" onClick={autoPoints} disabled={!field1}>✨ Treffpunkt, HQ{config.exit.enabled ? ' und Fluchtpunkte' : ''} automatisch setzen</button>
-              <button onClick={draw({ kind: 'treffpunkt', tool: 'Marker' })} disabled={!field1}>📍 Treffpunkt selbst antippen</button>
-            </>
-          )}
-
-          {cur.id === 'hq' && (
-            <>
-              <button className="primary" onClick={() => autoHq()} disabled={!field1}>✨ HQ automatisch setzen ({config.start.hq_min_distance_m + 50} m vom Treffpunkt)</button>
-              <button onClick={draw({ kind: 'hq', tool: 'Marker' })}>🚓 HQ selbst antippen</button>
+              <button className="primary" onClick={autoPoints} disabled={!field1}>✨ Startpunkt{config.exit.enabled ? ' und Fluchtpunkte' : ''} automatisch setzen</button>
+              <button onClick={draw({ kind: 'treffpunkt', tool: 'Marker' })} disabled={!field1}>📍 Startpunkt selbst antippen</button>
             </>
           )}
 

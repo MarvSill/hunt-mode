@@ -90,16 +90,18 @@ export interface ZoneProps {
   visible_from?: string | null;
 }
 
-/** Es gibt nur ein Spielfeld, dazu Gefahrenzonen und Punkte (Treffpunkt, HQ, Fluchtpunkt). */
-export const ZONE_KINDS = ['spielfeld', 'sperrzone', 'exit', 'hq', 'treffpunkt'] as const;
+/**
+ * Es gibt nur ein Spielfeld, dazu Gefahrenzonen und Punkte: den Startpunkt (für alle gleich) und Fluchtpunkt-Kandidaten.
+ * Intern heisst der Startpunkt `treffpunkt`; den Wartebereich der Hunter (`hq`) legt die Datenbank selbst dorthin.
+ */
+export const ZONE_KINDS = ['spielfeld', 'sperrzone', 'exit', 'treffpunkt'] as const;
 export type ZoneKind = (typeof ZONE_KINDS)[number];
 
 export const ZONE_INFO: Record<ZoneKind, { label: string; color: string; point: boolean; help: string }> = {
   spielfeld: { label: 'Spielfeld', color: '#3fb950', point: false, help: 'Wo gespielt wird. Kann im Lauf des Spiels kleiner werden.' },
   sperrzone: { label: 'Sperrzone', color: '#f85149', point: false, help: 'Betreten verboten (z. B. Bahnhof, Schule).' },
   exit: { label: 'Fluchtpunkt-Kandidat', color: '#f0f6fc', point: true, help: 'Einer davon wird zufällig der Fluchtpunkt.' },
-  hq: { label: 'HQ', color: '#f85149', point: true, help: 'Startort der Hunter.' },
-  treffpunkt: { label: 'Treffpunkt', color: '#58a6ff', point: true, help: 'Treffpunkt vor dem Start.' },
+  treffpunkt: { label: 'Startpunkt', color: '#58a6ff', point: true, help: 'Hier starten alle, Spieler und Hunter.' },
 };
 
 async function rpc<T = unknown>(fn: string, args: Record<string, unknown>): Promise<T> {

@@ -126,3 +126,8 @@ Abweichungen von der Spezifikation und Annahmen, wo sie nichts festlegt.
 - "Teambildungs-Alarm" heisst jetzt Nähe-Alarm.
 - Jede Einstellung beim Erstellen hat ein ⓘ mit Erklärung (`QUICK_HELP` in `src/shared/help.ts`).
 - Spiel erstellen hat jetzt 4 Schritte: Name, Spielart, Anpassen, Karte. Nach "Weiter zur Karte" öffnet sich der Karten-Editor im Einrichtungs-Modus (`/spiel/<id>/karte?neu=1`); "Fertig" speichert und führt in die Lobby. Den Code zum Einladen zeigt die Lobby erst, wenn ein Spielfeld gezeichnet ist.
+
+## Runde 9: ein Startpunkt, keine Zentrale, genaue Pings (Migration 0016)
+- Spieler und Hunter starten am selben Startpunkt (Zone `treffpunkt`, angezeigt als "Startpunkt"). Ein eigenes HQ gibt es nicht mehr; `save_map` legt den Wartebereich der Hunter (`hq`, Radius `start.hq_radius_m`) automatisch an den Startpunkt. Dort warten die Hunter während des Vorsprungs. Der Startpunkt ist Pflicht.
+- Die Rolle "Zentrale" ist entfernt (wird zu Hunter). Alle Hunter jagen gemeinsam unterwegs. "Zentrale muss besetzt sein" entfällt.
+- Pings zeigen immer den genauen Ort: die Einstellung "Ungenauigkeit" (`ping.precision_blur_m`) ist entfernt.

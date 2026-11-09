@@ -122,7 +122,7 @@ export default function PlayPage() {
   const markers = useMemo<Marker[]>(() => {
     if (!s) return [];
     const list: Marker[] = [];
-    const tf = role === 'hunter' || role === 'zentrale';
+    const tf = role === 'hunter';
     const fade = s.game.config.ping.fade_after_minutes * 60000;
     for (const p of s.pings) {
       if (p.lat == null || p.lng == null) continue;
@@ -179,7 +179,7 @@ export default function PlayPage() {
     : g.status === 'finale' ? `Fluchtpunkt bis ${clock(g.deadline_at, g.timezone)} · ${countdown(g.deadline_at, now)}`
     : ended ? 'Spiel beendet' : `Ende in ${countdown(g.ends_at, now)}`;
 
-  const roleLabel = role === 'spieler' ? 'Spieler' : role === 'zuschauer' ? 'Zuschauer' : role === 'zentrale' ? 'Zentrale' : 'Hunter';
+  const roleLabel = role === 'spieler' ? 'Spieler' : role === 'zuschauer' ? 'Zuschauer' : 'Hunter';
   const canSos = !ended && role !== 'zuschauer' && s.me.state !== 'notfall';
   const unseen = tab === 'meldungen' ? 0 : s.notifications.length - seenNotes;
   function openTab(t: Tab) {
@@ -263,7 +263,7 @@ export default function PlayPage() {
           <div style={{ display: tab === 'aktionen' ? 'block' : 'none' }}>
             {role === 'spieler' && <PlayerPanel s={s} now={now} act={act} pos={pos} />}
             {role === 'spieler' && <AlarmSettingsBox />}
-            {(role === 'hunter' || role === 'zentrale') && <HunterPanel s={s} now={now} act={act} pos={pos} />}
+            {role === 'hunter' && <HunterPanel s={s} now={now} act={act} pos={pos} />}
             {role === 'zuschauer' && <div className="card muted">Du schaust zu. Positionen siehst du mit {g.config.spectator.delay_minutes} min Verzögerung.</div>}
             {g.host && (
               <Section title="Spiel steuern" badge={g.is_test ? <span className="badge">Probelauf</span> : undefined}>
