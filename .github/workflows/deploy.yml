@@ -11,7 +11,7 @@ on:
     - cron: '17 5 */3 * *'
 
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
@@ -22,6 +22,9 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      supabase_url: ${{ steps.supabase.outputs.url }}
+      supabase_key: ${{ steps.supabase.outputs.key }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -62,3 +65,65 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+
+  # Echte Android-App (APK) mit Standort im Hintergrund. Download: Releases > "Android-App".
+  android:
+    needs: build
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - run: npm ci
+      - name: Web-Teil für die App bauen
+        env:
+          VITE_NATIVE: '1'
+          VITE_BASE: /
+          VITE_SUPABASE_URL: ${{ needs.build.outputs.supabase_url }}
+          VITE_SUPABASE_ANON_KEY: ${{ needs.build.outputs.supabase_key }}
+        run: |
+          npx vite build
+          npx cap sync android
+      - name: Signatur-Schlüssel
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/hunt-mode.p12"
+            echo "HM_KEYSTORE_FILE=$RUNNER_TEMP/hunt-mode.p12" >> "$GITHUB_ENV"
+            echo "HM_KEYSTORE_PASSWORD=$KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
+            echo "HM_KEY_ALIAS=$KEY_ALIAS" >> "$GITHUB_ENV"
+          else
+            echo "::warning::Kein Signatur-Schlüssel hinterlegt: es wird eine Test-Version gebaut (Updates brauchen dann eine Neuinstallation)."
+          fi
+      - name: APK bauen
+        env:
+          HM_VERSION_CODE: ${{ github.run_number }}
+          HM_VERSION_NAME: 1.0.${{ github.run_number }}
+        run: |
+          cd android
+          chmod +x gradlew
+          if [ -n "$HM_KEYSTORE_FILE" ]; then
+            ./gradlew assembleRelease --no-daemon
+            cp app/build/outputs/apk/release/app-release.apk ../hunt-mode.apk
+          else
+            ./gradlew assembleDebug --no-daemon
+            cp app/build/outputs/apk/debug/app-debug.apk ../hunt-mode.apk
+          fi
+      - name: Als Download bereitstellen
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view android-app >/dev/null 2>&1 || gh release create android-app --title "Android-App" --notes "Hunt Mode für Android. Auf dem Handy herunterladen und installieren (einmal „Installation aus unbekannten Quellen“ erlauben). Neuere Versionen einfach über die alte installieren." --latest
+          gh release upload android-app hunt-mode.apk --clobber
+          gh release edit android-app --notes "Hunt Mode für Android, Version 1.0.${{ github.run_number }} ($(date -u +%Y-%m-%d)). Auf dem Handy herunterladen und installieren (einmal „Installation aus unbekannten Quellen“ erlauben). Neuere Versionen einfach über die alte installieren."
+

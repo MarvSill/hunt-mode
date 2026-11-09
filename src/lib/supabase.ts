@@ -1,6 +1,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { t } from '../i18n';
 import { translateServer } from '../i18n/server';
+import { isNative, PUBLIC_URL } from './native';
 
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const key = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
@@ -29,5 +30,7 @@ export function errorText(error: unknown): string {
 
 /** Absolute Adresse innerhalb der App, auch wenn sie unter einem Unterpfad läuft. */
 export function appUrl(path = '/'): string {
+  // In der Handy-App zeigen Links auf die öffentliche Web-App (sonst wäre es "localhost").
+  if (isNative) return `${PUBLIC_URL}${path}`;
   return `${window.location.origin}${import.meta.env.BASE_URL.replace(/\/$/, '')}${path}`;
 }

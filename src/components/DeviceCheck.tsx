@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { api } from '../lib/engine';
 import { errorText } from '../lib/supabase';
 import { t } from '../i18n';
+import { isNative } from '../lib/native';
 
 interface Result { gps: boolean; accuracy: number | null; battery: number | null; notifications: string; wakeLock: boolean; camera: boolean; clock_ms: number | null }
 
@@ -76,7 +77,7 @@ export default function DeviceCheck({ gameId, minBattery }: { gameId: string; mi
         </ul>
       )}
       {err && <div className="notice error">{err}</div>}
-      <div className="muted tiny">{t('Während des Spiels die App offen lassen: der Standort wird nur gesendet, solange die App sichtbar ist.')}</div>
+      <div className="muted tiny">{isNative ? t('Der Standort wird auch im Hintergrund und bei gesperrtem Bildschirm geteilt. Erlaube den Standort auf „Immer“.') : t('Während des Spiels die App offen lassen: der Standort wird nur gesendet, solange die App sichtbar ist.')}</div>
     </div>
   );
 }

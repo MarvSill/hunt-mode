@@ -1,0 +1,9 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Hunt Mode</string>
+    <string name="title_activity_main">Hunt Mode</string>
+    <string name="package_name">ch.huntmode.app</string>
+    <string name="custom_url_scheme">ch.huntmode.app</string>
+    <string name="capacitor_background_geolocation_notification_channel_name">Standort im Spiel</string>
+    <string name="capacitor_background_geolocation_notification_color">#3fb950</string>
+</resources>
