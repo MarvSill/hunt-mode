@@ -370,3 +370,15 @@ details.acc > .body { padding: 4px 16px 16px; display: flex; flex-direction: col
 .state-hero .big { font-size: 40px; font-weight: 900; font-variant-numeric: tabular-nums; line-height: 1.1; }
 button.primary:disabled, .button.primary:disabled { background: var(--surface-3); color: var(--muted); box-shadow: none; opacity: 1; }
 details.acc > summary .chev { transform-origin: 50% 50%; }
+
+/* Spielkarte (MapLibre) */
+.hm-mk { border: 2px solid #fff; box-shadow: 0 0 0 2px rgba(0,0,0,.35), 0 3px 8px rgba(0,0,0,.35); cursor: pointer; }
+.hm-mk.pulse { animation: hm-ring 1.6s infinite; }
+.hm-mk.sos { animation: hm-ring-red 1s infinite; }
+@keyframes hm-ring { 0% { box-shadow: 0 0 0 0 rgba(240,136,62,.7), 0 3px 8px rgba(0,0,0,.35); } 70% { box-shadow: 0 0 0 16px rgba(240,136,62,0), 0 3px 8px rgba(0,0,0,.35); } 100% { box-shadow: 0 0 0 0 rgba(240,136,62,0), 0 3px 8px rgba(0,0,0,.35); } }
+@keyframes hm-ring-red { 0% { box-shadow: 0 0 0 0 rgba(255,0,0,.8); } 70% { box-shadow: 0 0 0 22px rgba(255,0,0,0); } 100% { box-shadow: 0 0 0 0 rgba(255,0,0,0); } }
+.hm-map-buttons button { width: 36px; height: 36px; font-size: 17px; font-weight: 700; color: #1f2328; }
+.map-fullscreen .maplibregl-map { height: 100dvh !important; border-radius: 0; }
+.maplibregl-popup-content { background: var(--surface, #161b22); color: var(--text, #e6edf3); border-radius: 10px; padding: 8px 10px; font-size: 14px; box-shadow: 0 6px 20px rgba(0,0,0,.4); }
+.maplibregl-popup-tip { border-top-color: var(--surface, #161b22) !important; border-bottom-color: var(--surface, #161b22) !important; }
+.maplibregl-ctrl-attrib { font-size: 10px; }
