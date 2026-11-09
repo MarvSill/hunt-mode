@@ -42,14 +42,15 @@ describe('geo', () => {
   });
 
   it('prüft die Karte', () => {
-    const base = { exitEnabled: true, phases: 1, autoShrink: false, manualShrink: false, hqMinDistanceM: 0, players: 5, durationMinutes: 180 };
+    const base = { exitEnabled: true, phases: 1, autoShrink: false, manualShrink: false, players: 5, durationMinutes: 180 };
     expect(checkMap({ ...base, features: [] }).some((i) => i.text.includes('Spielfeld'))).toBe(true);
-    const ok = [zone('spielfeld', field), point('treffpunkt', 8.51, 47.31), point('hq', 8.505, 47.305), point('exit', 8.515, 47.315)];
+    const ok = [zone('spielfeld', field), point('treffpunkt', 8.51, 47.31), point('exit', 8.515, 47.315), point('exit', 8.505, 47.315), point('exit', 8.515, 47.305), point('exit', 8.505, 47.305)];
     expect(checkMap({ ...base, features: ok }).filter((i) => i.level === 'error')).toEqual([]);
     const bad = [...ok, zone('sperrzone', square(8.509, 47.309, 0.002))];
-    expect(checkMap({ ...base, features: bad }).some((i) => i.text.includes('Sperrzone'))).toBe(true);
+    expect(checkMap({ ...base, features: bad }).some((i) => i.text.includes('Gefahrenzone'))).toBe(true);
     const out = [zone('spielfeld', field), point('treffpunkt', 9, 48), point('exit', 8.51, 47.31)];
-    expect(checkMap({ ...base, features: out }).some((i) => i.text.includes('Treffpunkt liegt ausserhalb'))).toBe(true);
+    expect(checkMap({ ...base, features: out }).some((i) => i.text.includes('Startpunkt liegt ausserhalb'))).toBe(true);
+    expect(checkMap({ ...base, features: out }).some((i) => i.text.includes('mindestens 4 Fluchtpunkt'))).toBe(true);
   });
 
   it('erstellt Spielfeld und Punkte automatisch', () => {

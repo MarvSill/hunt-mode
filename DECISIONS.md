@@ -126,3 +126,21 @@ Abweichungen von der Spezifikation und Annahmen, wo sie nichts festlegt.
 - "Teambildungs-Alarm" heisst jetzt Nähe-Alarm.
 - Jede Einstellung beim Erstellen hat ein ⓘ mit Erklärung (`QUICK_HELP` in `src/shared/help.ts`).
 - Spiel erstellen hat jetzt 4 Schritte: Name, Spielart, Anpassen, Karte. Nach "Weiter zur Karte" öffnet sich der Karten-Editor im Einrichtungs-Modus (`/spiel/<id>/karte?neu=1`); "Fertig" speichert und führt in die Lobby. Den Code zum Einladen zeigt die Lobby erst, wenn ein Spielfeld gezeichnet ist.
+
+## Runde 9: ein Startpunkt, keine Zentrale, genaue Pings (Migration 0016)
+- Spieler und Hunter starten am selben Startpunkt (Zone `treffpunkt`, angezeigt als "Startpunkt"). Ein eigenes HQ gibt es nicht mehr; `save_map` legt den Wartebereich der Hunter (`hq`, Radius `start.hq_radius_m`) automatisch an den Startpunkt. Dort warten die Hunter während des Vorsprungs. Der Startpunkt ist Pflicht.
+- Die Rolle "Zentrale" ist entfernt (wird zu Hunter). Alle Hunter jagen gemeinsam unterwegs. "Zentrale muss besetzt sein" entfällt.
+- Pings zeigen immer den genauen Ort: die Einstellung "Ungenauigkeit" (`ping.precision_blur_m`) ist entfernt.
+- Joker Regeneration: solange er wirkt, wird der Spieler nicht gepingt und keine Blitzjagd auf ihn ist möglich. Einsetzen geht nicht, solange irgendeine Blitzjagd läuft.
+- Joker Hunter-Standorte: beim Einsetzen einmaliger Ping aller Hunter (Standort in diesem Moment, nicht live). Die Punkte bleiben mit Uhrzeit bis Spielende auf der Karte des Spielers.
+- Spielfeld verlassen: beim 1. und 2. Mal Alarm (kritisch, mit Klingelton) und Countdown (`out_of_bounds.grace_seconds`, Standard 60 s), groß in der Spieler-Ansicht. Ist der Spieler danach nicht zurück, sehen ihn die Hunter live. Ab dem 3. Verlassen sofort live ohne Countdown (`participants.out_exits`). Das Limit "zu lange draussen = gefangen" bleibt.
+- Gefahrenzone betreten: gleiche Regel wie beim Verlassen des Spielfelds, eigene Zählung (`participants.danger_exits`): 1. und 2. Mal Alarm und Countdown, danach live (Live-Fenster `gefahrenzone`); ab dem 3. Mal sofort live; zu lange drin (`out_of_bounds.max_minutes`) hat dieselbe Folge wie ausserhalb (Standard: gefangen). Gefahrenzonen mit "Überqueren erlaubt" bleiben ausgenommen. "Sperrzone zählt als ausserhalb" entfällt.
+
+## Runde 10: keine Strafen, Fortbewegung, Nähe-Alarm, SOS, Fluchtpunkt (Migration 0017)
+- Keine Strafen: `create_violation` erfasst nichts mehr; die Strafstufen und das Strafen-Kapitel der Regeln sind entfernt. Folgen gibt es nur, wo sie zum Spiel gehören: zu lange ausserhalb, in einer Gefahrenzone oder verschanzt = gefangen. Ein Hunter, der den Startpunkt während des Vorsprungs verlässt, bekommt nur einen Alarm (höchstens einmal pro Minute).
+- Fortbewegung: zwei Schalter, "ÖV, Taxi und Auto" und "Velo und Trottinett". Kein Anmelden, kein Live-Standort, keine Erkennung (`check_transport` tut nichts). Es gilt Fairplay.
+- Nähe-Alarm: beide Spieler bekommen einen Alarm mit dem Standort des anderen und einen Countdown (`proximity.warn_minutes`, Standard 2 min). Sind sie danach noch zu nahe, bekommen die Hunter den Ping beider. Ab der Bekanntgabe des Fluchtpunkts aus.
+- SOS: unterbricht das ganze Spiel (`games.paused_at`), Alarm an alle mit Standort; alle sehen offene Notfälle. Ist kein Notfall mehr offen, geht das Spiel weiter (`resume_internal`), die unterbrochene Zeit wird angehängt. Den Notfallkontakt sehen weiterhin nur Hunter und Host. Das ist die einzige Unterbrechung im Spiel.
+- Fluchtpunkt: mindestens 4 Kandidaten. Alle bleiben während des Spiels verborgen; erst bei der Bekanntgabe wählt die App zufällig einen (bevorzugt im aktuellen Spielfeld). Nur die Spieler sehen ihn, alle denselben; die Hunter nie. Die automatische Verkleinerung zielt deshalb auf die Mitte des Spielfelds.
+- Verkleinerung ohne Extra-Zeit: die Ankündigung reicht, danach gilt sofort die Regel "Spielfeld verlassen".
+- Verschanzen bleibt (Frage "Bist du verschanzt?" oder selbst melden, Uhr, danach gefangen); die Sperre für die Rückkehr an denselben Ort entfällt.

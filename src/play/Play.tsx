@@ -60,7 +60,9 @@ export default function PlayPage() {
     const crit = list.some((n) => n.priority === 'kritisch');
     const high = list.some((n) => n.priority !== 'normal');
     // Spieler: bei jedem Ping und jeder Blitzjagd klingeln (höchstens alle 3 s, falls mehrere gleichzeitig kommen).
-    const alarm = roleRef.current === 'spieler' ? alarmKindOf(list.map((n) => n.kind)) : null;
+    // Notfall: bei allen klingeln, egal welche Rolle.
+    const sos = list.some((n) => n.kind === 'emergency');
+    const alarm = sos ? 'blitzjagd' : roleRef.current === 'spieler' ? alarmKindOf(list.map((n) => n.kind)) : null;
     if (alarm) {
       if (Date.now() - lastAlarm.current > 3000) {
         lastAlarm.current = Date.now();
@@ -122,7 +124,7 @@ export default function PlayPage() {
   const markers = useMemo<Marker[]>(() => {
     if (!s) return [];
     const list: Marker[] = [];
-    const tf = role === 'hunter' || role === 'zentrale';
+    const tf = role === 'hunter';
     const fade = s.game.config.ping.fade_after_minutes * 60000;
     for (const p of s.pings) {
       if (p.lat == null || p.lng == null) continue;
@@ -147,7 +149,7 @@ export default function PlayPage() {
     for (const e of s.me.effects) {
       if (e.type === 'hunter_snapshot') {
         for (const h of (e.payload.hunters as { name: string; lat: number; lng: number; at?: string }[]) ?? []) {
-          list.push({ id: `hs${h.name}`, lat: h.lat, lng: h.lng, color: '#f85149', kind: 'hunter', label: `Hunter ${h.name}${h.at ? ` · Stand ${clock(h.at)}` : ''}` });
+          list.push({ id: `hs${e.id}${h.name}`, lat: h.lat, lng: h.lng, color: '#f85149', kind: 'hunter', label: `Hunter ${h.name} · Ping ${clock(h.at)} (nicht live)` });
         }
       }
     }
@@ -175,11 +177,11 @@ export default function PlayPage() {
   const ended = ['beendet', 'archiviert'].includes(g.status);
   const players = s.participants.filter((p) => p.role === 'spieler');
   const live = ['vorsprung', 'laeuft', 'finale'].includes(g.status);
-  const headline = g.status === 'vorsprung' ? `Jagd in ${countdown(g.hunt_start_at, now)}`
+  const headline = g.paused ? 'UNTERBROCHEN: NOTFALL' : g.status === 'vorsprung' ? `Jagd in ${countdown(g.hunt_start_at, now)}`
     : g.status === 'finale' ? `Fluchtpunkt bis ${clock(g.deadline_at, g.timezone)} · ${countdown(g.deadline_at, now)}`
     : ended ? 'Spiel beendet' : `Ende in ${countdown(g.ends_at, now)}`;
 
-  const roleLabel = role === 'spieler' ? 'Spieler' : role === 'zuschauer' ? 'Zuschauer' : role === 'zentrale' ? 'Zentrale' : 'Hunter';
+  const roleLabel = role === 'spieler' ? 'Spieler' : role === 'zuschauer' ? 'Zuschauer' : 'Hunter';
   const canSos = !ended && role !== 'zuschauer' && s.me.state !== 'notfall';
   const unseen = tab === 'meldungen' ? 0 : s.notifications.length - seenNotes;
   function openTab(t: Tab) {
@@ -205,7 +207,7 @@ export default function PlayPage() {
         <div className="overlay" role="dialog" aria-label="Notfall melden" onClick={() => setSosAsk(false)}>
           <div className="card stack emergency-card" style={{ maxWidth: 440, width: '100%', background: 'var(--surface)' }} onClick={(e) => e.stopPropagation()}>
             <strong style={{ fontSize: 20 }}>🚨 Notfall melden?</strong>
-            <span className="small">Alle Hunter werden sofort alarmiert und sehen deinen Standort und Notfallkontakt. Die Jagd auf dich wird ausgesetzt, das Spiel läuft für die anderen weiter. Bei einem Versehen kannst du den Notfall danach wieder beenden.</span>
+            <span className="small">Das ganze Spiel wird sofort unterbrochen. Alle werden alarmiert, sehen deinen Standort und kommen helfen. Die Hunter sehen auch deinen Notfallkontakt. Bei einem Versehen kannst du den Notfall danach wieder beenden; dann geht das Spiel weiter.</span>
             <button className="danger block big" onClick={() => {
               setSosAsk(false);
               void act(() => api.emergency(g.id, pos?.lat, pos?.lng), 'Notfall gemeldet. Bei Gefahr: 117 (Polizei) oder 112 anrufen.');
@@ -226,6 +228,11 @@ export default function PlayPage() {
         ))}
       </div>
 
+      {g.paused && (
+        <div className="notice error pulse" role="alert" style={{ marginBottom: 8 }}>
+          <strong>Spiel unterbrochen.</strong> {g.pause_reason ?? 'Notfall'}. Geht zum Standort auf der Karte und helft. Sobald der Notfall beendet ist, geht das Spiel weiter.
+        </div>
+      )}
       {tracking && tracker.status !== 'ok' && (
         <div className="notice error" style={{ marginBottom: 8 }}>
           {tracker.status === 'verweigert' ? 'Standort ist blockiert. Erlaube den Standort in den Browser-Einstellungen, sonst kannst du nicht mitspielen.'
@@ -263,7 +270,7 @@ export default function PlayPage() {
           <div style={{ display: tab === 'aktionen' ? 'block' : 'none' }}>
             {role === 'spieler' && <PlayerPanel s={s} now={now} act={act} pos={pos} />}
             {role === 'spieler' && <AlarmSettingsBox />}
-            {(role === 'hunter' || role === 'zentrale') && <HunterPanel s={s} now={now} act={act} pos={pos} />}
+            {role === 'hunter' && <HunterPanel s={s} now={now} act={act} pos={pos} />}
             {role === 'zuschauer' && <div className="card muted">Du schaust zu. Positionen siehst du mit {g.config.spectator.delay_minutes} min Verzögerung.</div>}
             {g.host && (
               <Section title="Spiel steuern" badge={g.is_test ? <span className="badge">Probelauf</span> : undefined}>

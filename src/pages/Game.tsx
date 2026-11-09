@@ -27,8 +27,8 @@ import { getPreset } from '../shared/presets';
 import { distributeRoles, lobbyIssues } from '../shared/roles';
 import { validateConfig } from '../shared/validation';
 
-const ASSIGNABLE: Role[] = ['offen', 'spieler', 'hunter', 'zentrale', 'zuschauer'];
-const WISHABLE: Role[] = ['spieler', 'hunter', 'zentrale', 'zuschauer'];
+const ASSIGNABLE: Role[] = ['offen', 'spieler', 'hunter', 'zuschauer'];
+const WISHABLE: Role[] = ['spieler', 'hunter', 'zuschauer'];
 
 export default function GamePage() {
   const { id } = useParams<{ id: string }>();
@@ -85,7 +85,7 @@ export default function GamePage() {
   const checks = useMemo(() => {
     if (!config) return null;
     const players = roster.filter((r) => r.role === 'spieler');
-    const hunters = roster.filter((r) => r.role === 'hunter' || r.role === 'zentrale');
+    const hunters = roster.filter((r) => r.role === 'hunter');
     const hasMinors = [...players, ...hunters].some((r) => !r.is_adult);
     const validation = validateConfig(config, { players: players.length, hunters: hunters.length, hasMinors });
     const lobby = lobbyIssues(
@@ -171,7 +171,7 @@ export default function GamePage() {
   const unassigned = roster.filter((r) => r.role === 'offen').length;
   const notReady = roster.filter((r) => !r.ready).length;
   const todos = [
-    { done: hasField === true, title: 'Karte zeichnen', text: hasField ? 'Spielfeld ist gesetzt.' : 'Spielfeld, Treffpunkt und HQ festlegen.', action: <Link to={`/spiel/${game.id}/karte`} className="button small">{hasField ? 'Ändern' : 'Zeichnen'}</Link> },
+    { done: hasField === true, title: 'Karte zeichnen', text: hasField ? 'Spielfeld ist gesetzt.' : 'Spielfeld und Startpunkt festlegen.', action: <Link to={`/spiel/${game.id}/karte`} className="button small">{hasField ? 'Ändern' : 'Zeichnen'}</Link> },
     { done: checks.players > 0 && checks.hunters > 0, title: 'Freunde einladen', text: hasField ? `${roster.length - 1} beigetreten · Code ${game.code}` : 'Geht, sobald die Karte steht.', action: hasField ? <button className="small" onClick={share}><Icon name="share" size={18} />Teilen</button> : null },
     { done: roster.length > 1 && unassigned === 0, title: 'Rollen verteilen', text: `${checks.players} Spieler · ${checks.hunters} Hunter${unassigned ? ` · ${unassigned} offen` : ''}`, action: <button className="small" onClick={shuffleRoles}>Zufällig</button> },
     { done: roster.length > 1 && notReady === 0, title: 'Alle bereit', text: notReady ? `${notReady} noch nicht bereit` : 'Alle haben die Regeln gelesen.', action: null },
@@ -219,7 +219,7 @@ export default function GamePage() {
             </div>
           ))}
           {me?.role === 'offen' && (
-            <div className="notice" style={{ marginTop: 8 }}>Wähle unten bei deinem Namen auch deine eigene Rolle: Spieler, Hunter, Zentrale oder Zuschauer.</div>
+            <div className="notice" style={{ marginTop: 8 }}>Wähle unten bei deinem Namen auch deine eigene Rolle: Spieler, Hunter oder Zuschauer.</div>
           )}
         </div>
       )}

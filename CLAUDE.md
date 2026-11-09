@@ -25,7 +25,8 @@ Live: https://marvsill.github.io/hunt-mode/ · Repo: github.com/MarvSill/hunt-mo
 - `scripts/supabase-setup.mjs` richtet Supabase aus der GitHub Action ein.
 
 ## Regeln, die gelten
-- Keine Spielleitung: die App regelt alles, der Host wählt selbst eine Rolle.
+- Keine Spielleitung und keine Zentrale: die App regelt alles, der Host wählt selbst eine Rolle (Spieler, Hunter, Zuschauer).
+- Ein Startpunkt für alle: Spieler laufen los, Hunter warten dort bis Ende Vorsprung. Pings sind immer genau.
 - Das Spiel läuft am Stück: keine Spieltage, keine jagdfreien Zeiten, keine Pause.
 - Begriffe: Hunter-Team, Blitzjagd, Ping, Fluchtpunkt, Nähe-Alarm. Blitzjagden starten nur die Hunter, ohne Zeitlimit.
 - Notfall geht immer an alle Hunter (und den Host); Nummern 117 / 144 / 112.
@@ -33,4 +34,6 @@ Live: https://marvsill.github.io/hunt-mode/ · Repo: github.com/MarvSill/hunt-mo
 - Nur ein Spielfeld (kann kleiner werden) plus Gefahrenzonen; keine weiteren Gebiete. Kein Budget.
 - Joker nur für Spieler (Regeneration, Hunter-Standorte): nach einer eingestellten Spielzeit freigeschaltet, wirken erst beim Einsetzen.
 - Bei jedem Ping und jeder Blitzjagd klingelt das Handy aller Spieler (Ton, Lautstärke, Vibration stellt jeder selbst ein).
-- Standort wird nur gesendet, solange die App offen ist (Browser-Grenze).
+- Keine Strafen. SOS unterbricht das ganze Spiel und alarmiert alle. Fluchtpunkt: min. 4 Kandidaten, Wahl erst bei Bekanntgabe, nur Spieler sehen ihn.
+- Fortbewegung nur erlaubt/verboten (ÖV/Taxi/Auto, Velo/Trottinett), kein Live-Standort.
+- Standort wird nur gesendet, solange die App offen ist (Browser-Grenze). Marvin will Hintergrund-Ortung (native App) – noch offen, immer wieder daran erinnern.

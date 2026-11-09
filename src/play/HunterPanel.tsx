@@ -30,7 +30,7 @@ export default function HunterPanel({ s, now, act, pos }: PanelProps) {
   return (
     <div className="stack">
       {scan && <Scanner onCode={onCode} onClose={() => setScan(false)} />}
-      {g.status === 'vorsprung' && <div className="notice">Vorsprung der Spieler. Die Jagd beginnt in {countdown(g.hunt_start_at, now)}. Bleibt im HQ.</div>}
+      {g.status === 'vorsprung' && <div className="notice">Vorsprung der Spieler. Die Jagd beginnt in {countdown(g.hunt_start_at, now)}. Wartet am Startpunkt.</div>}
       {result && <div className="notice success">{result}</div>}
 
       <button className="primary block big" disabled={!live} onClick={() => setScan(true)}>Fangen (Code scannen)</button>

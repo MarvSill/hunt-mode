@@ -346,7 +346,7 @@ details.acc > .body { padding: 4px 16px 16px; display: flex; flex-direction: col
 .person select { width: auto; min-height: 40px; padding: 6px 28px 6px 10px; font-size: 14px; border-radius: 999px; }
 .role-pill { font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 999px; }
 .role-pill.spieler { background: rgba(52,211,153,.15); color: var(--green); }
-.role-pill.hunter, .role-pill.zentrale { background: rgba(255,77,87,.15); color: var(--red); }
+.role-pill.hunter { background: rgba(255,77,87,.15); color: var(--red); }
 .role-pill.gm { background: rgba(96,165,250,.15); color: var(--blue); }
 .role-pill.offen, .role-pill.zuschauer { background: var(--surface-3); color: var(--muted); }
 .icon-btn { width: 40px; height: 40px; min-height: 40px; padding: 0; border-radius: 12px; flex-shrink: 0; }

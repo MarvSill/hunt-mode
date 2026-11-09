@@ -8,8 +8,8 @@ import Info from './Info';
 import { formatMinutes } from '../shared/format';
 
 export const JOKER_LABELS: Record<string, string> = {
-  regeneration: 'Regeneration (keine Pings)',
-  hunter_erfragen: 'Hunter-Standorte sehen (5 min)',
+  regeneration: 'Regeneration (keine Pings, keine Blitzjagd auf ihn)',
+  hunter_erfragen: 'Hunter-Standorte (einmaliger Ping aller Hunter)',
 };
 
 /**
@@ -76,7 +76,7 @@ export default function QuickSettings({ config, onChange }: Props) {
         <Duration label="Spieldauer (am Stück)" value={g.duration_minutes} min={15} max={20160} onChange={setDuration} />
         <Duration label="Vorsprung der Spieler" value={config.start.head_start_minutes} min={0} max={600}
           onChange={(v) => set('start', 'head_start_minutes', v)} />
-        <Toggle label="Hunter warten im HQ während des Vorsprungs" value={config.start.hunters_must_stay_in_hq}
+        <Toggle label="Hunter warten am Startpunkt während des Vorsprungs" value={config.start.hunters_must_stay_in_hq}
           onChange={(v) => set('start', 'hunters_must_stay_in_hq', v)} />
       </Box>
 
@@ -85,8 +85,6 @@ export default function QuickSettings({ config, onChange }: Props) {
           onChange={(v) => set('ping', 'interval_minutes', v)} />
         <Duration label="Erster Ping nach dem Vorsprung" value={config.ping.first_ping_delay_minutes} min={0} max={lim('ping.first_ping_delay_minutes', 600)}
           onChange={(v) => set('ping', 'first_ping_delay_minutes', v)} />
-        <Stepper label="Ungenauigkeit (m)" value={config.ping.precision_blur_m} min={0} max={1000} step={25}
-          onChange={(v) => set('ping', 'precision_blur_m', v)} />
         <Toggle label="Hunter sehen, wann der nächste Ping kommt" value={config.ping.reveal_schedule_to_taskforce}
           onChange={(v) => set('ping', 'reveal_schedule_to_taskforce', v)} />
       </Box>
@@ -155,9 +153,21 @@ export default function QuickSettings({ config, onChange }: Props) {
         )}
       </Box>
 
+      <Box title="Fortbewegung" icon="🚌" summary={[config.transport.motorized_allowed && 'ÖV/Taxi/Auto', config.transport.bikes_allowed && 'Velo/Trottinett'].filter(Boolean).join(' · ') || 'nur zu Fuss'}>
+        <Toggle label="ÖV, Taxi und Auto erlaubt" value={config.transport.motorized_allowed} onChange={(v) => set('transport', 'motorized_allowed', v)} />
+        <Toggle label="Velo und Trottinett erlaubt" value={config.transport.bikes_allowed} onChange={(v) => set('transport', 'bikes_allowed', v)} />
+        <div className="muted small">Zu Fuss geht immer. Fahrten muss man nicht anmelden, und niemand wird dabei live gezeigt.</div>
+      </Box>
+
       <Box title="Extras" icon="✨" summary={[config.hideout.enabled && 'Verschanzen', config.proximity.enabled && 'Nähe-Alarm', config.spectator.enabled && 'Zuschauer'].filter(Boolean).join(' · ') || 'keine'} info={SETTING_HELP.extras}>
         <Toggle label="Verschanzen-Regel (nicht zu lange am selben Ort)" value={config.hideout.enabled} onChange={(v) => set('hideout', 'enabled', v)} />
         <Toggle label="Alarm, wenn Spieler zusammen laufen" value={config.proximity.enabled} onChange={(v) => set('proximity', 'enabled', v)} />
+        {config.proximity.enabled && (
+          <>
+            <Stepper label="Abstand für den Nähe-Alarm (m)" value={config.proximity.distance_m} min={10} max={2000} step={10} onChange={(v) => set('proximity', 'distance_m', v)} />
+            <Duration label="Zeit zum Auseinandergehen" value={config.proximity.warn_minutes} min={0} max={30} onChange={(v) => set('proximity', 'warn_minutes', v)} />
+          </>
+        )}
         <Toggle label="Zuschauer erlaubt" value={config.spectator.enabled} onChange={(v) => set('spectator', 'enabled', v)} />
       </Box>
     </div>

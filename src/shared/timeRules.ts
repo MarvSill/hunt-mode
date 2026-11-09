@@ -39,7 +39,6 @@ export function phaseLength(c: GameConfig): number {
 const LABELS: Record<string, string> = {
   'zone.shrink_every_minutes': 'Verkleinerung alle',
   'zone.shrink_announce_minutes': 'Ankündigung der Verkleinerung',
-  'zone.shrink_grace_minutes': 'Zeit zum Rauslaufen',
   'ping.interval_minutes': 'Ping-Intervall',
   'ping.first_ping_delay_minutes': 'Erster Ping nach',
   'ping.offset_minutes': 'Ping-Versatz',
@@ -49,8 +48,6 @@ const LABELS: Record<string, string> = {
   'out_of_bounds.max_minutes': 'Limit ausserhalb',
   'hideout.max_minutes': 'Verschanzen-Limit',
   'hideout.stationary_minutes': 'Verschanzen-Erkennung',
-  'hideout.lockout_after_first_entry_minutes': 'Ort gesperrt nach',
-  'transport.live_after_base_minutes': 'Live-Nachlauf nach Fahrt',
   'proximity.active_after_minutes': 'Nähe-Alarm aktiv ab',
   'exit.reveal_minutes_before_end': 'Bekanntgabe des Fluchtpunkts vor Ende',
   'spectator.delay_minutes': 'Zuschauer-Verzögerung',
@@ -78,9 +75,7 @@ export function timeLimits(c: GameConfig): Record<string, TimeLimit> {
     'out_of_bounds.max_minutes': { max: d, reason: game },
     'hideout.max_minutes': { max: Math.max(5, d), reason: game },
     'hideout.stationary_minutes': { max: Math.max(5, c.hideout.max_minutes), reason: `das Verschanzen-Limit nur ${c.hideout.max_minutes} min ist` },
-    'hideout.lockout_after_first_entry_minutes': { max: d, reason: game },
-    'transport.live_after_base_minutes': { max: d, reason: game },
-    'proximity.active_after_minutes': { max: Math.max(0, d - 5), reason: `der Alarm sonst nie aktiv wäre` },
+        'proximity.active_after_minutes': { max: Math.max(0, d - 5), reason: `der Alarm sonst nie aktiv wäre` },
     'exit.reveal_minutes_before_end': { max: d, reason: game },
     'spectator.delay_minutes': { max: Math.max(0, d - 5), reason: `Zuschauer sonst nichts sähen` },
   };
@@ -104,7 +99,6 @@ export function timeLimits(c: GameConfig): Record<string, TimeLimit> {
     }
     const ph = phaseLength(c) || d;
     out['zone.shrink_announce_minutes'] = { max: ph, reason: `eine Phase nur ${durationText(ph)} dauert` };
-    out['zone.shrink_grace_minutes'] = { max: Math.min(120, ph), reason: `eine Phase nur ${durationText(ph)} dauert` };
   }
   return out;
 }

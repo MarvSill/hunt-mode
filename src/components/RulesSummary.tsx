@@ -16,12 +16,17 @@ export function rulesInWords(c: GameConfig): [string, string][] {
   }
   const how = c.catch.method.includes('qr') ? 'den Fang-Code des Spielers scannt' : 'den Spieler berührt und beide bestätigen';
   out.push(['🤚', `Gefangen ist, wer erwischt wird: der Hunter ${how}.`]);
-  out.push(['🗺️', `Wer das Spielfeld verlässt, wird live an die Hunter gezeigt. Nach ${formatMinutes(c.out_of_bounds.max_minutes)} draussen ${c.out_of_bounds.on_timeout === 'disqualify' ? 'ist man raus' : c.out_of_bounds.on_timeout === 'catch' ? 'gilt man als gefangen' : 'gibt es eine Strafe'}.`]);
-  if (c.exit.enabled) out.push(['🏁', `${formatMinutes(c.exit.reveal_minutes_before_end)} vor Schluss wird der Fluchtpunkt verraten. Wer frei dort ankommt, gewinnt.`]);
+  out.push(['🗺️', `Wer das Spielfeld verlässt, bekommt einen Alarm und ${c.out_of_bounds.grace_seconds} Sekunden Zeit zurückzukommen, sonst sehen ihn die Hunter live. Ab dem 3. Verlassen sofort live. Nach ${formatMinutes(c.out_of_bounds.max_minutes)} draussen ${c.out_of_bounds.on_timeout === 'disqualify' ? 'ist man raus' : c.out_of_bounds.on_timeout === 'catch' ? 'gilt man als gefangen' : 'gibt es eine Strafe'}.`]);
+  out.push(['⚠️', `Gefahrenzonen (z. B. Gleise, Strassen) nie betreten. Sonst gilt dasselbe: Alarm, ${c.out_of_bounds.grace_seconds} Sekunden Zeit, dann live; ab dem 3. Mal sofort live.`]);
+  if (c.exit.enabled) out.push(['🏁', `${formatMinutes(c.exit.reveal_minutes_before_end)} vor Schluss erfahren nur die Spieler den Fluchtpunkt (zufällig gewählt). Wer frei dort ankommt, gewinnt. Ab dann dürfen Spieler zusammen sein.`]);
   if (c.joker.enabled && c.joker.types.length) {
     const list = c.joker.types.map((t) => `${JOKER_NAMES[t.type] ?? t.type} nach ${formatMinutes(t.after_minutes)}`).join(', ');
     out.push(['🃏', `Joker für jeden Spieler: ${list}. Freigeschaltete Joker wirken erst, wenn der Spieler sie einsetzt.`]);
   }
+  const moves = [c.transport.motorized_allowed && 'ÖV, Taxi und Auto', c.transport.bikes_allowed && 'Velo und Trottinett'].filter(Boolean);
+  out.push(['🚌', moves.length ? `Erlaubt sind zu Fuss sowie ${moves.join(' und ')}.` : 'Nur zu Fuss: keine Fahrzeuge, kein ÖV.']);
+  if (c.proximity.enabled) out.push(['👥', `Nähe-Alarm: Kommen sich zwei Spieler näher als ${c.proximity.distance_m} m, werden beide gewarnt und haben ${formatMinutes(c.proximity.warn_minutes)} Zeit, sich zu trennen. Sonst bekommen die Hunter ihren Ping.`]);
+  out.push(['🚨', 'Notfall (SOS): Das Spiel wird unterbrochen, und alle werden alarmiert und helfen. Danach geht es weiter, die Zeit wird angehängt.']);
   if (c.hideout.enabled) out.push(['🏠', `Verschanzen: höchstens ${formatMinutes(c.hideout.max_minutes)} am selben Ort.`]);
   return out;
 }

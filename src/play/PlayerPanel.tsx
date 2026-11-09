@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { api, clock, countdown, ITEM_HELP, ITEM_LABELS, PENALTY_LABELS, TRANSPORT_LABELS } from '../lib/engine';
+import { api, clock, countdown, ITEM_HELP, ITEM_LABELS } from '../lib/engine';
 import { formatMinutes } from '../shared/format';
 import CatchCode from './CatchCode';
 import { Confirm, nameOf, Section, type PanelProps } from './common';
@@ -9,16 +9,9 @@ export default function PlayerPanel({ s, now, act }: PanelProps) {
   const me = s.me;
   const g = s.game;
   const [showCode, setShowCode] = useState(false);
-  const [mode, setMode] = useState(cfg.transport.allowed_modes.find((m) => m !== 'zu_fuss') ?? 'oev_bus');
-  const [line, setLine] = useState('');
-  const [from, setFrom] = useState('');
-  const [to, setTo] = useState('');
-  const [stops, setStops] = useState('');
-  const [explain, setExplain] = useState<Record<string, string>>({});
   const active = ['aktiv', 'ausserhalb'].includes(me.state);
   const running = ['laeuft', 'finale'].includes(g.status) && !g.paused;
   const pendingCatch = s.catches.find((c) => c.runner_id === me.id && c.status === 'wartet_auf_bestaetigung');
-  const openViolations = s.violations.filter((v) => v.participant_id === me.id && v.status === 'offen');
   const shOnMe = s.speedhunts.some((x) => x.status === 'laeuft' && x.target_id === me.id);
   const shRunning = s.speedhunts.filter((x) => x.status === 'laeuft');
 
@@ -28,7 +21,7 @@ export default function PlayerPanel({ s, now, act }: PanelProps) {
         <p className="muted">
           {me.state === 'gefangen' && 'Du wurdest gefangen. Du kannst weiter zuschauen.'}
           {me.state === 'im_ziel' && 'Du hast den Fluchtpunkt erreicht. Warte auf das Spielende.'}
-          {me.state === 'notfall' && 'Alle Hunter sind informiert. Die Jagd auf dich ist ausgesetzt. Beenden kannst du den Notfall oben.'}
+          {me.state === 'notfall' && 'Alle sind informiert und kommen helfen. Das Spiel ist unterbrochen. Beenden kannst du den Notfall oben.'}
           {['disqualifiziert', 'aufgegeben', 'verloren'].includes(me.state) && 'Du nimmst nicht mehr am Spiel teil.'}
         </p>
       </Section>
@@ -61,16 +54,52 @@ export default function PlayerPanel({ s, now, act }: PanelProps) {
         </div>
       )}
 
-      {me.transport_prompt && !me.transit && (
-        <div className="notice error"><strong>Fährst du gerade?</strong> Melde den Transport unten an, sonst gibt es eine Strafe.</div>
-      )}
+
+      {(() => {
+        // Nähe-Alarm: Countdown, solange die Warnung gilt.
+        const near = s.notifications.find((n) => n.kind === 'proximity_self');
+        const deadline = near?.payload.deadline as string | undefined;
+        if (!near || !deadline || new Date(deadline).getTime() <= now || s.game.exit_revealed) return null;
+        return (
+          <div className="notice error stack" role="alert">
+            <strong>{near.title}</strong>
+            <div className="big-num red">{countdown(deadline, now)}</div>
+            <span className="small">Entfernt euch voneinander. Seid ihr dann noch zu nahe, bekommen die Hunter euren Ping. Wo {String(near.payload.name ?? 'der andere')} ist, siehst du auf der Karte.</span>
+          </div>
+        );
+      })()}
+
+      {me.out_pending && me.state !== 'ausserhalb' && (() => {
+        // Countdown aus der letzten Warnung: so lange Zeit, um ins Spielfeld zurückzukehren.
+        const warn = s.notifications.find((n) => n.kind === 'outside_warning');
+        const deadline = warn?.payload.deadline as string | undefined;
+        return (
+          <div className="notice error pulse stack" role="alert">
+            <strong style={{ fontSize: 20 }}>Zurück ins Spielfeld!</strong>
+            {deadline && <div className="big-num red">{countdown(deadline, now)}</div>}
+            <span className="small">Bist du bis dann nicht zurück, sehen dich die Hunter live. Ab dem 3. Verlassen gibt es keinen Countdown mehr.</span>
+          </div>
+        );
+      })()}
 
       {me.state === 'ausserhalb' && (
         <div className="notice error">
           <strong>Du bist ausserhalb des Spielfelds!</strong> Die Hunter sehen dich live. Zeit draussen: {formatMinutes(Math.floor(me.out_accum_s / 60))} von {formatMinutes(cfg.out_of_bounds.max_minutes)}.
         </div>
       )}
-      {me.in_restricted && <div className="notice error"><strong>Sperrzone!</strong> Sofort verlassen.</div>}
+      {me.in_restricted && (() => {
+        // Gefahrenzone: gleicher Countdown wie beim Verlassen des Spielfelds.
+        const warn = s.notifications.find((n) => n.kind === 'danger_warning' || n.kind === 'danger_live');
+        const deadline = warn?.kind === 'danger_warning' ? (warn.payload.deadline as string | undefined) : undefined;
+        const live = !deadline || new Date(deadline).getTime() <= now;
+        return (
+          <div className="notice error pulse stack" role="alert">
+            <strong style={{ fontSize: 20 }}>Gefahrenzone! Sofort raus</strong>
+            {!live && deadline && <div className="big-num red">{countdown(deadline, now)}</div>}
+            <span className="small">{live ? 'Die Hunter sehen dich live, bis du die Gefahrenzone verlassen hast.' : 'Bist du bis dann nicht draussen, sehen dich die Hunter live. Ab dem 3. Mal gibt es keinen Countdown mehr.'}</span>
+          </div>
+        );
+      })()}
 
       {shRunning.length > 0 && (
         <div className="notice error pulse">
@@ -120,45 +149,7 @@ export default function PlayerPanel({ s, now, act }: PanelProps) {
         </Section>
       )}
 
-      {cfg.transport.allowed_modes.length > 1 && (
-        <Section title="Transport" badge={me.transit ? <span className="badge red">unterwegs</span> : undefined}>
-          {me.transit ? (
-            <>
-              <div>{TRANSPORT_LABELS[me.transit.mode]} {me.transit.line} seit {clock(me.transit.started_at)}. Die Hunter sehen dich live.</div>
-              {me.transit.mode === 'faehre' && (
-                <input type="number" min={0} placeholder="Anzahl Stationen" value={stops} onChange={(e) => setStops(e.target.value)} />
-              )}
-              <button className="primary" onClick={() => act(() => api.transitOut(g.id, stops ? +stops : null), 'Ausgestiegen.')}>Ausgestiegen</button>
-            </>
-          ) : (
-            <>
-              <select aria-label="Verkehrsmittel" value={mode} onChange={(e) => setMode(e.target.value as typeof mode)}>
-                {cfg.transport.allowed_modes.filter((m) => m !== 'zu_fuss').map((m) => <option key={m} value={m}>{TRANSPORT_LABELS[m]}</option>)}
-              </select>
-              <div className="row">
-                <input placeholder="Linie" value={line} onChange={(e) => setLine(e.target.value)} style={{ flex: 1 }} />
-                <input placeholder="Von" value={from} onChange={(e) => setFrom(e.target.value)} style={{ flex: 1 }} />
-                <input placeholder="Nach" value={to} onChange={(e) => setTo(e.target.value)} style={{ flex: 1 }} />
-              </div>
-              <button onClick={() => act(() => api.transitIn(g.id, mode, line, from, to), 'Fahrt angemeldet.')}>Einsteigen (anmelden)</button>
-              <div className="muted small">Live während der Fahrt{cfg.transport.live_after_base_minutes > 0 ? ` und ${cfg.transport.live_after_base_minutes} min danach` : ''}.</div>
-            </>
-          )}
-        </Section>
-      )}
 
-      {openViolations.map((v) => (
-        <Section key={v.id} title="Regelverstoss">
-          <div>{v.type.replace(/_/g, ' ')} · Vorschlag: {PENALTY_LABELS[v.proposed_penalty] ?? v.proposed_penalty}</div>
-          {v.auto_apply_at && <div className="muted small">Wird um {clock(v.auto_apply_at)} verhängt.</div>}
-          {v.explanation ? <div className="muted small">Deine Erklärung: {v.explanation}</div> : (
-            <div className="row">
-              <input placeholder="Erklärung" value={explain[v.id] ?? ''} onChange={(e) => setExplain({ ...explain, [v.id]: e.target.value })} style={{ flex: 1 }} />
-              <button className="small" onClick={() => act(() => api.explain(v.id, explain[v.id] ?? ''), 'Gesendet.')}>Senden</button>
-            </div>
-          )}
-        </Section>
-      ))}
 
       {g.exit_revealed && cfg.exit.confirm !== 'geofence' && (
         <button className="block" onClick={() => act(() => api.confirmExit(g.id), 'Am Fluchtpunkt!')}>Ich bin am Fluchtpunkt</button>
