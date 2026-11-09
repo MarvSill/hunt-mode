@@ -125,3 +125,4 @@ Abweichungen von der Spezifikation und Annahmen, wo sie nichts festlegt.
 - Der Joker "Schutzschild" ist entfernt; es bleiben Regeneration und Hunter-Standorte. Joker werden nach der eingestellten Zeit freigeschaltet und wirken erst, wenn der Spieler sie einsetzt.
 - "Teambildungs-Alarm" heisst jetzt Nähe-Alarm.
 - Jede Einstellung beim Erstellen hat ein ⓘ mit Erklärung (`QUICK_HELP` in `src/shared/help.ts`).
+- Spiel erstellen hat jetzt 4 Schritte: Name, Spielart, Anpassen, Karte. Nach "Weiter zur Karte" öffnet sich der Karten-Editor im Einrichtungs-Modus (`/spiel/<id>/karte?neu=1`); "Fertig" speichert und führt in die Lobby. Den Code zum Einladen zeigt die Lobby erst, wenn ein Spielfeld gezeichnet ist.

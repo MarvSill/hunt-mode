@@ -6,7 +6,7 @@ import L from 'leaflet';
 import { addMapButtons } from '../lib/mapControls';
 import 'leaflet/dist/leaflet.css';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import Info from '../components/Info';
 import { esc, pointIcon, zoneBadge, zoneStyle } from '../components/MapView';
 import { STEP_HELP, ZONE_HELP } from '../shared/help';
@@ -63,6 +63,9 @@ export function phaseCount(c: GameConfig): number {
 
 export default function MapEditorPage() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  // Direkt nach "Spiel erstellen": Schritt 4 von 4, danach geht es in die Lobby.
+  const setup = useSearchParams()[0].get('neu') === '1';
   const [game, setGame] = useState<Game | null>(null);
   const [savedConfig, setSavedConfig] = useState<GameConfig | null>(null);
   const [config, setConfig] = useState<GameConfig | null>(null);
@@ -507,8 +510,8 @@ export default function MapEditorPage() {
     setDirty(true);
   }
 
-  async function save() {
-    if (!game || !config || !savedConfig) return;
+  async function save(): Promise<boolean> {
+    if (!game || !config || !savedConfig) return false;
     setBusy(true);
     setMsg(null);
     try {
@@ -528,8 +531,10 @@ export default function MapEditorPage() {
       }
       setMsg({ ok: true, text: `Gespeichert: ${n} Zonen${changes.length ? ' und die Einstellungen zur Verkleinerung' : ''}.` });
       setDirty(false);
+      return true;
     } catch (err) {
       setMsg({ ok: false, text: errorText(err) });
+      return false;
     } finally {
       setBusy(false);
     }
@@ -698,9 +703,14 @@ export default function MapEditorPage() {
     <div className="app wide map-editor">
       <div className="topbar">
         <Link to={`/spiel/${id}`} className="button ghost back" aria-label="Zurück"><Icon name="back" /></Link>
-        <h1>Karte</h1>
-        {editable && <button className="primary small" onClick={save} disabled={busy || !dirty || !loaded}>{busy ? 'Speichere …' : dirty ? 'Speichern' : 'Gespeichert'}</button>}
+        <h1>{setup ? 'Schritt 4: Karte' : 'Karte'}</h1>
+        {editable && !setup && <button className="primary small" onClick={save} disabled={busy || !dirty || !loaded}>{busy ? 'Speichere …' : dirty ? 'Speichern' : 'Gespeichert'}</button>}
       </div>
+      {setup && editable && (
+        <div className="notice" style={{ marginBottom: 8 }}>
+          <strong>Letzter Schritt: das Spielfeld.</strong> Zeichne, wo gespielt wird, und setze Treffpunkt und HQ. Danach bekommst du den Code, mit dem deine Freunde beitreten.
+        </div>
+      )}
       {!editable && <div className="notice">Das Spiel läuft: die Karte ist gesperrt.</div>}
 
       {editable && (
@@ -879,7 +889,7 @@ export default function MapEditorPage() {
                   <button className="small" onClick={clipAll}>Zuschneiden</button>
                 </div>
               )}
-              {dirty && <button className="primary" onClick={save} disabled={busy || !loaded}>{busy ? 'Speichere …' : 'Karte speichern'}</button>}
+              {dirty && !setup && <button className="primary" onClick={save} disabled={busy || !loaded}>{busy ? 'Speichere …' : 'Karte speichern'}</button>}
             </>
           )}
 
@@ -892,6 +902,14 @@ export default function MapEditorPage() {
               </button>
             )}
           </div>
+          {setup && (
+            <div className="sticky-cta">
+              <button className="primary block big" disabled={busy || !loaded || !field1}
+                onClick={async () => { if (!dirty || (await save())) navigate(`/spiel/${id}`, { replace: true }); }}>
+                {busy ? 'Speichere …' : field1 ? 'Fertig: Karte speichern und Freunde einladen' : 'Zuerst das Spielfeld zeichnen'}
+              </button>
+            </div>
+          )}
         </div>
       )}
 
