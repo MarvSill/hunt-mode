@@ -25,6 +25,7 @@ import { suggestHazards, type HazardSuggestion } from '../lib/hazards';
 import { errorText } from '../lib/supabase';
 import { gameConfigSchema, parseConfig, type GameConfig } from '../shared/config';
 import { durationText, fitTimes, huntMinutes, timeLimits } from '../shared/timeRules';
+import Loader from '../components/Loader';
 import { t, lazy } from '../i18n';
 
 interface Item { key: string; feature: MapFeature; layer: L.Layer }
@@ -727,7 +728,7 @@ export default function MapEditorPage() {
   }
 
   if (!game || !config) {
-    return <div className="app">{msg ? <div className="notice error">{msg.text}</div> : <span className="muted">{t('Lade …')}</span>}</div>;
+    return <div className="app">{msg ? <div className="notice error">{msg.text}</div> : <Loader inline />}</div>;
   }
 
   const sel = items.find((x) => x.key === selected);

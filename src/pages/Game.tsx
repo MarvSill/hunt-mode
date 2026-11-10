@@ -26,6 +26,7 @@ import { formatMinutes } from '../shared/format';
 import { getPreset } from '../shared/presets';
 import { distributeRoles, lobbyIssues } from '../shared/roles';
 import { validateConfig } from '../shared/validation';
+import Loader from '../components/Loader';
 import { t } from '../i18n';
 
 const ASSIGNABLE: Role[] = ['offen', 'spieler', 'hunter', 'zuschauer'];
@@ -158,7 +159,7 @@ export default function GamePage() {
     setTimeout(() => setCopied(false), 2000);
   }
 
-  if (!loaded) return <div className="app muted">{t('Lade …')}</div>;
+  if (!loaded) return <Loader />;
   if (!game || !config || !checks) {
     return (
       <div className="app">

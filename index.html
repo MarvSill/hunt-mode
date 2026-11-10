@@ -10,6 +10,36 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <link rel="apple-touch-icon" href="%BASE_URL%apple-touch-icon.png" />
     <title>Hunt Mode</title>
+    <style>
+      html, body { margin: 0; background: #0a0d13; }
+      /* Ladeanimation: Radar mit Suchstrahl und aufblinkenden Pings. Steht hier, damit sie sofort beim Öffnen da ist. */
+      .hm-loader { min-height: 100dvh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; background: #0a0d13; color: #f2f5f9; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+      .hm-loader.inline { min-height: 240px; background: transparent; }
+      .hm-radar { position: relative; width: 148px; height: 148px; border-radius: 50%; overflow: hidden;
+        background: radial-gradient(circle, rgba(255,77,87,.10) 0%, rgba(255,77,87,.03) 60%, transparent 70%);
+        box-shadow: 0 0 0 1px rgba(255,77,87,.35), 0 0 40px rgba(255,77,87,.18); }
+      .hm-radar::before { content: ""; position: absolute; inset: 0; border-radius: 50%;
+        background: repeating-radial-gradient(circle, transparent 0 23px, rgba(255,77,87,.22) 23px 24px),
+          linear-gradient(rgba(255,77,87,.18), rgba(255,77,87,.18)) center / 1px 100% no-repeat,
+          linear-gradient(rgba(255,77,87,.18), rgba(255,77,87,.18)) center / 100% 1px no-repeat; }
+      .hm-sweep { position: absolute; inset: 0; border-radius: 50%;
+        background: conic-gradient(from 0deg, rgba(255,122,69,0) 0deg, rgba(255,122,69,0) 290deg, rgba(255,122,69,.55) 358deg, #ff7a45 360deg);
+        animation: hm-spin 2.4s linear infinite; }
+      .hm-core { position: absolute; left: 50%; top: 50%; width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 50%; background: #ff4d57; box-shadow: 0 0 12px #ff4d57; }
+      .hm-blip { position: absolute; width: 9px; height: 9px; margin: -4.5px 0 0 -4.5px; border-radius: 50%; background: #ffd60a; opacity: 0;
+        box-shadow: 0 0 10px #ffd60a; animation: hm-blip 2.4s linear infinite; }
+      .hm-blip.b1 { left: 72%; top: 30%; animation-delay: .32s; }
+      .hm-blip.b2 { left: 30%; top: 66%; animation-delay: 1.54s; background: #34d399; box-shadow: 0 0 10px #34d399; }
+      .hm-blip.b3 { left: 78%; top: 70%; animation-delay: .84s; background: #60a5fa; box-shadow: 0 0 10px #60a5fa; }
+      .hm-brand { font-weight: 800; letter-spacing: .32em; font-size: 15px; padding-left: .32em;
+        background: linear-gradient(135deg, #ff4d57, #ff7a45); -webkit-background-clip: text; background-clip: text; color: transparent; }
+      .hm-loader-text { color: #94a1b2; font-size: 13px; margin-top: -12px; }
+      .hm-dots::after { content: ""; animation: hm-dots 1.4s steps(4, end) infinite; }
+      @keyframes hm-spin { to { transform: rotate(360deg); } }
+      @keyframes hm-blip { 0% { opacity: 0; transform: scale(.4); } 4% { opacity: 1; transform: scale(1.5); } 30% { opacity: .9; transform: scale(1); } 70%, 100% { opacity: 0; transform: scale(.8); } }
+      @keyframes hm-dots { 0% { content: ""; } 25% { content: "."; } 50% { content: ".."; } 75%, 100% { content: "..."; } }
+      @media (prefers-reduced-motion: reduce) { .hm-sweep, .hm-blip, .hm-dots::after { animation-duration: 6s; } }
+    </style>
   </head>
   <body>
     <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -20,7 +50,12 @@
         </pattern>
       </defs>
     </svg>
-    <div id="root"></div>
+    <div id="root">
+      <div class="hm-loader" role="status" aria-label="Hunt Mode">
+        <div class="hm-radar" aria-hidden="true"><div class="hm-sweep"></div><i class="hm-blip b1"></i><i class="hm-blip b2"></i><i class="hm-blip b3"></i><div class="hm-core"></div></div>
+        <div class="hm-brand">HUNT MODE</div>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

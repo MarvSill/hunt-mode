@@ -4,6 +4,7 @@ import Icon from '../components/Icon';
 import { useAuth } from '../lib/auth';
 import { STATUS_LABELS, deleteGame, joinGame, myGames, type Game } from '../lib/games';
 import { errorText } from '../lib/supabase';
+import Loader from '../components/Loader';
 import { t, locale } from '../i18n';
 
 const LIVE = ['vorsprung', 'laeuft', 'pausiert', 'finale'];
@@ -85,7 +86,7 @@ export default function HomePage() {
 
       <div className="section-title">{t('Meine Spiele')}</div>
       {error && <div className="notice error">{error}</div>}
-      {games === null && !error && <p className="muted">{t('Lade …')}</p>}
+      {games === null && !error && <Loader inline />}
       {games?.length === 0 && (
         <div className="empty">
           <div style={{ fontSize: 34 }}>🗺️</div>

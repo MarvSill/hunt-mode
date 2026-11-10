@@ -12,6 +12,7 @@ import { errorText } from '../lib/supabase';
 import { gameConfigSchema, parseConfig, type GameConfig } from '../shared/config';
 import { configFromPreset, getPreset } from '../shared/presets';
 import { validateConfig } from '../shared/validation';
+import Loader from '../components/Loader';
 import { t } from '../i18n';
 
 export default function RulesPage() {
@@ -52,7 +53,7 @@ export default function RulesPage() {
   );
 
   if (!game || !config || !saved || !result) {
-    return <div className="app">{msg ? <div className="notice error">{msg.text}</div> : <span className="muted">{t('Lade …')}</span>}</div>;
+    return <div className="app">{msg ? <div className="notice error">{msg.text}</div> : <Loader inline />}</div>;
   }
 
   const editable = game.host_id === session?.user.id && ['entwurf', 'geplant', 'lobby'].includes(game.status);
