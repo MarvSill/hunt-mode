@@ -176,3 +176,4 @@ Abweichungen von der Spezifikation und Annahmen, wo sie nichts festlegt.
 - Neue Spielart "Eigenes Spiel": wer eine Vorlage verändert, spielt automatisch ein eigenes Spiel.
 - Wiederholung: neben dem Schnelldurchlauf Ping für Ping durchklicken.
 - Vergangene Spiele löschen: der Host löscht das Spiel für alle, alle anderen entfernen es aus ihrer Liste (`delete_game`).
+- Fluchtpunkte in einer Gefahrenzone oder ausserhalb der kleinsten Zone verschiebt der Karten-Editor automatisch an die nächste erlaubte Stelle (mit etwas Abstand zum Rand und zu anderen Fluchtpunkten), beim Antippen, Verschieben, nach neuen Gefahrenzonen und nach Änderungen der Verkleinerung.

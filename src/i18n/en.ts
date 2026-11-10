@@ -1167,4 +1167,7 @@ export const en: Record<string, string> = {
   "blockiert: bitte in den Einstellungen des Handys für Hunt Mode erlauben": "blocked: please allow them for Hunt Mode in the phone’s settings",
   "stimmt": "correct",
   "Läuft auch bei gesperrtem Bildschirm": "Works with the screen locked too",
+  "In der kleinsten Zone ist kein Platz ausserhalb der Gefahrenzonen. Bitte das Spielfeld oder die Verkleinerung anpassen.": "There is no room outside the danger zones in the smallest zone. Please adjust the play area or the shrinking.",
+  "Der Fluchtpunkt lag in einer Gefahrenzone oder ausserhalb der kleinsten Zone und wurde an die nächste erlaubte Stelle verschoben.": "The escape point was in a danger zone or outside the smallest zone and was moved to the nearest allowed spot.",
+  "{0} Fluchtpunkt(e) lagen in einer Gefahrenzone oder ausserhalb der kleinsten Zone und wurden automatisch an die nächste erlaubte Stelle verschoben.": "{0} escape point(s) were in a danger zone or outside the smallest zone and were moved automatically to the nearest allowed spot.",
 };

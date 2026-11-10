@@ -216,3 +216,33 @@ export function spreadPoints(field: Area, n: number, avoid: Position[] = [], blo
   }
   return chosen;
 }
+
+/** Liegt ein Fluchtpunkt richtig: in der kleinsten Zone und nicht in einer Gefahrenzone? */
+export function exitPlaceOk(pt: Position, inner: Area, blocked: Area | null): boolean {
+  return pointInside(pt, inner) && !blockedAt(pt, blocked);
+}
+
+/**
+ * Nächster erlaubter Ort für einen Fluchtpunkt: in `inner`, nicht in `blocked`, mit etwas Abstand zum Rand
+ * und möglichst nicht direkt neben einem anderen Fluchtpunkt (`others`). null, wenn es keinen gibt.
+ */
+export function nearestExitPlace(pt: Position, inner: Area, blocked: Area | null, others: Position[] = []): Position | null {
+  const [w, s, e, n] = bbox(inner);
+  const steps = 60;
+  const ok = (p: Position) => exitPlaceOk(p, inner, blocked);
+  // Mit 15 m Abstand zum Rand und zu Gefahrenzonen, damit der Punkt sicher drin liegt.
+  const roomy = (p: Position) => ok(p) && [0, 90, 180, 270].every((b) => ok(destination(p, 15, b, { units: 'meters' }).geometry.coordinates));
+  let best: Position | null = null;
+  let bestScore = Infinity;
+  for (let i = 0; i <= steps; i++) {
+    for (let j = 0; j <= steps; j++) {
+      const p: Position = [w + ((e - w) * i) / steps, s + ((n - s) * j) / steps];
+      if (!ok(p)) continue;
+      // Strafe für zu wenig Platz und für Nähe zu anderen Fluchtpunkten (unter 100 m).
+      const near = others.some((o) => distM(p, o) < 100) ? 400 : 0;
+      const score = distM(p, pt) + (roomy(p) ? 0 : 200) + near;
+      if (score < bestScore) { bestScore = score; best = p; }
+    }
+  }
+  return best;
+}
