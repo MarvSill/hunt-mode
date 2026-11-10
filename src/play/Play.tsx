@@ -7,7 +7,7 @@ import { api, clock, countdown, SOURCE_LABELS, type MapFeature, type Notificatio
 import { errorText } from '../lib/supabase';
 import { useTracker } from '../lib/tracker';
 import { useGameState, useNow } from '../lib/useGame';
-import { alarmKindOf, ring, unlockAudio, VIBRATION } from '../lib/alarm';
+import { alarmKindOf, ring, unlockAudio, vibrate, VIBRATION } from '../lib/alarm';
 import AlarmSettingsBox from './AlarmSettings';
 import Chat from './Chat';
 import EmergencyBox from './EmergencyBox';
@@ -92,7 +92,7 @@ export default function PlayPage() {
         ring(alarm);
       }
     } else if (high) {
-      navigator.vibrate?.(crit ? [300, 100, 300, 100, 300] : [200]);
+      vibrate(crit ? [300, 100, 300, 100, 300] : [200]);
       beep(crit);
     }
     // Echte App: wichtige Meldungen immer auch als Benachrichtigung des Handys (Ton und Vibration kommen vom Handy,

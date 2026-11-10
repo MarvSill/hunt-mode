@@ -1,6 +1,7 @@
 import jsQR from 'jsqr';
 import { useEffect, useRef, useState } from 'react';
 import { t } from '../i18n';
+import { vibrate } from '../lib/alarm';
 
 // QR-Scanner: BarcodeDetector, wo vorhanden, sonst jsQR. Fällt auf Code-Eingabe zurück.
 export default function Scanner({ onCode, onClose }: { onCode: (code: string) => void; onClose: () => void }) {
@@ -21,7 +22,7 @@ export default function Scanner({ onCode, onClose }: { onCode: (code: string) =>
       const m = raw.match(/(\d{6})/);
       if (!m) return;
       done.current = true;
-      navigator.vibrate?.(100);
+      vibrate([100]);
       onCode(m[1]);
     };
     const loop = async () => {
