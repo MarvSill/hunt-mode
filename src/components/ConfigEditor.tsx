@@ -14,6 +14,10 @@ const HIDDEN = new Set([
   // Ohne Strafen und ohne Live bei Fahrten: diese Werte setzt die App selbst.
   'speedhunt.vehicle_live_seconds', 'out_of_bounds.on_timeout', 'hideout.on_timeout', 'hideout.lockout_after_first_entry_minutes',
   'transport.checkin_required', 'transport.live_during',
+  // Fest geregelt: sofort ein Ping nach dem Vorsprung, pünktliches Ende, nie zweimal dasselbe Ziel,
+  // Anzahl sichtbarer Pings wählt jeder auf der Karte.
+  'ping.first_ping_delay_minutes', 'exit.arrival_deadline_offset_minutes',
+  'speedhunt.no_consecutive_same_target', 'speedhunt.consecutive_allowed_when_players_left_le', 'ping.history_per_player',
 ]);
 
 interface Props {

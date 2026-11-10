@@ -31,7 +31,7 @@ function presetConfig(id: string): GameConfig {
 const GUIDE: GuideStep[] = lazy([
   { title: 'Willkommen!', text: 'In vier Schritten ist dein Spiel bereit. Du kannst den Helfer jederzeit schliessen und über "?" wieder öffnen.' },
   { target: 'name', title: '1. Name', text: 'Gib dem Spiel einen Namen, z. B. den Ort. Den sehen alle, die mitspielen.' },
-  { target: 'presets', title: '2. Spielart', text: 'Wähle eine Vorlage. Sie stellt alle Regeln passend ein: Dauer, Pings, Blitzjagden, Joker. Für den Anfang ist "Schnell 90 min" oder "Stadtabend 3 h" ideal.' },
+  { target: 'presets', title: '2. Spielart', text: 'Wähle eine Vorlage. Sie stellt alle Regeln passend ein: Dauer, Pings, Blitzjagden, Joker. Für den Anfang ist "Schnell 90 min" oder "Stadtabend 3 h" ideal. Mit "Eigenes Spiel" stellst du alles selbst ein; sobald du etwas änderst, wird es automatisch ein eigenes Spiel.' },
   { target: 'adjust', title: '3. Anpassen (freiwillig)', text: 'Tippe einen Bereich an, um ihn zu ändern, z. B. die Anzahl Spieler oder wie oft gepingt wird. Bei jeder Einstellung erklärt das i, was sie bewirkt.' },
   { target: 'create', title: '4. Karte', text: 'Danach zeichnest du das Spielfeld auf der Karte. Erst dann bekommst du den Code, mit dem deine Freunde beitreten.' },
 ]);
@@ -72,6 +72,8 @@ export default function NewGamePage() {
     const parsed = gameConfigSchema.safeParse(next);
     if (parsed.success) {
       setConfig(parsed.data);
+      // Wer etwas verstellt, spielt ein eigenes Spiel: dann ist klar, dass die eigenen Einstellungen gelten.
+      setPresetId('eigenes');
       setEditError(null);
     } else {
       setEditError(t('Ungültiger Wert: ') + parsed.error.issues.map((i) => i.path.join('.')).join(', '));
@@ -85,7 +87,7 @@ export default function NewGamePage() {
     try {
       const game = await createGame(
         name.trim(),
-        changed ? 'eigenes' : presetId,
+        presetId === 'eigenes' || changed ? 'eigenes' : presetId,
         result.config,
         startAt ? new Date(startAt).toISOString() : null,
       );
@@ -136,7 +138,17 @@ export default function NewGamePage() {
               </button>
             );
           })}
+          <button type="button" className={`preset-card${presetId === 'eigenes' ? ' on' : ''}`} aria-pressed={presetId === 'eigenes'} onClick={() => setPresetId('eigenes')}>
+            <span className="emoji" aria-hidden="true">✏️</span>
+            <strong>{t('Eigenes Spiel')}</strong>
+            <span className="muted">{t('Alles selbst einstellen. Es gelten genau deine Einstellungen unten.')}</span>
+            <span className="facts">
+              <span>{formatMinutes(c.game.duration_minutes)}</span>
+              <span>{c.roles.players_max + c.roles.hunters_max} {t('Pers.')}</span>
+            </span>
+          </button>
         </div>
+        {presetId === 'eigenes' && <div className="muted small" style={{ marginTop: 8 }}>{t('Eigenes Spiel: Es gelten deine Einstellungen unter „Anpassen“. Tippe eine Vorlage an, um wieder mit ihr zu beginnen.')}</div>}
         <div className="summary-line" style={{ marginTop: 12 }}>
           <span>⏱️ {formatMinutes(c.game.duration_minutes)}</span>
           <span>👥 {c.roles.players_max} {t('Spieler ·')} {c.roles.hunters_max} {t('Hunter')}</span>
@@ -144,7 +156,7 @@ export default function NewGamePage() {
           <span>⚡ {c.speedhunt.enabled ? t('{0} Blitzjagden', { 0: c.speedhunt.quota_per_day[0] ?? 0 }) : t('ohne Blitzjagd')}</span>
           {c.joker.enabled && <span>{t('🃏 Joker')}</span>}
           {c.exit.enabled && <span>{t('🏁 Fluchtpunkt')}</span>}
-          {changed && <span style={{ borderColor: 'var(--yellow)', color: 'var(--yellow)' }}>{t('✏️ angepasst')}</span>}
+          {presetId === 'eigenes' && <span style={{ borderColor: 'var(--yellow)', color: 'var(--yellow)' }}>{t('✏️ eigenes Spiel')}</span>}
         </div>
 
         <div className="step-head"><span className="n">3</span><h2>{t('Anpassen')} <span className="muted small" style={{ fontWeight: 400 }}>{t('(freiwillig)')}</span></h2></div>

@@ -18,6 +18,25 @@ import PlayerPanel from './PlayerPanel';
 import Result from './Result';
 import { t, lazy } from '../i18n';
 import { isNative, nativeNotify, openAppSettings } from '../lib/native';
+import NumberField from '../components/NumberField';
+import { SpeedhuntButtons, SpeedhuntDialog } from './SpeedhuntMap';
+import SafetyNotice from './SafetyNotice';
+
+/** Wie viele Pings je Spieler auf der Karte: 1 = nur der letzte, 0 = alle. Jeder wählt selbst (nur auf diesem Gerät). */
+function loadPingCount(): number {
+  try {
+    const v = localStorage.getItem('hm-pings');
+    if (v === 'last') return 1;
+    if (v === 'all' || v === null) return 0;
+    const n = Number(v);
+    return Number.isFinite(n) && n >= 0 ? n : 0;
+  } catch {
+    return 0;
+  }
+}
+
+const RING_LAST = '#ffd60a';
+const RING_BLITZ = '#ff3b30';
 
 type Tab = 'karte' | 'aktionen' | 'meldungen' | 'chat';
 const TABS: [Tab, string, IconName][] = lazy([['karte', 'Karte', 'map'], ['aktionen', 'Aktionen', 'bolt'], ['meldungen', 'Meldungen', 'bell'], ['chat', 'Chat', 'chat']]);
@@ -48,6 +67,7 @@ export default function PlayPage() {
   const mapVersion = useRef<number | null>(null);
   const [sosAsk, setSosAsk] = useState(false);
   const [seenNotes, setSeenNotes] = useState(0);
+  const [seenChats, setSeenChats] = useState<number | null>(null);
 
   const roleRef = useRef<string | undefined>(undefined);
   const lastAlarm = useRef(0);
@@ -64,7 +84,8 @@ export default function PlayPage() {
     // Spieler: bei jedem Ping und jeder Blitzjagd klingeln (höchstens alle 3 s, falls mehrere gleichzeitig kommen).
     // Notfall: bei allen klingeln, egal welche Rolle.
     const sos = list.some((n) => n.kind === 'emergency');
-    const alarm = sos ? 'blitzjagd' : roleRef.current === 'spieler' ? alarmKindOf(list.map((n) => n.kind)) : null;
+    const player = roleRef.current === 'spieler';
+    const alarm = sos ? 'blitzjagd' : player ? alarmKindOf(list.map((n) => n.kind)) : null;
     if (alarm) {
       if (Date.now() - lastAlarm.current > 3000) {
         lastAlarm.current = Date.now();
@@ -74,9 +95,14 @@ export default function PlayPage() {
       navigator.vibrate?.(crit ? [300, 100, 300, 100, 300] : [200]);
       beep(crit);
     }
-    // Echte App im Hintergrund: Benachrichtigung des Handys (mit Ton und Vibration), auch bei gesperrtem Bildschirm.
-    if (isNative && document.visibilityState !== 'visible') {
-      for (const n of list) void nativeNotify(n.id, n.title, n.body);
+    // Echte App: wichtige Meldungen immer auch als Benachrichtigung des Handys (Ton und Vibration kommen vom Handy,
+    // das klappt auch, wenn der Ton der Seite gesperrt ist). Im Hintergrund jede Meldung.
+    if (isNative) {
+      const hidden = document.visibilityState !== 'visible';
+      for (const n of list) {
+        const important = n.priority !== 'normal' || n.kind === 'chat' || (player && !!alarmKindOf([n.kind]));
+        if (hidden || important) void nativeNotify(n.id, n.title, n.body);
+      }
     }
     // Web-App im Hintergrund: Systembenachrichtigung über den Service Worker (solange die App offen ist).
     else if (document.visibilityState !== 'visible' && typeof Notification !== 'undefined' && Notification.permission === 'granted') {
@@ -99,15 +125,19 @@ export default function PlayPage() {
   const tracking = !!s && role !== 'zuschauer' && !['beendet', 'archiviert'].includes(s.game.status)
     && !(role === 'spieler' && ['gefangen', 'disqualifiziert', 'aufgegeben', 'verloren'].includes(s.me.state) && !s.game.config.catch.track_after_catch);
   const [kick, setKick] = useState(0);
-  const [onlyLastPing, setOnlyLastPingState] = useState(() => {
-    try { return localStorage.getItem('hm-pings') === 'last'; } catch { return false; }
-  });
-  const setOnlyLastPing = (v: boolean) => {
-    setOnlyLastPingState(v);
-    try { localStorage.setItem('hm-pings', v ? 'last' : 'all'); } catch { /* nur für diese Sitzung */ }
+  const [pingCount, setPingCountState] = useState(loadPingCount);
+  const [pingCustom, setPingCustom] = useState(() => ![0, 1, 3].includes(loadPingCount()));
+  const setPingCount = (v: number) => {
+    setPingCountState(v);
+    try { localStorage.setItem('hm-pings', String(v)); } catch { /* nur für diese Sitzung */ }
   };
+  const [blitzOpen, setBlitzOpen] = useState(false);
   const tracker = useTracker(id, tracking, kick);
   const pos = tracker.last ? { lat: tracker.last.lat, lng: tracker.last.lng } : null;
+  // Handy-App im Hintergrund: nach jedem gesendeten Standort auch den Spielstand holen (neue Pings und Meldungen).
+  useEffect(() => {
+    if (isNative && tracker.sentAt && document.visibilityState !== 'visible') void reload();
+  }, [tracker.sentAt, reload]);
 
   // Karte neu laden, wenn sich Zonen ändern (Ankündigung, Exit, neue Sperrzone).
   useEffect(() => {
@@ -120,6 +150,11 @@ export default function PlayPage() {
   useEffect(() => {
     if (s?.me.location_requested) setKick((k) => k + 1);
   }, [s?.me.location_requested]);
+
+  // Beim Öffnen zählen die schon vorhandenen Nachrichten als gelesen.
+  useEffect(() => {
+    if (s && seenChats === null) setSeenChats(s.notifications.filter((n) => n.kind === 'chat').length);
+  }, [s, seenChats]);
 
   const act = useCallback(async (fn: () => Promise<unknown>, okText?: string) => {
     setMsg(null);
@@ -139,20 +174,30 @@ export default function PlayPage() {
     const list: Marker[] = [];
     const tf = role === 'hunter';
     const fade = s.game.config.ping.fade_after_minutes * 60000;
-    // Hunter wählen: alle bisherigen Pings oder nur den letzten je Spieler.
-    const lastPing = new Map<string, string>();
-    for (const p of s.pings) {
-      if (p.lat == null) continue;
-      const prev = s.pings.find((x) => x.id === lastPing.get(p.participant_id));
-      if (!prev || new Date(p.at) >= new Date(prev.at)) lastPing.set(p.participant_id, p.id);
-    }
-    for (const p of s.pings) {
+    // Pings je Spieler nummeriert (A1, A2 …), jeder Spieler in seiner Farbe. Der neueste Ping ist gelb umrandet,
+    // Blitzjagd-Pings rot. Jeder wählt selbst, wie viele Pings je Spieler zu sehen sind.
+    const byPlayer = new Map<string, typeof s.pings>();
+    for (const p of [...s.pings].sort((a, b) => a.at.localeCompare(b.at))) {
       if (p.lat == null || p.lng == null) continue;
-      if (onlyLastPing && role !== 'spieler' && lastPing.get(p.participant_id) !== p.id) continue;
       if (role === 'spieler' && p.participant_id === s.me.id && p.source === 'proximity') continue;
-      const age = now - new Date(p.at).getTime();
-      const label = `${nameOf(s, p.participant_id)} · ${SOURCE_LABELS[p.source] ?? p.source}${p.n ? ` ${p.n}` : ''} · ${clock(p.at)}${p.stale_seconds ? t(' ({0} min alt)', { 0: Math.round(p.stale_seconds / 60) }) : ''}${p.is_fake ? t(' · FAKE') : ''}`;
-      list.push({ id: p.id, lat: p.lat, lng: p.lng, color: colorFor(s, p.participant_id), label, kind: 'ping', opacity: Math.max(0.3, 1 - age / Math.max(fade, 1)), accuracy: p.accuracy_m, text: tagOf(s, p.participant_id) });
+      byPlayer.set(p.participant_id, [...(byPlayer.get(p.participant_id) ?? []), p]);
+    }
+    for (const [pid, pings] of byPlayer) {
+      const tag = tagOf(s, pid) ?? '';
+      const shown = pingCount > 0 ? pings.slice(-pingCount) : pings;
+      const first = pings.length - shown.length;
+      shown.forEach((p, i) => {
+        const nr = first + i + 1;
+        const isLast = nr === pings.length;
+        const blitz = p.source === 'speedhunt';
+        const age = now - new Date(p.at).getTime();
+        const label = `${t('Ping {0}', { 0: `${tag}${nr}` })} · ${nameOf(s, pid)} · ${SOURCE_LABELS[p.source] ?? p.source}${p.n ? ` ${p.n}` : ''} · ${clock(p.at)}${p.stale_seconds ? t(' ({0} min alt)', { 0: Math.round(p.stale_seconds / 60) }) : ''}${p.is_fake ? t(' · FAKE') : ''}`;
+        list.push({
+          id: p.id, lat: p.lat!, lng: p.lng!, color: colorFor(s, pid), label, kind: 'ping', accuracy: p.accuracy_m,
+          opacity: isLast ? 1 : Math.max(0.45, 1 - age / Math.max(fade, 1)), text: `${tag}${nr}`,
+          ring: isLast ? RING_LAST : blitz ? RING_BLITZ : undefined,
+        });
+      });
     }
     for (const x of s.positions) {
       const isMe = x.participant_id === s.me.id;
@@ -183,7 +228,7 @@ export default function PlayPage() {
       if (e.lat != null && e.lng != null) list.push({ id: `e${e.id}`, lat: e.lat, lng: e.lng, color: '#ff0000', kind: 'emergency', label: t('NOTFALL {0}', { 0: nameOf(s, e.participant_id) }), pulse: true });
     }
     return list;
-  }, [s, now, pos, role, tracker.last?.acc, onlyLastPing]);
+  }, [s, now, pos, role, tracker.last?.acc, pingCount]);
 
   if (!s) {
     return (
@@ -198,16 +243,21 @@ export default function PlayPage() {
   const ended = ['beendet', 'archiviert'].includes(g.status);
   const players = s.participants.filter((p) => p.role === 'spieler');
   const live = ['vorsprung', 'laeuft', 'finale'].includes(g.status);
+  const exitOpenAt = g.ends_at ? new Date(g.ends_at).getTime() - g.config.exit.usable_minutes_before_end * 60000 : null;
   const headline = g.paused ? t('UNTERBROCHEN: NOTFALL') : g.status === 'vorsprung' ? t('Jagd in {0}', { 0: countdown(g.hunt_start_at, now) })
-    : g.status === 'finale' ? t('Fluchtpunkt bis {0} · {1}', { 0: clock(g.deadline_at, g.timezone), 1: countdown(g.deadline_at, now) })
+    : g.status === 'finale' && exitOpenAt && now < exitOpenAt ? t('Fluchtpunkt offen ab {0} · Ende in {1}', { 0: clock(new Date(exitOpenAt).toISOString(), g.timezone), 1: countdown(g.ends_at, now) })
+    : g.status === 'finale' ? t('Fluchtpunkt offen · Ende in {0}', { 0: countdown(g.ends_at, now) })
     : ended ? t('Spiel beendet') : t('Ende in {0}', { 0: countdown(g.ends_at, now) });
 
   const roleLabel = role === 'spieler' ? t('Spieler') : role === 'zuschauer' ? t('Zuschauer') : t('Hunter');
   const canSos = !ended && role !== 'zuschauer' && s.me.state !== 'notfall';
   const unseen = tab === 'meldungen' ? 0 : s.notifications.length - seenNotes;
-  function openTab(t: Tab) {
-    setTab(t);
-    if (t === 'meldungen' && s) setSeenNotes(s.notifications.length);
+  const chats = s.notifications.filter((n) => n.kind === 'chat').length;
+  const unseenChat = tab === 'chat' || seenChats === null ? 0 : chats - seenChats;
+  function openTab(next: Tab) {
+    setTab(next);
+    if (next === 'meldungen' && s) setSeenNotes(s.notifications.length);
+    if (next === 'chat' && s) setSeenChats(s.notifications.filter((n) => n.kind === 'chat').length);
   }
 
   return (
@@ -271,19 +321,43 @@ export default function PlayPage() {
       )}
       {msg && <div className={`notice ${msg.ok ? 'success' : 'error'}`} style={{ marginBottom: 8 }} onClick={() => setMsg(null)}>{msg.text}</div>}
 
+      {!ended && <SafetyNotice gameId={g.id} />}
       {ended ? <Result s={s} zones={zones} /> : (
         <>
           <EmergencyBox s={s} act={act} showMap={() => setTab('karte')} />
           <nav className="tabbar">
-            {TABS.map(([t, label, icon]) => (
-              <button key={t} className={tab === t ? 'active' : ''} onClick={() => openTab(t)}>
+            {TABS.map(([id, label, icon]) => (
+              <button key={id} className={tab === id ? 'active' : ''} onClick={() => openTab(id)}>
                 <Icon name={icon} />{label}
-                {t === 'meldungen' && unseen > 0 && <span className="pip" aria-label={`${unseen} neu`} />}
+                {id === 'meldungen' && unseen > 0 && <span className="pip" aria-label={t('{0} neu', { 0: unseen })} />}
+                {id === 'chat' && unseenChat > 0 && <span className="pip" aria-label={t('{0} neu', { 0: unseenChat })} />}
               </button>
             ))}
           </nav>
           <div style={{ display: tab === 'karte' ? 'block' : 'none' }}>
-            <div className="map-box"><MapView zones={zones} markers={markers} fitKey={g.id} height="62dvh" showDay={g.phase ?? g.current_day} /></div>
+            <div className="map-box">
+              <MapView zones={zones} markers={markers} fitKey={g.id} height="62dvh" showDay={g.phase ?? g.current_day}>
+                {role === 'hunter' && <SpeedhuntButtons s={s} act={act} onOpen={() => setBlitzOpen(true)} />}
+                {s.pings.some((p) => p.lat != null) && (
+                  <span className="map-chip">
+                    📍
+                    <select aria-label={t('Pings auf der Karte')} value={pingCustom ? 'x' : String(pingCount)}
+                      onChange={(e) => {
+                        if (e.target.value === 'x') { setPingCustom(true); setPingCount(pingCount > 1 && pingCount !== 3 ? pingCount : 5); return; }
+                        setPingCustom(false);
+                        setPingCount(Number(e.target.value));
+                      }}>
+                      <option value="1">{t('Nur letzter Ping')}</option>
+                      <option value="3">{t('Letzte 3 Pings')}</option>
+                      <option value="0">{t('Alle Pings')}</option>
+                      <option value="x">{t('Eigene Anzahl …')}</option>
+                    </select>
+                    {pingCustom && <NumberField label={t('Pings je Spieler')} value={pingCount || 5} min={1} max={200} onChange={setPingCount} />}
+                  </span>
+                )}
+              </MapView>
+            </div>
+            {blitzOpen && <SpeedhuntDialog s={s} act={act} onClose={() => setBlitzOpen(false)} />}
             <div className="row small" style={{ marginTop: 8 }}>
               {role === 'spieler' && s.me.next_ping_at && <span className="badge">{t('Nächster Ping')} {clock(s.me.next_ping_at)}</span>}
               {s.next_silent_ping_at && role !== 'spieler' && <span className="badge">{t('Nächster Ping')} {clock(s.next_silent_ping_at)}</span>}
@@ -291,15 +365,14 @@ export default function PlayPage() {
               {s.speedhunts.some((x) => x.status === 'laeuft') && <span className="badge red pulse">{t('Blitzjagd')}</span>}
               {tracker.last && <span className="badge">{t('GPS ±')}{tracker.last.acc} m</span>}
               {tracking && <span className={`badge${tracker.sentAt && Date.now() - tracker.sentAt < 60000 ? '' : ' red'}`}>📡 {tracker.sentAt ? t('gesendet vor {0} s', { 0: Math.max(0, Math.round((Date.now() - tracker.sentAt) / 1000)) }) : t('noch nicht gesendet')}</span>}
-              {role !== 'spieler' && s.pings.some((p) => p.lat != null) && (
-                <button className="small" onClick={() => setOnlyLastPing(!onlyLastPing)}>{onlyLastPing ? t('Nur letzter Ping je Spieler') : t('Alle Pings')} ⇄</button>
-              )}
+              {s.pings.some((p) => p.lat != null) && <span className="badge"><i className="ring-dot" style={{ borderColor: RING_LAST }} /> {t('letzter Ping')}</span>}
+              {s.pings.some((p) => p.source === 'speedhunt' && p.lat != null) && <span className="badge"><i className="ring-dot" style={{ borderColor: RING_BLITZ }} /> {t('Blitzjagd')}</span>}
             </div>
           </div>
 
           <div style={{ display: tab === 'aktionen' ? 'block' : 'none' }}>
             {role === 'spieler' && <PlayerPanel s={s} now={now} act={act} pos={pos} />}
-            {role === 'spieler' && <AlarmSettingsBox />}
+            {role !== 'zuschauer' && <AlarmSettingsBox hunter={role === 'hunter'} />}
             {role === 'hunter' && <HunterPanel s={s} now={now} act={act} pos={pos} />}
             {role === 'zuschauer' && <div className="card muted">{t('Du schaust zu. Positionen siehst du mit')} {g.config.spectator.delay_minutes} {t('min Verzögerung.')}</div>}
             {g.host && (

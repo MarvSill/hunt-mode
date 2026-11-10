@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Icon from '../components/Icon';
 import { useAuth } from '../lib/auth';
-import { STATUS_LABELS, joinGame, myGames, type Game } from '../lib/games';
+import { STATUS_LABELS, deleteGame, joinGame, myGames, type Game } from '../lib/games';
 import { errorText } from '../lib/supabase';
 import { t, locale } from '../i18n';
 
@@ -100,15 +100,37 @@ export default function HomePage() {
           <button className="ghost small block" onClick={() => setShowOld((v) => !v)}>
             {showOld ? t('Vergangene Spiele ausblenden') : t('Vergangene Spiele ({0})', { 0: done.length })}
           </button>
-          {showOld && done.map((g) => <GameRow key={g.id} g={g} />)}
+          {showOld && done.map((g) => (
+            <GameRow key={g.id} g={g} host={g.host_id === profile?.user_id} onDelete={async () => {
+              try {
+                await deleteGame(g.id);
+                setGames((list) => (list ?? []).filter((x) => x.id !== g.id));
+              } catch (e) {
+                setError(errorText(e));
+              }
+            }} />
+          ))}
         </>
       )}
     </div>
   );
 }
 
-function GameRow({ g }: { g: Game }) {
+function GameRow({ g, host, onDelete }: { g: Game; host?: boolean; onDelete?: () => void }) {
   const done = DONE.includes(g.status);
+  const [ask, setAsk] = useState(false);
+  if (ask && onDelete) {
+    return (
+      <div className="game-card stack" style={{ alignItems: 'stretch' }}>
+        <strong>{t('„{0}“ löschen?', { 0: g.name })}</strong>
+        <span className="small muted">{host ? t('Das Spiel wird für alle gelöscht, mit Karte, Pings und Wiederholung. Das lässt sich nicht rückgängig machen.') : t('Das Spiel verschwindet aus deiner Liste.')}</span>
+        <div className="row">
+          <button className="danger small" onClick={() => { setAsk(false); onDelete(); }}>{t('Ja, löschen')}</button>
+          <button className="ghost small" onClick={() => setAsk(false)}>{t('Abbrechen')}</button>
+        </div>
+      </div>
+    );
+  }
   return (
     <Link to={`/spiel/${g.id}`} className="game-card">
       <span className={`status-dot ${done ? 'done' : 'lobby'}`} />
@@ -120,6 +142,9 @@ function GameRow({ g }: { g: Game }) {
           {g.start_at && ` · ${new Date(g.start_at).toLocaleString(locale(), { dateStyle: 'short', timeStyle: 'short' })}`}
         </div>
       </div>
+      {onDelete && (
+        <button type="button" className="ghost small" aria-label={t('Spiel löschen')} onClick={(e) => { e.preventDefault(); e.stopPropagation(); setAsk(true); }}>🗑</button>
+      )}
       <Icon name="chevron" />
     </Link>
   );

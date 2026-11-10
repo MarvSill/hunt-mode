@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, type GameState, type Notification } from './engine';
 import { db, errorText } from './supabase';
 import { translateServer } from '../i18n/server';
+import { isNative } from './native';
 
 // Lädt game_state() und hält ihn aktuell: Realtime auf game_ticks (Änderungszähler),
 // dazu ein Client-Tick alle 15 s, falls pg_cron fehlt oder die Verbindung hängt.
@@ -66,9 +67,10 @@ export function useGameState(gameId: string | undefined, onNew?: (n: Notificatio
       .on('postgres_changes', { event: '*', schema: 'public', table: 'game_ticks', filter: `game_id=eq.${gameId}` }, throttled)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `game_id=eq.${gameId}` }, throttled)
       .subscribe();
+    // Handy-App: auch im Hintergrund weiter nachschauen, damit Ping-Alarme ankommen (die Live-Verbindung schläft dort oft ein).
     const tick = setInterval(() => {
-      if (document.visibilityState === 'visible') void api.tick(gameId).then(load, () => undefined);
-    }, 15000);
+      if (document.visibilityState === 'visible' || isNative) void api.tick(gameId).then(load, () => void load());
+    }, isNative ? 10000 : 15000);
     const onVisible = () => {
       if (document.visibilityState === 'visible') void load();
     };

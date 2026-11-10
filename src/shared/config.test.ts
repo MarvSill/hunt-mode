@@ -149,8 +149,17 @@ describe('Validierung', () => {
   });
 
   it('Bekanntgabe des Fluchtpunkts vor Spielbeginn wird angepasst', () => {
-    const c = mergeConfig(defaultConfig(), { game: { duration_minutes: 60 }, ping: { interval_minutes: 10 }, exit: { reveal_minutes_before_end: 120 } });
-    expect(validateConfig(c).config.exit.reveal_minutes_before_end).toBe(60);
+    const c = mergeConfig(defaultConfig(), { game: { duration_minutes: 60 }, start: { head_start_minutes: 10 }, ping: { interval_minutes: 10 }, exit: { reveal_minutes_before_end: 120 } });
+    // Spielzeit gilt mit Vorsprung: gejagt wird 50 min.
+    expect(validateConfig(c).config.exit.reveal_minutes_before_end).toBe(50);
+  });
+
+  it('Vorsprung ist Teil der Spielzeit, Fluchtpunkt erst nach der Bekanntgabe nutzbar', () => {
+    const c = mergeConfig(defaultConfig(), { game: { duration_minutes: 20 }, start: { head_start_minutes: 60 }, exit: { reveal_minutes_before_end: 10, usable_minutes_before_end: 15 } });
+    expect(c.start.head_start_minutes).toBe(15);
+    expect(c.exit.usable_minutes_before_end).toBe(10);
+    expect(c.ping.first_ping_delay_minutes).toBe(0);
+    expect(c.exit.arrival_deadline_offset_minutes).toBe(0);
   });
 
   it('warnt bei kurzen Spielen mit Ausrichtung auf volle Stunden', () => {

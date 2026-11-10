@@ -4,7 +4,7 @@
  * automatisch korrigiert (autoFixes) und dem Host als Hinweis gezeigt.
  */
 import type { GameConfig } from './config';
-import { fitTimes } from './timeRules';
+import { fitTimes, huntMinutes } from './timeRules';
 import { t } from '../i18n';
 
 export type IssueLevel = 'error' | 'warning' | 'autofix';
@@ -44,7 +44,8 @@ export function validateConfig(input: GameConfig, ctx: ValidationContext = {}): 
     issues.push({ level, code, message, paths });
   fit.fixes.forEach((f, n) => add('autofix', `time:${f.path}:${n}`, f.message, f.path));
 
-  const duration = config.game.duration_minutes;
+  // Zeit, in der gejagt wird: Spielzeit ohne Vorsprung.
+  const duration = huntMinutes(config);
 
   if (ctx.players !== undefined && ctx.hunters !== undefined && (ctx.players < 1 || ctx.hunters < 1)) {
     add('error', 'min_participants', t('Es braucht mindestens einen Spieler und einen Hunter.'));

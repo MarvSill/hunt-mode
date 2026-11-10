@@ -24,7 +24,7 @@ import { diffConfig, getGame, updateConfig, type Game } from '../lib/games';
 import { suggestHazards, type HazardSuggestion } from '../lib/hazards';
 import { errorText } from '../lib/supabase';
 import { gameConfigSchema, parseConfig, type GameConfig } from '../shared/config';
-import { durationText, fitTimes, timeLimits } from '../shared/timeRules';
+import { durationText, fitTimes, huntMinutes, timeLimits } from '../shared/timeRules';
 import { t, lazy } from '../i18n';
 
 interface Item { key: string; feature: MapFeature; layer: L.Layer }
@@ -61,10 +61,10 @@ function circleToPolygon(lat: number, lng: number, r: number, n = 48): GeoJSON.P
 const asArea = (f: MapFeature): Area => ({ type: 'Feature', geometry: f.geometry as GeoJSON.Polygon, properties: {} });
 const isArea = (f: MapFeature) => f.geometry.type === 'Polygon' || f.geometry.type === 'MultiPolygon';
 
-/** Anzahl Phasen wie in der Engine (phase_count). */
+/** Anzahl Phasen wie in der Engine (phase_count): die Verkleinerung läuft während der Jagd, nach dem Vorsprung. */
 export function phaseCount(c: GameConfig): number {
   const every = c.zone.shrink_mode === 'aus' ? 0 : c.zone.shrink_every_minutes;
-  return every > 0 ? Math.min(50, Math.max(1, Math.ceil(c.game.duration_minutes / every))) : c.game.days;
+  return every > 0 ? Math.min(50, Math.max(1, Math.ceil(huntMinutes(c) / every))) : c.game.days;
 }
 
 export default function MapEditorPage() {
@@ -89,6 +89,9 @@ export default function MapEditorPage() {
   const [lineWidth, setLineWidth] = useState(30);
   const [restrictedType, setRestrictedType] = useState('gleise');
   const [stepIdx, setStepIdx] = useState(0);
+  /** Eigener Standort (blauer Punkt), um Spielfeld und Startpunkt dort zu setzen. */
+  const [me, setMe] = useState<{ lat: number; lng: number; acc: number } | null>(null);
+  const meLayer = useRef<L.LayerGroup | null>(null);
   const stepPicked = useRef(false);
   const el = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
@@ -166,7 +169,8 @@ export default function MapEditorPage() {
     g.addLayer(l);
     const it: Item = { key: newKey(), feature, layer: l };
     restyle(it);
-    l.on('click', () => setSelected(it.key));
+    // Beim Setzen eines Punkts nicht die Zone darunter öffnen.
+    l.on('click', () => { if (!pendingRef.current) setSelected(it.key); });
     const changed = () => {
       setItems((prev) => prev.map((x) => (x.key === it.key ? { ...x, feature: layerToFeature(l, x.feature.properties) } : x)));
       setDirty(true);
@@ -210,6 +214,7 @@ export default function MapEditorPage() {
     group.current = L.featureGroup().addTo(m);
     badges.current = L.layerGroup().addTo(m);
     hazardLayer.current = L.layerGroup().addTo(m);
+    meLayer.current = L.layerGroup().addTo(m);
     map.current = m;
     m.pm.setLang('de');
     m.pm.setGlobalOptions({ snappable: true, snapDistance: 15, allowSelfIntersection: false } as L.PM.GlobalOptions);
@@ -248,6 +253,25 @@ export default function MapEditorPage() {
     };
   }, [gameId, addItem]);
 
+  // Eigenen Standort laufend zeigen.
+  useEffect(() => {
+    if (!navigator.geolocation) return;
+    const w = navigator.geolocation.watchPosition(
+      (p) => setMe({ lat: p.coords.latitude, lng: p.coords.longitude, acc: Math.round(p.coords.accuracy) }),
+      () => undefined,
+      { enableHighAccuracy: true, maximumAge: 10000, timeout: 20000 },
+    );
+    return () => navigator.geolocation.clearWatch(w);
+  }, []);
+  useEffect(() => {
+    const l = meLayer.current;
+    if (!l) return;
+    l.clearLayers();
+    if (!me) return;
+    if (me.acc > 15) l.addLayer(L.circle([me.lat, me.lng], { radius: me.acc, color: '#58a6ff', weight: 1, fillOpacity: 0.1, interactive: false }));
+    l.addLayer(L.circleMarker([me.lat, me.lng], { radius: 8, color: '#fff', weight: 3, fillColor: '#1f6feb', fillOpacity: 1, interactive: false }).bindTooltip(t('Du bist hier')));
+  }, [me, loaded]);
+
   // Beim Öffnen beim ersten offenen Schritt beginnen.
   useEffect(() => {
     if (!loaded || !config || stepPicked.current) return;
@@ -255,9 +279,10 @@ export default function MapEditorPage() {
     const f = itemsRef.current.map((x) => x.feature);
     const has = (k: ZoneKind) => f.some((x) => x.properties.kind === k);
     const exit = config.exit.enabled;
-    const order: boolean[] = [!!fieldOfPhase(f, 1), has('treffpunkt'), ...(exit ? [has('exit')] : [])];
-    const open = order.findIndex((d) => !d);
-    setStepIdx(open >= 0 ? open : (exit ? 6 : 5) - 1);
+    // Schritte: 0 Spielfeld, 1 Startpunkt, 2 Kleiner werden, 3 Fluchtpunkt (falls an), dann Gefahren und Prüfen.
+    const order: [number, boolean][] = [[0, !!fieldOfPhase(f, 1)], [1, has('treffpunkt')], ...(exit ? [[3, has('exit')] as [number, boolean]] : [])];
+    const open = order.find(([, d]) => !d);
+    setStepIdx(open ? open[0] : (exit ? 6 : 5) - 1);
   }, [loaded, config]);
 
   // Symbole auf Gefahrenzonen
@@ -344,9 +369,18 @@ export default function MapEditorPage() {
 
     if (f.geometry.type === 'Point') {
       const pt = (f.geometry as GeoJSON.Point).coordinates;
-      if ((p.kind === 'treffpunkt' || p.kind === 'exit') && field1 && !pointInside(pt, field1)) {
+      if (p.kind === 'treffpunkt' && field1 && !pointInside(pt, field1)) {
         setMsg({ ok: false, text: t('{0} muss im Spielfeld liegen. Bitte innerhalb antippen.', { 0: ZONE_INFO[p.kind].label }) });
         return;
+      }
+      if (p.kind === 'exit') {
+        // Fluchtpunkte immer in der kleinsten Zone (Spielfeld der letzten Phase), sonst sind sie am Schluss nicht erreichbar.
+        const inner = innermostField();
+        if (inner && !pointInside(pt, inner)) {
+          setMsg({ ok: false, text: t('Fluchtpunkte müssen in der kleinsten Zone liegen (Spielfeld der letzten Phase). Bitte innerhalb antippen.') });
+          setTimeout(() => startDraw(p, false), 0);
+          return;
+        }
       }
       if (p.kind === 'treffpunkt') {
         // Nur einen davon: der alte wird ersetzt.
@@ -389,16 +423,22 @@ export default function MapEditorPage() {
     // Pflicht-Schritte: nach dem Setzen gleich weiter zum nächsten Schritt.
     if (p.kind === 'spielfeld' && !p.phase && !field1) setStepIdx(1);
     if (p.kind === 'treffpunkt') setStepIdx(2);
+    // Fluchtpunkte: gleich den nächsten antippen, ohne jedes Mal den Knopf zu drücken.
+    if (p.kind === 'exit') {
+      const n = itemsRef.current.filter((x) => x.feature.properties.kind === 'exit').length + 1;
+      setMsg({ ok: true, text: t('{0} Fluchtpunkt-Kandidaten gesetzt. Tippe den nächsten an oder drücke „Fertig“.', { 0: n }) });
+      setTimeout(() => startDraw(p, false), 0);
+    }
   };
 
-  function startDraw(p: Pending) {
+  function startDraw(p: Pending, fresh = true) {
     const m = map.current;
     if (!m || !editable) return;
     m.pm.disableDraw();
     m.doubleClickZoom.disable();
     setSelected(null);
     setPending(p);
-    setMsg(null);
+    if (fresh) setMsg(null);
     const color = p.kind === 'sperrzone' ? '#f85149' : ZONE_INFO[p.kind].color;
     m.pm.enableDraw(p.tool, {
       snappable: true,
@@ -407,7 +447,7 @@ export default function MapEditorPage() {
       pathOptions: { color },
       finishOn: p.tool === 'Line' ? 'dblclick' : undefined,
     } as L.PM.DrawModeOptions);
-    el.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    if (fresh) el.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 
   function cancelDraw() {
@@ -548,7 +588,7 @@ export default function MapEditorPage() {
         await updateConfig(game.id, config, changes);
         setSavedConfig(config);
       }
-      setMsg({ ok: true, text: t('Gespeichert: {0} Zonen{1}.', { 0: n, 1: changes.length ? ' und die Einstellungen zur Verkleinerung' : '' }) });
+      setMsg({ ok: true, text: changes.length ? t('Gespeichert: {0} Elemente und die Einstellungen zur Verkleinerung.', { 0: n }) : t('Gespeichert: {0} Elemente.', { 0: n }) });
       setDirty(false);
       return true;
     } catch (err) {
@@ -599,7 +639,7 @@ export default function MapEditorPage() {
       setDirty(true);
       const b = group.current?.getBounds();
       if (b?.isValid()) map.current?.fitBounds(b, { animate: false });
-      setMsg({ ok: true, text: t('{0} Zonen importiert. Speichern nicht vergessen.', { 0: list.length }) });
+      setMsg({ ok: true, text: t('{0} Elemente importiert. Speichern nicht vergessen.', { 0: list.length }) });
     } catch {
       setMsg({ ok: false, text: t('Datei ist kein gültiges GeoJSON.') });
     }
@@ -622,11 +662,11 @@ export default function MapEditorPage() {
     return m ? (m.feature.geometry as GeoJSON.Point).coordinates : null;
   };
 
-  /** Spielfeld als Kreis mit gewünschter Fläche in der Kartenmitte. */
+  /** Spielfeld als Kreis mit gewünschter Fläche um den eigenen Standort (ohne Standort: Kartenmitte). */
   function quickField(km2: number) {
     const m = map.current;
     if (!m) return;
-    const c = m.getCenter();
+    const c = me ? L.latLng(me.lat, me.lng) : m.getCenter();
     for (const old of itemsRef.current.filter((x) => x.feature.properties.kind === 'spielfeld' && !x.feature.properties.day_index)) group.current?.removeLayer(old.layer);
     const shape = circleWithArea([c.lng, c.lat], km2);
     const it = addItem({ type: 'Feature', geometry: shape.geometry, properties: { kind: 'spielfeld', name: t('Spielfeld') } });
@@ -635,7 +675,7 @@ export default function MapEditorPage() {
     setItems(next);
     setDirty(true);
     m.fitBounds((it.layer as L.Polygon).getBounds(), { padding: [20, 20] });
-    setMsg({ ok: true, text: t('Spielfeld erstellt. Du kannst es antippen und die Ecken verschieben.') });
+    setMsg({ ok: true, text: me ? t('Spielfeld um deinen Standort erstellt. Du kannst es antippen und die Ecken verschieben.') : t('Spielfeld erstellt. Du kannst es antippen und die Ecken verschieben.') });
     setStepIdx(1);
   }
 
@@ -664,10 +704,19 @@ export default function MapEditorPage() {
   }
 
   function autoPoints() {
-    const meet = autoMeet();
-    if (config?.exit.enabled) autoExits(4, meet);
-    setMsg({ ok: true, text: t('Startpunkt') + (config?.exit.enabled ? t(' und 4 Fluchtpunkt-Kandidaten') : '') + t(' gesetzt. Zum Verschieben antippen und ziehen.') });
-    setStepIdx(config?.exit.enabled ? 3 : 2);
+    autoMeet();
+    setMsg({ ok: true, text: t('Startpunkt gesetzt. Zum Verschieben antippen und ziehen.') });
+    setStepIdx(2);
+  }
+
+  /** Startpunkt genau dort, wo man gerade steht. */
+  function meetHere() {
+    if (!me) return setMsg({ ok: false, text: t('Dein Standort ist noch nicht bekannt. Erlaube den Standort und warte kurz.') });
+    const f1 = fieldOfPhase(itemsRef.current.map((x) => x.feature), 1);
+    if (f1 && !pointInside([me.lng, me.lat], f1)) return setMsg({ ok: false, text: t('Du stehst ausserhalb des Spielfelds. Der Startpunkt muss im Spielfeld liegen.') });
+    placePoints('treffpunkt', [[me.lng, me.lat]], 30);
+    setMsg({ ok: true, text: t('Startpunkt an deinem Standort gesetzt.') });
+    setStepIdx(2);
   }
 
   function goStep(i: number) {
@@ -699,8 +748,8 @@ export default function MapEditorPage() {
   const steps: { id: string; icon: string; title: string; text: string; done: boolean; optional?: boolean }[] = [
     { id: 'feld', icon: '🟩', title: t('Spielfeld'), text: t('Der Bereich, in dem gespielt wird. Alle anderen Zonen liegen darin.'), done: !!field1 },
     { id: 'treff', icon: '📍', title: t('Startpunkt'), text: t('Hier starten alle, Spieler und Hunter. Die Spieler laufen zuerst los, die Hunter warten hier, bis der Vorsprung vorbei ist. Muss im Spielfeld liegen.'), done: has('treffpunkt') },
-    ...(config.exit.enabled ? [{ id: 'exit', icon: '🏁', title: t('Fluchtpunkt'), text: t('Setze mindestens 4 mögliche Fluchtpunkte, alle in der innersten Zone (dem kleinsten Spielfeld am Schluss). Erst kurz vor Schluss wählt die App zufällig einen davon und verrät ihn nur den Spielern. So weisst auch du nicht, welcher es wird.'), done: features.filter((f) => f.properties.kind === 'exit').length >= 4 }] : []),
-    { id: 'klein', icon: '⏳', title: t('Kleiner werden'), text: t('Soll das Spielfeld im Lauf des Spiels kleiner werden? Neue Grenzen werden vorher angekündigt und gestrichelt gezeigt.'), done: shrink !== 'aus', optional: true },
+    { id: 'klein', icon: '⏳', title: t('Kleiner werden'), text: t('Soll das Spielfeld im Lauf des Spiels kleiner werden? Neue Grenzen werden vorher angekündigt und gestrichelt gezeigt. Lege das vor den Fluchtpunkten fest: die müssen in der kleinsten Zone liegen.'), done: shrink !== 'aus', optional: true },
+    ...(config.exit.enabled ? [{ id: 'exit', icon: '🏁', title: t('Fluchtpunkt'), text: t('Setze mindestens 4 mögliche Fluchtpunkte, alle in der kleinsten Zone (Spielfeld der letzten Phase). Erst kurz vor Schluss wählt die App zufällig einen davon und verrät ihn nur den Spielern. So weisst auch du nicht, welcher es wird.'), done: features.filter((f) => f.properties.kind === 'exit').length >= 4 }] : []),
     { id: 'gefahr', icon: '⚠️', title: t('Gefahren'), text: t('Nur aussergewöhnlich gefährliche Orte: Autobahnen, Bahngleise, grosse Gewässer. Unterführungen und Brücken bleiben frei. Für alles andere ist jeder selbst verantwortlich.'), done: has('sperrzone'), optional: true },
     { id: 'fertig', icon: '✅', title: t('Prüfen'), text: t('Hier siehst du, ob die Karte bereit ist.'), done: !issues.some((i) => i.level === 'error') },
   ];
@@ -746,7 +795,9 @@ export default function MapEditorPage() {
             <div className="small">{TOOL_HINT[pending.tool]}</div>
             <div className="row">
               {pending.tool === 'Line' && <button className="small primary" onClick={finishLine}>{t('Linie fertig')}</button>}
-              <button className="small" onClick={cancelDraw}>{t('Abbrechen')}</button>
+              {pending.kind === 'exit'
+                ? <button className="small primary" onClick={cancelDraw}>{t('Fertig')} ({features.filter((f) => f.properties.kind === 'exit').length})</button>
+                : <button className="small" onClick={cancelDraw}>{t('Abbrechen')}</button>}
             </div>
           </div>
         )}
@@ -785,7 +836,7 @@ export default function MapEditorPage() {
 
           {cur.id === 'feld' && (
             <>
-              <div className="muted small"><strong>{t('Am einfachsten:')}</strong> {t('Karte auf den Ort schieben (oder oben suchen), dann Grösse antippen.')}</div>
+              <div className="muted small"><strong>{t('Am einfachsten:')}</strong> {me ? t('Grösse antippen: das Spielfeld wird als Kreis um deinen Standort (blauer Punkt) gelegt.') : t('Karte auf den Ort schieben (oder oben suchen), dann Grösse antippen.')}</div>
               <div className="tool-row size-row">
                 {sizes.map((z) => (
                   <button key={z.label} className={`size-btn${z.recommended ? ' primary' : ''}`} onClick={() => quickField(z.km2)}>
@@ -805,15 +856,17 @@ export default function MapEditorPage() {
 
           {cur.id === 'treff' && (
             <>
-              <button className="primary" onClick={autoPoints} disabled={!field1}>{t('✨ Startpunkt')}{config.exit.enabled ? t(' und Fluchtpunkte') : ''} {t('automatisch setzen')}</button>
-              <button onClick={draw({ kind: 'treffpunkt', tool: 'Marker' })} disabled={!field1}>{t('📍 Startpunkt selbst antippen')}</button>
+              <button className="primary" onClick={meetHere} disabled={!field1 || !me}>{t('📍 Startpunkt hier (mein Standort)')}</button>
+              <button onClick={autoPoints} disabled={!field1}>{t('✨ Startpunkt automatisch setzen')}</button>
+              <button onClick={draw({ kind: 'treffpunkt', tool: 'Marker' })} disabled={!field1}>{t('👆 Startpunkt selbst antippen')}</button>
+              {!me && <div className="muted small">{t('Warte auf deinen Standort … (Standort erlauben)')}</div>}
             </>
           )}
 
           {cur.id === 'exit' && (
             <>
               <button className="primary" onClick={() => autoExits(4)} disabled={!field1}>{t('✨ 4 Fluchtpunkt-Kandidaten automatisch setzen')}</button>
-              <button onClick={draw({ kind: 'exit', tool: 'Marker' })} disabled={!field1}>{t('🏁 Fluchtpunkt-Kandidat selbst antippen')}</button>
+              <button onClick={draw({ kind: 'exit', tool: 'Marker' })} disabled={!field1}>{t('🏁 Fluchtpunkte selbst antippen (nacheinander)')}</button>
               <div className="muted small">{features.filter((f) => f.properties.kind === 'exit').length} {t('von mindestens 4 Kandidaten gesetzt.')}</div>
             </>
           )}
@@ -827,7 +880,7 @@ export default function MapEditorPage() {
             </div>
             {shrink !== 'aus' && (
               <>
-                <NumberRow label={t('Kleiner alle (Minuten, Spiel dauert {0})', { 0: durationText(config.game.duration_minutes) })} value={config.zone.shrink_every_minutes} min={5} max={limits['zone.shrink_every_minutes']?.max ?? 1440} step={5} onChange={(v) => setZone('shrink_every_minutes', v)} />
+                <NumberRow label={t('Kleiner alle (Minuten, Jagd dauert {0})', { 0: durationText(huntMinutes(config)) })} value={config.zone.shrink_every_minutes} min={5} max={limits['zone.shrink_every_minutes']?.max ?? 1440} step={5} onChange={(v) => setZone('shrink_every_minutes', v)} />
                 <div className="muted small">{phases} {t('Phasen → das Spielfeld ändert sich')} {Math.max(0, phases - 1)}{t('-mal.')}</div>
                 {shrink === 'auto' && (
                   <NumberRow label={t('Kleiner um (% Fläche je Schritt)')} value={config.zone.auto_shrink_percent} min={1} max={80} step={5} onChange={(v) => setZone('auto_shrink_percent', v)} />
@@ -923,8 +976,8 @@ export default function MapEditorPage() {
       )}
 
       <details className="card" style={{ marginTop: 12 }}>
-        <summary><strong>{t('Alle Zonen (')}{items.length})</strong> <span className="muted small">{t('· zum Ändern antippen')}</span></summary>
-        {items.length === 0 && <span className="muted small">{t('Noch keine Zonen.')}</span>}
+        <summary><strong>{t('Alles auf der Karte ({0})', { 0: items.length })}</strong> <span className="muted small">{t('· Spielfeld, Punkte und Gefahrenzonen · zum Ändern antippen')}</span></summary>
+        {items.length === 0 && <span className="muted small">{t('Noch nichts gesetzt.')}</span>}
         <ul className="list zone-list">
           {items.map((it) => {
             const p = it.feature.properties;
@@ -933,7 +986,7 @@ export default function MapEditorPage() {
               <li key={it.key} className={it.key === selected ? 'selected' : ''} onClick={() => select(it.key)}>
                 <span>{p.kind === 'sperrzone' ? restrictedInfo(p.restricted_type).icon : ICON[p.kind]}</span>
                 <span className="spacer">
-                  {p.name || ZONE_INFO[p.kind].label}
+                  {ZONE_INFO[p.kind].label}
                   {p.kind === 'spielfeld' && p.day_index ? ` · ${unitLabel} ${p.day_index}` : ''}
                   {p.kind === 'sperrzone' && <span className="muted small"> · {restrictedInfo(p.restricted_type).label}</span>}
                 </span>
@@ -969,9 +1022,9 @@ function NumberRow({ label, value, min, max, step, onChange }: { label: string; 
     <div className="quick-row">
       <span className="spacer">{label}</span>
       <div className="stepper">
-        <button type="button" aria-label={`${label} weniger`} disabled={value <= min} onClick={() => onChange(clamp(value - step))}>−</button>
+        <button type="button" aria-label={t('{0} weniger', { 0: label })} disabled={value <= min} onClick={() => onChange(clamp(value - step))}>−</button>
         <NumberField label={label} value={value} min={min} max={max} onChange={onChange} />
-        <button type="button" aria-label={`${label} mehr`} disabled={value >= max} onClick={() => onChange(clamp(value + step))}>+</button>
+        <button type="button" aria-label={t('{0} mehr', { 0: label })} disabled={value >= max} onClick={() => onChange(clamp(value + step))}>+</button>
       </div>
     </div>
   );
@@ -987,15 +1040,11 @@ function ZoneProps({ sel, editable, phases, unitLabel, update, remove, close }: 
   return (
     <div className="card stack zone-props">
       <div className="row">
-        <h2 className="spacer" style={{ margin: 0 }}>{p.kind === 'sperrzone' ? restrictedInfo(p.restricted_type).icon : ICON[p.kind]} {p.name || ZONE_INFO[p.kind].label} <Info title={ZONE_HELP[p.kind].title} text={ZONE_HELP[p.kind].text} /></h2>
+        <h2 className="spacer" style={{ margin: 0 }}>{p.kind === 'sperrzone' ? restrictedInfo(p.restricted_type).icon : ICON[p.kind]} {ZONE_INFO[p.kind].label} <Info title={ZONE_HELP[p.kind].title} text={ZONE_HELP[p.kind].text} /></h2>
         <button className="ghost small" onClick={close} aria-label={t('Schliessen')}>✕</button>
       </div>
       {editable && !isPoint && <div className="muted small">{t('Ecken ziehen zum Ändern, Mitte einer Kante ziehen für eine neue Ecke, ganze Zone verschieben mit Ziehen.')}</div>}
       {editable && isPoint && <div className="muted small">{t('Zum Verschieben das Symbol gedrückt halten und ziehen.')}</div>}
-      <label className="field">
-        {t('Name')}
-        <input value={p.name ?? ''} disabled={!editable} onChange={(e) => update(sel.key, { name: e.target.value })} />
-      </label>
       {!isPoint && (
         <label className="field">
           {t('Art')}
@@ -1035,7 +1084,7 @@ function ZoneProps({ sel, editable, phases, unitLabel, update, remove, close }: 
           )}
         </>
       )}
-      {editable && <button className="ghost" onClick={() => remove(sel.key)}>{t('🗑 Zone löschen')}</button>}
+      {editable && <button className="ghost" onClick={() => remove(sel.key)}>{isPoint ? t('🗑 Punkt löschen') : t('🗑 Löschen')}</button>}
     </div>
   );
 }

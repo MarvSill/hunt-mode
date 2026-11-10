@@ -19,7 +19,11 @@ export default function MapSettingsBox() {
         <input type="checkbox" checked={s.tilt} onChange={(e) => setMapSettings({ tilt: e.target.checked })} />
         <span>{t('3D-Ansicht im Spiel (geneigt, mit Gebäuden)')}</span>
       </label>
-      <div className="muted small">{t('Auf jeder Karte kannst du die Kartenart oben links wechseln und 3D mit dem Knopf 3D. Beim Zeichnen der Karte bleibt sie flach, damit man genau zeichnen kann.')}</div>
+      <label className="check">
+        <input type="checkbox" checked={s.north} onChange={(e) => setMapSettings({ north: e.target.checked })} />
+        <span>{t('Karte immer nach Norden ausrichten (nicht drehen)')}</span>
+      </label>
+      <div className="muted small">{t('Auf jeder Karte kannst du oben links die Kartenart wechseln, mit dem Knopf 3D die 3D-Ansicht einschalten und mit dem Knopf N die Karte nach Norden ausrichten. Beim Zeichnen der Karte bleibt sie flach, damit man genau zeichnen kann.')}</div>
     </div>
   );
 }

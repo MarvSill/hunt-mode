@@ -49,7 +49,7 @@ export const gameConfigSchema = z.object({
   game: z
     .object({
       timezone: text('Europe/Zurich', 64, 'Zeitzone'),
-      duration_minutes: int(180, 15, 20160, 'Jagddauer (min)'),
+      duration_minutes: int(180, 15, 20160, 'Spielzeit mit Vorsprung (min)'),
       // Intern: ein einziger Abschnitt, damit die Engine das Spiel am Stück laufen lässt.
       days: int(1, 1, 14, 'Abschnitte'),
       day_length_minutes: int(180, 10, 1440, 'Abschnittslänge (min)'),
@@ -104,6 +104,7 @@ export const gameConfigSchema = z.object({
       offset_minutes: int(0, 0, 719, 'Versatz (min)'),
       jitter_minutes: int(0, 0, 30, 'Zufallsversatz (min)'),
       during_speedhunt: choice(['weiterlaufen', 'aussetzen'], 'weiterlaufen', 'Pings während einer Blitzjagd'),
+      // Fest 0: nach dem Vorsprung kommt sofort ein Ping.
       first_ping_delay_minutes: int(0, 0, 600, 'Erster Ping nach Vorsprung (min)'),
       max_age_seconds: int(60, 10, 600, 'Frische-Regel (s)'),
       fresh_fix_wait_seconds: int(30, 5, 120, 'Wartezeit auf frischen Standort (s)'),
@@ -226,8 +227,10 @@ export const gameConfigSchema = z.object({
     .object({
       enabled: bool(true, 'Fluchtpunkt aktiv'),
       radius_m: int(30, 5, 500, 'Radius (m)'),
-      reveal_minutes_before_end: int(20, 0, 1440, 'Bekanntgabe vor Ende (min)'),
-      arrival_deadline_offset_minutes: int(15, 0, 120, 'Ankunftsfrist nach Ende (min)'),
+      reveal_minutes_before_end: int(10, 0, 1440, 'Bekanntgabe vor Ende (min)'),
+      usable_minutes_before_end: int(2, 0, 1440, 'Nutzbar ab vor Ende (min)'),
+      // Fest 0: das Spiel endet pünktlich, ohne Nachspielzeit.
+      arrival_deadline_offset_minutes: int(0, 0, 120, 'Ankunftsfrist nach Ende (min)'),
       confirm: choice(['geofence', 'qr'], 'geofence', 'Bestätigung'),
       missed_policy: choice(['verloren', 'gewonnen_ohne_exit'], 'verloren', 'Nicht angekommen'),
     })
@@ -302,8 +305,15 @@ export function normalizeConfig(c: GameConfig): GameConfig {
   c.hideout.lockout_after_first_entry_minutes = 0;
   c.transport.checkin_required = false;
   c.transport.live_during = false;
-  // Hunter sehen alle bisherigen Pings (auf der Karte wahlweise nur den letzten).
+  // Hunter sehen alle bisherigen Pings (auf der Karte wählt jeder selbst, wie viele).
   c.ping.history_per_player = Math.max(c.ping.history_per_player, 200);
+  // Nach dem Vorsprung sofort ein Ping; das Spiel endet pünktlich; nie zweimal dasselbe Ziel.
+  c.ping.first_ping_delay_minutes = 0;
+  c.exit.arrival_deadline_offset_minutes = 0;
+  c.speedhunt.no_consecutive_same_target = true;
+  // Spielzeit gilt alles inklusive: der Vorsprung ist ein Teil davon.
+  c.start.head_start_minutes = Math.min(c.start.head_start_minutes, Math.max(0, c.game.duration_minutes - 5));
+  c.exit.usable_minutes_before_end = Math.min(c.exit.usable_minutes_before_end, c.exit.reveal_minutes_before_end);
   return c;
 }
 

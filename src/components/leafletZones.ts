@@ -76,7 +76,7 @@ export function zoneBadge(f: MapFeature): L.Marker {
   const info = restrictedInfo(f.properties.restricted_type);
   const html = k === 'sperrzone'
     ? `<div class="zone-badge danger" title="${esc(info.label)}">⚠️${info.icon === '⚠️' ? '' : info.icon}</div>`
-    : '<div class="zone-badge safe" title="Sichere Zone">🛡️</div>';
+    : `<div class="zone-badge safe" title="${esc(t('Sichere Zone'))}">🛡️</div>`;
   return L.marker([lat, lng], { icon: L.divIcon({ className: '', html, iconSize: [36, 22], iconAnchor: [18, 11] }), interactive: false, keyboard: false });
 }
 
