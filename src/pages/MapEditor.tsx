@@ -17,7 +17,7 @@ import { esc, pointIcon, zoneBadge, zoneStyle } from '../components/leafletZones
 import { STEP_HELP, ZONE_HELP } from '../shared/help';
 import { api, ZONE_INFO, ZONE_KINDS, type MapFeature, type ZoneKind } from '../lib/engine';
 import {
-  areaKm2, bandFromLine, centerOf, checkMap, circleWithArea, clipTo, fieldOfPhase, INSIDE_FIELD, middleOf, outsideShare, pointInside,
+  areaKm2, bandFromLine, centerOf, checkMap, circleWithArea, clipTo, exitPlaceOk, fieldOfPhase, INSIDE_FIELD, middleOf, nearestExitPlace, outsideShare, pointInside,
   recommendedKm2PerPlayer, RESTRICTED_TYPES, restrictedInfo, shrinkArea, spreadPoints, unionAll, type Area,
 } from '../lib/geo';
 import { diffConfig, getGame, updateConfig, type Game } from '../lib/games';
@@ -347,6 +347,38 @@ export default function MapEditorPage() {
     });
   }, [phaseFields, preview, shrink, phases]);
 
+  // Fluchtpunkte, die in einer Gefahrenzone oder ausserhalb der kleinsten Zone liegen (z. B. nach dem Ändern der
+  // Verkleinerung, einer neuen Gefahrenzone oder dem Verschieben), automatisch an die nächste erlaubte Stelle setzen.
+  useEffect(() => {
+    if (!loaded || !editable || pending) return;
+    const inner = innermostField();
+    if (!inner) return;
+    const blocked = blockedArea();
+    const exits = items.filter((x) => x.feature.properties.kind === 'exit' && x.feature.geometry.type === 'Point');
+    const placed: GeoJSON.Position[] = [];
+    let moved = 0;
+    const next = new Map<string, GeoJSON.Position>();
+    for (const it of exits) {
+      const pt = (it.feature.geometry as GeoJSON.Point).coordinates;
+      if (exitPlaceOk(pt, inner, blocked)) { placed.push(pt); continue; }
+      const others = [...placed, ...exits.filter((x) => x !== it).map((x) => (x.feature.geometry as GeoJSON.Point).coordinates)];
+      const to = nearestExitPlace(pt, inner, blocked, others);
+      if (!to) continue;
+      next.set(it.key, to);
+      placed.push(to);
+      moved++;
+    }
+    if (!moved) return;
+    setItems((prev) => prev.map((x) => {
+      const to = next.get(x.key);
+      if (!to) return x;
+      (x.layer as L.Marker).setLatLng?.([to[1], to[0]]);
+      return { ...x, feature: { ...x.feature, geometry: { type: 'Point', coordinates: to } } };
+    }));
+    setDirty(true);
+    setMsg({ ok: true, text: t('{0} Fluchtpunkt(e) lagen in einer Gefahrenzone oder ausserhalb der kleinsten Zone und wurden automatisch an die nächste erlaubte Stelle verschoben.', { 0: moved }) });
+  }, [items, phaseFields, loaded, editable, pending]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Neue Zeichnung übernehmen
   handleCreateRef.current = (layer: L.Layer) => {
     const m = map.current!;
@@ -361,6 +393,7 @@ export default function MapEditorPage() {
     if (p.kind === 'spielfeld' && p.phase) props.day_index = p.phase;
     if (p.kind === 'sperrzone') props.restricted_type = p.restrictedType ?? 'andere';
     let f: MapFeature;
+    let moved = false;
     if (p.tool === 'Line') {
       const coords = ((layer as L.Polyline).toGeoJSON() as GeoJSON.Feature<GeoJSON.LineString>).geometry.coordinates;
       f = { type: 'Feature', geometry: bandFromLine(coords, p.widthM ?? 30).geometry, properties: props };
@@ -375,12 +408,18 @@ export default function MapEditorPage() {
         return;
       }
       if (p.kind === 'exit') {
-        // Fluchtpunkte immer in der kleinsten Zone (Spielfeld der letzten Phase), sonst sind sie am Schluss nicht erreichbar.
+        // Fluchtpunkte immer in der kleinsten Zone und nie in einer Gefahrenzone: sonst gleich an die nächste erlaubte Stelle.
         const inner = innermostField();
-        if (inner && !pointInside(pt, inner)) {
-          setMsg({ ok: false, text: t('Fluchtpunkte müssen in der kleinsten Zone liegen (Spielfeld der letzten Phase). Bitte innerhalb antippen.') });
-          setTimeout(() => startDraw(p, false), 0);
-          return;
+        if (inner && !exitPlaceOk(pt, inner, blockedArea())) {
+          const others = itemsRef.current.filter((x) => x.feature.properties.kind === 'exit').map((x) => (x.feature.geometry as GeoJSON.Point).coordinates);
+          const to = nearestExitPlace(pt, inner, blockedArea(), others);
+          if (!to) {
+            setMsg({ ok: false, text: t('In der kleinsten Zone ist kein Platz ausserhalb der Gefahrenzonen. Bitte das Spielfeld oder die Verkleinerung anpassen.') });
+            setTimeout(() => startDraw(p, false), 0);
+            return;
+          }
+          f = { ...f, geometry: { type: 'Point', coordinates: to } };
+          moved = true;
         }
       }
       if (p.kind === 'treffpunkt') {
@@ -421,13 +460,14 @@ export default function MapEditorPage() {
     const it = addItem(f);
     setItems((prev) => [...prev, it]);
     setDirty(true);
+    if (moved) setMsg({ ok: true, text: t('Der Fluchtpunkt lag in einer Gefahrenzone oder ausserhalb der kleinsten Zone und wurde an die nächste erlaubte Stelle verschoben.') });
     // Pflicht-Schritte: nach dem Setzen gleich weiter zum nächsten Schritt.
     if (p.kind === 'spielfeld' && !p.phase && !field1) setStepIdx(1);
     if (p.kind === 'treffpunkt') setStepIdx(2);
     // Fluchtpunkte: gleich den nächsten antippen, ohne jedes Mal den Knopf zu drücken.
     if (p.kind === 'exit') {
       const n = itemsRef.current.filter((x) => x.feature.properties.kind === 'exit').length + 1;
-      setMsg({ ok: true, text: t('{0} Fluchtpunkt-Kandidaten gesetzt. Tippe den nächsten an oder drücke „Fertig“.', { 0: n }) });
+      if (!moved) setMsg({ ok: true, text: t('{0} Fluchtpunkt-Kandidaten gesetzt. Tippe den nächsten an oder drücke „Fertig“.', { 0: n }) });
       setTimeout(() => startDraw(p, false), 0);
     }
   };

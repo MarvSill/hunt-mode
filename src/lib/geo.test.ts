@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { MapFeature } from './engine';
-import { areaKm2, bandFromLine, checkMap, circleWithArea, middleOf, pointAtDistance, pointInside, spreadPoints, clipTo, fieldOfPhase, outsideShare, shrinkArea, type Area } from './geo';
+import { areaKm2, bandFromLine, checkMap, exitPlaceOk, nearestExitPlace, circleWithArea, middleOf, pointAtDistance, pointInside, spreadPoints, clipTo, fieldOfPhase, outsideShare, shrinkArea, type Area } from './geo';
 
 const square = (x: number, y: number, d: number): Area => ({
   type: 'Feature', properties: {},
@@ -63,5 +63,27 @@ describe('geo', () => {
     const ex = spreadPoints(f, 3, [m]);
     expect(ex).toHaveLength(3);
     for (const p of ex) expect(pointInside(p, f)).toBe(true);
+  });
+});
+
+describe('Fluchtpunkt automatisch verschieben', () => {
+  const sq = (x0: number, y0: number, x1: number, y1: number): Area => ({ type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [[[x0, y0], [x1, y0], [x1, y1], [x0, y1], [x0, y0]]] } });
+  const inner = sq(8.53, 47.37, 8.55, 47.38);
+  const danger = sq(8.538, 47.37, 8.542, 47.38);
+
+  it('verschiebt aus der Gefahrenzone an die nächste freie Stelle', () => {
+    const to = nearestExitPlace([8.54, 47.375], inner, danger)!;
+    expect(exitPlaceOk(to, inner, danger)).toBe(true);
+    expect(Math.abs(to[0] - 8.54)).toBeLessThan(0.004);
+  });
+
+  it('holt einen Punkt von ausserhalb in die kleinste Zone', () => {
+    const to = nearestExitPlace([8.56, 47.375], inner, null)!;
+    expect(exitPlaceOk(to, inner, null)).toBe(true);
+    expect(to[0]).toBeGreaterThan(8.545);
+  });
+
+  it('lässt richtige Punkte gelten', () => {
+    expect(exitPlaceOk([8.535, 47.375], inner, danger)).toBe(true);
   });
 });
