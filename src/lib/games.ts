@@ -78,6 +78,12 @@ export async function myGames() {
   return data as Game[];
 }
 
+/** Spiel löschen (Host) oder aus der eigenen Liste entfernen (alle anderen). Nur wenn es nicht läuft. */
+export async function deleteGame(id: string) {
+  const { error } = await db().rpc('delete_game', { p_game_id: id });
+  if (error) throw error;
+}
+
 export async function getGame(id: string) {
   const { data, error } = await db().from('games').select('*').eq('id', id).maybeSingle();
   if (error) throw error;

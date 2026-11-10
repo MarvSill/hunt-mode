@@ -53,18 +53,43 @@ export function ensureNotifyPermission(): Promise<boolean> {
   return notifyReady;
 }
 
-/** Meldung als Benachrichtigung zeigen, wenn die App im Hintergrund ist (mit Ton und Vibration des Handys). */
-export async function nativeNotify(id: number, title: string, body: string) {
-  if (!isNative || !(await ensureNotifyPermission())) return;
-  const { LocalNotifications } = await import('@capacitor/local-notifications');
-  await LocalNotifications.schedule({ notifications: [{ id: id % 2147483647, title, body, channelId: 'hunt-alarm' }] });
+/** Kanal für Spiel-Alarme (Android). Ein Kanal behält seine ersten Einstellungen, darum ein neuer Name. */
+const CHANNEL = 'hunt-alarm-v2';
+
+/** Meldung als Benachrichtigung des Handys zeigen (Ton und Vibration kommen vom Handy, auch bei gesperrtem Bildschirm). */
+export async function nativeNotify(id: number, title: string, body: string): Promise<boolean> {
+  if (!isNative) return false;
+  try {
+    if (!(await ensureNotifyPermission())) return false;
+    const { LocalNotifications } = await import('@capacitor/local-notifications');
+    await LocalNotifications.schedule({ notifications: [{ id: id % 2147483647, title, body, channelId: CHANNEL, autoCancel: true }] });
+    return true;
+  } catch (err) {
+    console.warn('[hm-notify]', err);
+    return false;
+  }
 }
 
-/** Kanal für Spiel-Alarme (Android): hohe Wichtigkeit, damit Ton und Vibration kommen. */
+/** Kanal für Spiel-Alarme (Android): höchste Wichtigkeit, damit Ton, Vibration und Banner kommen. */
 export async function setupNotifyChannel() {
   if (platform !== 'android') return;
   const { LocalNotifications } = await import('@capacitor/local-notifications');
-  await LocalNotifications.createChannel({ id: 'hunt-alarm', name: t('Spiel-Alarme'), importance: 5, vibration: true, visibility: 1 }).catch(() => undefined);
+  await LocalNotifications.deleteChannel({ id: 'hunt-alarm' }).catch(() => undefined);
+  await LocalNotifications.createChannel({
+    id: CHANNEL, name: t('Spiel-Alarme'), description: t('Pings, Blitzjagden, Notfälle und Nachrichten im Spiel'),
+    importance: 5, vibration: true, lights: true, lightColor: '#3fb950', visibility: 1,
+  }).catch((err) => console.warn('[hm-notify] Kanal', err));
+}
+
+/** Sind Benachrichtigungen erlaubt? null = Web-App (dort regelt es der Browser). */
+export async function notifyAllowed(): Promise<boolean | null> {
+  if (!isNative) return null;
+  try {
+    const { LocalNotifications } = await import('@capacitor/local-notifications');
+    return (await LocalNotifications.checkPermissions()).display === 'granted';
+  } catch {
+    return false;
+  }
 }
 
 /** Öffentliche Adresse der Web-App (für Einladungslinks auch aus der Handy-App). */

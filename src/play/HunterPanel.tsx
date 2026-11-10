@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { api, clock, countdown, SOURCE_LABELS, STATE_LABELS, TRANSPORT_LABELS, uploadProof } from '../lib/engine';
-import { Confirm, nameOf, Section, type PanelProps } from './common';
+import { Confirm, nameOf, nameTag, Section, type PanelProps } from './common';
 import Scanner from './Scanner';
 import { t } from '../i18n';
 
@@ -8,16 +8,13 @@ export default function HunterPanel({ s, now, act, pos }: PanelProps) {
   const g = s.game;
   const cfg = g.config;
   const [scan, setScan] = useState(false);
-  const [target, setTarget] = useState('');
   const [result, setResult] = useState<string | null>(null);
   const players = s.participants.filter((p) => p.role === 'spieler');
   const free = players.filter((p) => ['aktiv', 'ausserhalb', 'notfall'].includes(p.state));
   const running = s.speedhunts.filter((x) => x.status === 'laeuft');
-  const waiting = s.speedhunts.filter((x) => x.status === 'aufgeschoben');
   const live = ['laeuft', 'finale'].includes(g.status) && !g.paused;
   const myProof = s.catches.filter((c) => c.hunter_id === s.me.id && c.status === 'wartet_auf_beweis');
   const myPending = s.catches.filter((c) => c.hunter_id === s.me.id && c.status === 'wartet_auf_bestaetigung');
-  const canTrigger = cfg.speedhunt.enabled;
 
   const onCode = useCallback((code: string) => {
     setScan(false);
@@ -48,31 +45,12 @@ export default function HunterPanel({ s, now, act, pos }: PanelProps) {
       ))}
       {myPending.map((c) => <div key={c.id} className="notice">{t('Warte auf Bestätigung von')} {nameOf(s, c.runner_id)} {t('(bis')} {clock(c.expires_at)}).</div>)}
 
-      <Section title={t('Blitzjagd')} badge={<span className="badge">{g.speedhunts_left} {t('übrig')}</span>}>
-        {running.map((sh) => (
-          <div key={sh.id} className="stack sub">
-            <div className="row">
-              <strong className="spacer">{sh.is_penalty ? t('Straf-Blitzjagd') : t('Blitzjagd')}: {nameOf(s, sh.target_id)}</strong>
-              <span className="badge red">{sh.queries_used}/{sh.queries_total}</span>
-            </div>
-            <div className="muted small">{t('Ohne Zeitlimit: endet nach der letzten Abfrage oder beim Fang.')}</div>
-            <button className="primary" disabled={!live || sh.queries_used >= sh.queries_total} onClick={() => act(() => api.speedhuntQuery(sh.id), t('Standort abgefragt.'))}>
-              {t('Standort abfragen (')}{sh.queries_total - sh.queries_used} {t('übrig)')}
-            </button>
-          </div>
-        ))}
-        {waiting.map((sh) => <div key={sh.id} className="muted small">{t('Aufgeschoben:')} {nameOf(s, sh.target_id)}</div>)}
-        {canTrigger ? (
-          <div className="row">
-            <select aria-label={t('Ziel')} value={target} onChange={(e) => setTarget(e.target.value)} style={{ flex: 1 }}>
-              <option value="">{t('Ziel wählen …')}</option>
-              {free.map((p) => <option key={p.id} value={p.id} disabled={!!p.protected}>{p.tag ? `${p.tag} · ` : ''}{p.name}{p.protected ? t(' (geschützt)') : ''}</option>)}
-            </select>
-            <Confirm className="primary" disabled={!live || !target || g.speedhunts_left <= 0} label={t('Starten')} confirm={t('Blitzjagd starten?')}
-              onYes={() => act(() => api.speedhuntStart(g.id, target), t('Blitzjagd läuft.'))} />
-          </div>
-        ) : <div className="muted small">{t('In diesem Spiel gibt es keine Blitzjagden.')}</div>}
-      </Section>
+      {cfg.speedhunt.enabled && (
+        <div className="card small">
+          ⚡ {t('Blitzjagden startest du direkt auf der Karte (Knopf unten links). Noch {0} im Spiel.', { 0: g.speedhunts_left })}
+          {running.map((sh) => <div key={sh.id} className="muted">{t('Läuft: {0} · {1}/{2} Abfragen', { 0: nameTag(s, sh.target_id), 1: sh.queries_used, 2: sh.queries_total })}</div>)}
+        </div>
+      )}
 
       <Section title={t('Spieler ({0} frei)', { 0: free.length })}>
         <ul className="list">

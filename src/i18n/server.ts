@@ -257,6 +257,30 @@ const RULES: Rule[] = [
   r('Nicht in der Gruppe.', 'Pas dans le groupe.', 'Not in the group.'),
   r('Die Wiederholung gibt es erst nach Spielende.', 'Le replay n’est disponible qu’après la fin de la partie.', 'The replay is only available after the game.'),
   r('Zu lange in einer Gefahrenzone', 'Trop longtemps dans une zone dangereuse', 'Too long in a danger zone'),
+
+  // Fluchtpunkt mit Freigabe, Spielzeit, Löschen (0022)
+  r('Er ist erst ab {H} offen. Seid zwischen {H} und {H} im Kreis. Ab jetzt dürft ihr auch zusammen sein.',
+    'Il n’est ouvert qu’à partir de $1. Soyez dans le cercle entre $2 et $3. Désormais, vous pouvez aussi être ensemble.',
+    'It only opens at $1. Be inside the circle between $2 and $3. From now on you may also be together.'),
+  r('Ihr erfahrt ihn nicht. Er ist ab {H} bis zum Spielende offen.', 'Vous ne le saurez pas. Il est ouvert de $1 jusqu’à la fin de la partie.', 'You won’t find out where it is. It is open from $1 until the end of the game.'),
+  r('Fluchtpunkt ist jetzt offen!', 'Le point de fuite est maintenant ouvert !', 'The escape point is now open!'),
+  r('Seid bis {H} im Kreis, dann seid ihr gerettet.', 'Soyez dans le cercle jusqu’à $1 et vous êtes sauvés.', 'Be inside the circle until $1 and you are saved.'),
+  r('Der Fluchtpunkt ist erst ab {H} offen.', 'Le point de fuite n’est ouvert qu’à partir de $1.', 'The escape point only opens at $1.'),
+  r('Der Vorsprung muss mindestens 5 min kürzer sein als die Spielzeit.', 'L’avance doit être au moins 5 min plus courte que le temps de jeu.', 'The head start must be at least 5 min shorter than the game time.'),
+  r('Ein laufendes Spiel kann nicht gelöscht werden.', 'Une partie en cours ne peut pas être supprimée.', 'A running game can’t be deleted.'),
+  r('Spiel nicht gefunden.', 'Partie introuvable.', 'Game not found.'),
+  r('Das Spiel läuft. Verlassen geht nur über „Aufgeben“.', 'La partie est en cours. Pour la quitter, utilise « Abandonner ».', 'The game is running. You can only leave by using “Give up”.'),
+  r('Die Regeln lassen sich nach dem Start nicht mehr ändern.', 'Les règles ne peuvent plus être modifiées après le départ.', 'The rules can no longer be changed after the start.'),
+  r('Diese Fortbewegung ist nicht erlaubt.', 'Ce moyen de déplacement n’est pas autorisé.', 'This way of getting around is not allowed.'),
+  r('Fang annulliert', 'Capture annulée', 'Catch cancelled'),
+  r('{N} ist wieder im Spiel.', '$1 est de retour dans la partie.', '$1 is back in the game.'),
+  // Gruppen
+  r('Keine Gruppe mit diesem Code gefunden.', 'Aucun groupe trouvé avec ce code.', 'No group found with this code.'),
+  r('Nur Admins können Mitglieder entfernen.', 'Seuls les admins peuvent retirer des membres.', 'Only admins can remove members.'),
+  r('Der Besitzer kann nicht entfernt werden.', 'Le propriétaire ne peut pas être retiré.', 'The owner can’t be removed.'),
+  r('Nur der Host.', 'Seulement l’hôte.', 'Only the host.'),
+  r('In dieser Gruppe darfst du keine Spiele erstellen.', 'Tu ne peux pas créer de parties dans ce groupe.', 'You can’t create games in this group.'),
+  r('Gefahrenzone', 'Zone dangereuse', 'Danger zone'),
 ];
 
 /** Übersetzt eine Meldung oder einen Fehler vom Server; Unbekanntes bleibt Deutsch. */

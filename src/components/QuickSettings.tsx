@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { CATCH_METHODS, JOKER_TYPES, type GameConfig } from '../shared/config';
 import { QUICK_HELP, SETTING_HELP } from '../shared/help';
 import { optionLabel } from '../shared/schemaMeta';
-import { timeLimits } from '../shared/timeRules';
+import { huntMinutes, timeLimits } from '../shared/timeRules';
 import Icon from './Icon';
 import Info from './Info';
 import { formatMinutes } from '../shared/format';
@@ -38,18 +38,19 @@ export default function QuickSettings({ config, onChange }: Props) {
   /** Höchstwert: Schema-Grenze oder, falls kleiner, was die Spieldauer erlaubt. */
   const lim = (path: string, max: number) => Math.min(max, limits[path]?.max ?? max);
   const j = config.joker;
-  const latestJoker = Math.max(0, g.duration_minutes - 5);
+  const hunt = huntMinutes(config);
+  const latestJoker = Math.max(0, hunt - 5);
 
   function setJokers(list: JokerEntry[]) {
     const next = structuredClone(config);
-    // Nach Freischaltzeit sortiert, damit die Liste der Reihenfolge im Spiel entspricht.
-    next.joker.types = [...list].sort((a, b) => a.after_minutes - b.after_minutes);
+    // Reihenfolge bleibt, wie sie ist: sonst springt beim Tippen die Zeile weg.
+    next.joker.types = list;
     onChange(next);
   }
   function addJoker() {
     const last = j.types.reduce((m, x) => Math.max(m, x.after_minutes), 0);
-    const after = Math.min(latestJoker, j.types.length ? last + Math.max(5, Math.round(g.duration_minutes / 4 / 5) * 5) : Math.round(g.duration_minutes / 6 / 5) * 5);
-    setJokers([...j.types, { type: 'regeneration', minutes: Math.min(g.duration_minutes, 15), after_minutes: after }]);
+    const after = Math.min(latestJoker, j.types.length ? last + Math.max(5, Math.round(hunt / 4 / 5) * 5) : Math.round(hunt / 6 / 5) * 5);
+    setJokers([...j.types, { type: 'regeneration', minutes: Math.min(hunt, 15), after_minutes: after }]);
   }
 
   function setDuration(min: number) {
@@ -75,23 +76,23 @@ export default function QuickSettings({ config, onChange }: Props) {
       </Box>
 
       <Box title={t('Zeit')} icon="⏱️" summary={t('{0} am Stück · {1} Vorsprung', { 0: formatMinutes(g.duration_minutes), 1: formatMinutes(config.start.head_start_minutes) })} info={SETTING_HELP.times}>
-        <Duration label={t('Spieldauer (am Stück)')} value={g.duration_minutes} min={15} max={20160} onChange={setDuration} />
-        <Duration label={t('Vorsprung der Spieler')} value={config.start.head_start_minutes} min={0} max={600}
+        <Duration label={t('Spielzeit (alles inklusive)')} value={g.duration_minutes} min={15} max={20160} onChange={setDuration} />
+        <Duration label={t('Vorsprung der Spieler')} value={config.start.head_start_minutes} min={0} max={Math.min(600, Math.max(0, g.duration_minutes - 5))}
           onChange={(v) => set('start', 'head_start_minutes', v)} />
+        <div className="muted small">{t('Die Spielzeit zählt ab dem Start und enthält den Vorsprung. Gejagt wird danach noch {0}. Das Spiel endet pünktlich, ohne Nachspielzeit.', { 0: formatMinutes(hunt) })}</div>
         <Toggle label={t('Hunter warten am Startpunkt während des Vorsprungs')} value={config.start.hunters_must_stay_in_hq}
           onChange={(v) => set('start', 'hunters_must_stay_in_hq', v)} />
       </Box>
 
-      <Box title={t('Pings')} icon="📍" summary={`alle ${formatMinutes(config.ping.interval_minutes)}`} info={SETTING_HELP.pings}>
+      <Box title={t('Pings')} icon="📍" summary={t('alle {0}', { 0: formatMinutes(config.ping.interval_minutes) })} info={SETTING_HELP.pings}>
         <Duration label={t('Ping alle')} value={config.ping.interval_minutes} min={1} max={lim('ping.interval_minutes', 720)}
           onChange={(v) => set('ping', 'interval_minutes', v)} />
-        <Duration label={t('Erster Ping nach dem Vorsprung')} value={config.ping.first_ping_delay_minutes} min={0} max={lim('ping.first_ping_delay_minutes', 600)}
-          onChange={(v) => set('ping', 'first_ping_delay_minutes', v)} />
+        <div className="muted small">{t('Sobald der Vorsprung vorbei ist, kommt sofort der erste Ping. Danach im eingestellten Abstand.')}</div>
         <Toggle label={t('Hunter sehen, wann der nächste Ping kommt')} value={config.ping.reveal_schedule_to_taskforce}
           onChange={(v) => set('ping', 'reveal_schedule_to_taskforce', v)} />
       </Box>
 
-      <Box title={t('Blitzjagd')} icon="⚡" summary={config.speedhunt.enabled ? t('{0} im Spiel · {1} Abfragen', { 0: config.speedhunt.quota_per_day[0] ?? 0, 1: config.speedhunt.queries }) : 'aus'} info={SETTING_HELP.speedhunt}>
+      <Box title={t('Blitzjagd')} icon="⚡" summary={config.speedhunt.enabled ? t('{0} im Spiel · {1} Abfragen', { 0: config.speedhunt.quota_per_day[0] ?? 0, 1: config.speedhunt.queries }) : t('aus')} info={SETTING_HELP.speedhunt}>
         <Toggle label={t('Blitzjagden erlaubt')} value={config.speedhunt.enabled} onChange={(v) => set('speedhunt', 'enabled', v)} />
         {config.speedhunt.enabled && (
           <>
@@ -123,9 +124,23 @@ export default function QuickSettings({ config, onChange }: Props) {
           </div>
         </div>
         <Toggle label={t('Fluchtpunkt am Schluss (Spieler müssen hin)')} value={config.exit.enabled} onChange={(v) => set('exit', 'enabled', v)} />
+        {config.exit.enabled && (
+          <>
+            <Duration label={t('Fluchtpunkt bekannt ab (vor Schluss)')} value={config.exit.reveal_minutes_before_end} min={0} max={lim('exit.reveal_minutes_before_end', 1440)}
+              onChange={(v) => {
+                const next = structuredClone(config);
+                next.exit.reveal_minutes_before_end = v;
+                next.exit.usable_minutes_before_end = Math.min(next.exit.usable_minutes_before_end, v);
+                onChange(next);
+              }} />
+            <Duration label={t('Fluchtpunkt nutzbar ab (vor Schluss)')} value={config.exit.usable_minutes_before_end} min={0} max={config.exit.reveal_minutes_before_end}
+              onChange={(v) => set('exit', 'usable_minutes_before_end', v)} />
+            <div className="muted small">{t('Beispiel: bekannt {0} vor Schluss, nutzbar {1} vor Schluss. Die Spieler sehen den Fluchtpunkt dann schon, gerettet ist aber nur, wer zwischen der Freigabe und dem Spielende im Kreis ist.', { 0: formatMinutes(config.exit.reveal_minutes_before_end), 1: formatMinutes(config.exit.usable_minutes_before_end) })}</div>
+          </>
+        )}
       </Box>
 
-      <Box title={t('Joker')} icon="🃏" summary={j.enabled && j.types.length ? t('{0} Joker · erster nach {1}', { 0: j.types.length, 1: formatMinutes(firstJoker) }) : 'aus'} info={SETTING_HELP.joker}>
+      <Box title={t('Joker')} icon="🃏" summary={j.enabled && j.types.length ? t('{0} Joker · erster nach {1}', { 0: j.types.length, 1: formatMinutes(firstJoker) }) : t('aus')} info={SETTING_HELP.joker}>
         <Toggle label={t('Joker im Spiel')} value={j.enabled} onChange={(v) => set('joker', 'enabled', v)} />
         {j.enabled && (
           <>
@@ -142,10 +157,10 @@ export default function QuickSettings({ config, onChange }: Props) {
                   </select>
                   <button type="button" className="ghost small" aria-label={t('Joker {0} entfernen', { 0: i + 1 })} onClick={() => setJokers(j.types.filter((_, k) => k !== i))}>✕</button>
                 </div>
-                <Duration label={t('Freigeschaltet nach')} value={x.after_minutes} min={0} max={latestJoker}
+                <Duration label={t('Freigeschaltet nach (ab Jagdbeginn)')} value={x.after_minutes} min={0} max={latestJoker}
                   onChange={(v) => setJokers(j.types.map((y, k) => (k === i ? { ...y, after_minutes: v } : y)))} />
                 {x.type !== 'hunter_erfragen' && (
-                  <Duration label={t('Wirkt so lange')} value={x.minutes ?? 15} min={1} max={Math.min(1440, g.duration_minutes)}
+                  <Duration label={t('Wirkt so lange')} value={x.minutes ?? 15} min={1} max={Math.min(1440, hunt)}
                     onChange={(v) => setJokers(j.types.map((y, k) => (k === i ? { ...y, minutes: v } : y)))} />
                 )}
               </div>
@@ -161,7 +176,7 @@ export default function QuickSettings({ config, onChange }: Props) {
         <div className="muted small">{t('Zu Fuss geht immer. Fahrten muss man nicht anmelden, und niemand wird dabei live gezeigt.')}</div>
       </Box>
 
-      <Box title={t('Extras')} icon="✨" summary={[config.hideout.enabled && t('Verschanzen'), config.proximity.enabled && t('Nähe-Alarm'), config.spectator.enabled && t('Zuschauer')].filter(Boolean).join(' · ') || 'keine'} info={SETTING_HELP.extras}>
+      <Box title={t('Extras')} icon="✨" summary={[config.hideout.enabled && t('Verschanzen'), config.proximity.enabled && t('Nähe-Alarm'), config.spectator.enabled && t('Zuschauer')].filter(Boolean).join(' · ') || t('keine')} info={SETTING_HELP.extras}>
         <Toggle label={t('Verschanzen-Regel (nicht zu lange am selben Ort)')} value={config.hideout.enabled} onChange={(v) => set('hideout', 'enabled', v)} />
         <Toggle label={t('Alarm, wenn Spieler zusammen laufen')} value={config.proximity.enabled} onChange={(v) => set('proximity', 'enabled', v)} />
         {config.proximity.enabled && (
@@ -205,9 +220,9 @@ function Stepper({ label, value, min, max, step = 1, onChange }: {
     <div className="quick-row">
       <span className="spacer">{label} <Hint label={label} /></span>
       <div className="stepper">
-        <button type="button" aria-label={`${label} weniger`} disabled={value <= min} onClick={() => onChange(clamp(value - step, min, max))}>−</button>
+        <button type="button" aria-label={t('{0} weniger', { 0: label })} disabled={value <= min} onClick={() => onChange(clamp(value - step, min, max))}>−</button>
         <NumberField label={label} value={value} min={min} max={max} onChange={onChange} />
-        <button type="button" aria-label={`${label} mehr`} disabled={value >= max} onClick={() => onChange(clamp(value + step, min, max))}>+</button>
+        <button type="button" aria-label={t('{0} mehr', { 0: label })} disabled={value >= max} onClick={() => onChange(clamp(value + step, min, max))}>+</button>
       </div>
     </div>
   );

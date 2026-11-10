@@ -20,18 +20,19 @@ export function nameOf(s: GameState, id: string | null | undefined) {
   return s.participants.find((p) => p.id === id)?.name ?? t('Unbekannt');
 }
 
-/** Nummer einer Person (Spieler "3", Hunter "H1"), falls schon vergeben. */
+/** Zeichen einer Person (Spieler "A", Hunter "H1"), falls schon vergeben. */
 export function tagOf(s: GameState, id: string | null | undefined): string | undefined {
   return s.participants.find((p) => p.id === id)?.tag ?? undefined;
 }
 
-/** Name mit Nummer davor, z. B. "3 · Anna". */
+/** Name mit Zeichen davor, z. B. "A · Anna". */
 export function nameTag(s: GameState, id: string | null | undefined): string {
   const tag = tagOf(s, id);
   return tag ? `${tag} · ${nameOf(s, id)}` : nameOf(s, id);
 }
 
-export const PLAYER_COLORS = ['#3fb950', '#58a6ff', '#d29922', '#a371f7', '#db6d28', '#f778ba', '#56d4dd', '#e3b341', '#7ee787', '#79c0ff'];
+// Gut unterscheidbare Farben ohne Gelb und Rot (Gelb = letzter Ping, Rot = Blitzjagd und Hunter).
+export const PLAYER_COLORS = ['#2ea043', '#1f6feb', '#a371f7', '#db6d28', '#f778ba', '#1b9aaa', '#8b5a2b', '#6e7781', '#0e4429', '#6639ba'];
 
 export function colorFor(s: GameState, id: string) {
   const p = s.participants.find((x) => x.id === id);

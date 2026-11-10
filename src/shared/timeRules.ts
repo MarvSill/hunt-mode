@@ -31,6 +31,11 @@ export function durationText(min: number): string {
   return min % 1440 === 0 ? t('{0} Tage', { 0: min / 1440 }) : `${Math.round(min / 60)} h`;
 }
 
+/** Zeit, in der gejagt wird: die Spielzeit gilt alles inklusive, der Vorsprung ist ein Teil davon. */
+export function huntMinutes(c: GameConfig): number {
+  return Math.max(5, c.game.duration_minutes - c.start.head_start_minutes);
+}
+
 /** Dauer einer Verkleinerungs-Phase (0 = es wird nie kleiner). */
 export function phaseLength(c: GameConfig): number {
   if (c.zone.shrink_mode === 'aus') return 0;
@@ -40,8 +45,8 @@ export function phaseLength(c: GameConfig): number {
 const LABELS: Record<string, string> = lazy({
   'zone.shrink_every_minutes': 'Verkleinerung alle',
   'zone.shrink_announce_minutes': 'Ankündigung der Verkleinerung',
+  'start.head_start_minutes': 'Vorsprung',
   'ping.interval_minutes': 'Ping-Intervall',
-  'ping.first_ping_delay_minutes': 'Erster Ping nach',
   'ping.offset_minutes': 'Ping-Versatz',
   'ping.jitter_minutes': 'Ping-Zufallsversatz',
   'speedhunt.query_min_gap_minutes': 'Abstand der Abfragen einer Blitzjagd',
@@ -51,6 +56,7 @@ const LABELS: Record<string, string> = lazy({
   'hideout.stationary_minutes': 'Verschanzen-Erkennung',
   'proximity.active_after_minutes': 'Nähe-Alarm aktiv ab',
   'exit.reveal_minutes_before_end': 'Bekanntgabe des Fluchtpunkts vor Ende',
+  'exit.usable_minutes_before_end': 'Fluchtpunkt nutzbar ab',
   'spectator.delay_minutes': 'Zuschauer-Verzögerung',
 });
 
@@ -66,11 +72,11 @@ function set(c: GameConfig, path: string, v: number) {
 
 /** Höchstwerte, die sich aus den anderen Zeiten ergeben. */
 export function timeLimits(c: GameConfig): Record<string, TimeLimit> {
-  const d = c.game.duration_minutes;
-  const game = t('das Spiel nur {0} dauert', { 0: durationText(d) });
+  const d = huntMinutes(c);
+  const game = t('die Jagd nach dem Vorsprung nur {0} dauert', { 0: durationText(d) });
   const out: Record<string, TimeLimit> = {
-    'ping.interval_minutes': { max: Math.max(1, d - 1 - Math.min(c.ping.first_ping_delay_minutes, d - 2)), reason: t('sonst kein Ping kommt und {0}', { 0: game }) },
-    'ping.first_ping_delay_minutes': { max: Math.max(0, d - 2), reason: game },
+    'start.head_start_minutes': { max: Math.max(0, c.game.duration_minutes - 5), reason: t('der Vorsprung ein Teil der Spielzeit ({0}) ist', { 0: durationText(c.game.duration_minutes) }) },
+    'ping.interval_minutes': { max: Math.max(1, d - 1), reason: t('sonst nach dem ersten Ping keiner mehr kommt und {0}', { 0: game }) },
     'ping.offset_minutes': { max: Math.max(0, c.ping.interval_minutes - 1), reason: t('der Ping alle {0} min kommt', { 0: c.ping.interval_minutes }) },
     'ping.jitter_minutes': { max: Math.floor(c.ping.interval_minutes / 2), reason: t('der Ping alle {0} min kommt', { 0: c.ping.interval_minutes }) },
     'out_of_bounds.max_minutes': { max: d, reason: game },
@@ -78,6 +84,7 @@ export function timeLimits(c: GameConfig): Record<string, TimeLimit> {
     'hideout.stationary_minutes': { max: Math.max(5, c.hideout.max_minutes), reason: t('das Verschanzen-Limit nur {0} min ist', { 0: c.hideout.max_minutes }) },
         'proximity.active_after_minutes': { max: Math.max(0, d - 5), reason: t('der Alarm sonst nie aktiv wäre') },
     'exit.reveal_minutes_before_end': { max: d, reason: game },
+    'exit.usable_minutes_before_end': { max: c.exit.reveal_minutes_before_end, reason: t('der Fluchtpunkt erst {0} min vor Schluss bekannt wird', { 0: c.exit.reveal_minutes_before_end }) },
     'spectator.delay_minutes': { max: Math.max(0, d - 5), reason: t('Zuschauer sonst nichts sähen') },
   };
   // Nur Regeln prüfen, die im Spiel auch aktiv sind.
@@ -108,7 +115,7 @@ export function timeLimits(c: GameConfig): Record<string, TimeLimit> {
 export function fitTimes(input: GameConfig): { config: GameConfig; fixes: TimeFix[] } {
   const c = structuredClone(input);
   const fixes: TimeFix[] = [];
-  const d = c.game.duration_minutes;
+  const d = huntMinutes(c);
 
   // Verkleinerung braucht einen Abstand: ohne Angabe viermal im Spiel.
   if (c.zone.shrink_mode !== 'aus' && c.zone.shrink_every_minutes === 0) {
@@ -145,11 +152,11 @@ export function fitTimes(input: GameConfig): { config: GameConfig; fixes: TimeFi
   for (const j of c.joker.enabled ? c.joker.types : []) {
     const name = JOKER_NAMES[j.type] ?? j.type;
     if (j.minutes !== undefined && j.minutes > d) {
-      fixes.push({ path: 'joker.types', from: j.minutes, to: d, message: t('Joker "{0}": wirkt {1} statt {2} min, weil das Spiel nur {3} dauert.', { 0: name, 1: d, 2: j.minutes, 3: durationText(d) }) });
+      fixes.push({ path: 'joker.types', from: j.minutes, to: d, message: t('Joker "{0}": wirkt {1} statt {2} min, weil die Jagd nur {3} dauert.', { 0: name, 1: d, 2: j.minutes, 3: durationText(d) }) });
       j.minutes = d;
     }
     if (j.after_minutes > latest) {
-      fixes.push({ path: 'joker.types', from: j.after_minutes, to: latest, message: t('Joker "{0}": kommt nach {1} statt {2} min, weil das Spiel nur {3} dauert.', { 0: name, 1: latest, 2: j.after_minutes, 3: durationText(d) }) });
+      fixes.push({ path: 'joker.types', from: j.after_minutes, to: latest, message: t('Joker "{0}": kommt nach {1} statt {2} min, weil die Jagd nur {3} dauert.', { 0: name, 1: latest, 2: j.after_minutes, 3: durationText(d) }) });
       j.after_minutes = latest;
     }
   }

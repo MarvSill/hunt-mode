@@ -101,7 +101,7 @@ export default function RulesPage() {
           <details className="acc">
             <summary>
               <span className="ico" aria-hidden="true">📌</span>
-              <span className="spacer"><span className="t">{t('Eigene Zusatzregeln')}</span><span className="s" style={{ display: 'block' }}>{config.extras.rules.length ? t('{0} Regeln', { 0: config.extras.rules.length }) : 'keine'}</span></span>
+              <span className="spacer"><span className="t">{t('Eigene Zusatzregeln')}</span><span className="s" style={{ display: 'block' }}>{config.extras.rules.length ? t('{0} Regeln', { 0: config.extras.rules.length }) : t('keine')}</span></span>
               <Icon name="chevron" className="chev" />
             </summary>
             <div className="body">

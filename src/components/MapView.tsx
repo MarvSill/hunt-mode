@@ -4,7 +4,7 @@
  */
 import maplibregl, { type GeoJSONSource, type StyleSpecification } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { bbox, circle, pointOnFeature } from '@turf/turf';
 import { ZONE_INFO, type MapFeature } from '../lib/engine';
 import { restrictedInfo } from '../lib/geo';
@@ -24,8 +24,10 @@ export interface Marker {
   opacity?: number;
   pulse?: boolean;
   popup?: string;
-  /** Kurzer Text im Punkt, z. B. die Nummer der Person ("3", "H1"). */
+  /** Kurzer Text im Punkt, z. B. der Buchstabe der Person ("A", "H1") oder die Ping-Nummer ("A3"). */
   text?: string;
+  /** Farbiger Ring um den Punkt (z. B. gelb = letzter Ping, rot = Blitzjagd). */
+  ring?: string;
 }
 
 interface Props {
@@ -36,6 +38,8 @@ interface Props {
   fitKey?: string | number;
   height?: string;
   showDay?: number;
+  /** Eigene Knöpfe unten links auf der Karte (bleiben auch im Vollbild sichtbar). */
+  children?: ReactNode;
 }
 
 const POINT_ICON: Record<string, string> = { treffpunkt: '📍', exit: '🏁' };
@@ -95,6 +99,7 @@ function markerEl(m: Marker): HTMLElement {
   const size = m.text ? (m.text.length > 2 ? 30 : 26) : ping ? 16 : m.kind === 'me' ? 20 : 18;
   d.className = `hm-mk${m.pulse ? ' pulse' : ''}${m.kind === 'emergency' ? ' sos' : ''}${m.text ? ' num' : ''}${ping ? ' ping' : ''}`;
   d.style.cssText = `width:${size}px;height:${size}px;background:${m.color};opacity:${m.opacity ?? 1};border-radius:${ping ? (m.text ? '8px' : '3px') : '50%'};${ping && !m.text ? 'transform:rotate(45deg);' : ''}`;
+  if (m.ring) d.style.boxShadow = `0 0 0 2px #fff, 0 0 0 6px ${m.ring}, 0 3px 8px rgba(0,0,0,.45)`;
   if (m.text) d.textContent = m.text;
   d.title = m.label;
   return d;
@@ -169,7 +174,8 @@ function addOverlays(m: maplibregl.Map, dark: boolean, tilt: boolean) {
 /** Eigene Knöpfe: Vollbild, auf das Spielfeld, eigener Standort, 3D an/aus, Kartenstil wechseln. */
 class Buttons implements maplibregl.IControl {
   private box?: HTMLDivElement;
-  constructor(private opts: { wrap: () => HTMLElement | null; fit: () => void; tilt: () => boolean }) {}
+  northBtn?: HTMLButtonElement;
+  constructor(private opts: { wrap: () => HTMLElement | null; fit: () => void; tilt: () => boolean; north: () => boolean }) {}
   onAdd(m: maplibregl.Map) {
     const box = document.createElement('div');
     box.className = 'maplibregl-ctrl maplibregl-ctrl-group hm-map-buttons';
@@ -196,6 +202,9 @@ class Buttons implements maplibregl.IControl {
       navigator.geolocation?.getCurrentPosition((p) => m.easeTo({ center: [p.coords.longitude, p.coords.latitude], zoom: Math.max(m.getZoom(), 16) }), () => undefined, { timeout: 8000 });
     });
     btn('3D', t('3D an/aus'), () => setMapSettings({ tilt: !this.opts.tilt() }));
+    const n = btn('N', t('Immer nach Norden ausrichten'), () => setMapSettings({ north: !this.opts.north() }));
+    n.classList.toggle('on', this.opts.north());
+    this.northBtn = n;
     this.box = box;
     return box;
   }
@@ -204,7 +213,7 @@ class Buttons implements maplibregl.IControl {
   }
 }
 
-export default function MapView({ zones, markers, lines, onClick, fitKey, height = '60dvh', showDay }: Props) {
+export default function MapView({ zones, markers, lines, onClick, fitKey, height = '60dvh', showDay, children }: Props) {
   const settings = useMapSettings();
   const el = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
@@ -216,6 +225,7 @@ export default function MapView({ zones, markers, lines, onClick, fitKey, height
   const fitted = useRef<string | number | undefined>(undefined);
   const centered = useRef(false);
   const pendingFit = useRef<maplibregl.LngLatBoundsLike | null>(null);
+  const buttons = useRef<Buttons | null>(null);
   const props = useRef({ zones, markers, lines, showDay });
   props.current = { zones, markers, lines, showDay };
   const settingsRef = useRef(settings);
@@ -312,7 +322,8 @@ export default function MapView({ zones, markers, lines, onClick, fitKey, height
       attributionControl: { compact: true },
     });
     m.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'top-right');
-    m.addControl(new Buttons({ wrap: () => el.current?.parentElement ?? null, fit: () => fit(true), tilt: () => settingsRef.current.tilt }), 'top-right');
+    buttons.current = new Buttons({ wrap: () => el.current?.parentElement ?? null, fit: () => fit(true), tilt: () => settingsRef.current.tilt, north: () => settingsRef.current.north });
+    m.addControl(buttons.current, 'top-right');
     m.on('click', (e) => clickRef.current?.(e.lngLat.lat, e.lngLat.lng));
     m.on('style.load', () => {
       addOverlays(m, resolveStyle(settingsRef.current.style).dark, settingsRef.current.tilt);
@@ -357,6 +368,23 @@ export default function MapView({ zones, markers, lines, onClick, fitKey, height
     m.setStyle(styleUrl as unknown as StyleSpecification, { diff: false });
   }, [styleId]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Immer nach Norden: Drehen sperren und auf Norden stellen.
+  useEffect(() => {
+    const m = map.current;
+    if (!m) return;
+    buttons.current?.northBtn?.classList.toggle('on', settings.north);
+    if (settings.north) {
+      m.dragRotate.disable();
+      m.touchZoomRotate.disableRotation();
+      m.keyboard.disableRotation();
+      m.easeTo({ bearing: 0, duration: 400 });
+    } else {
+      m.dragRotate.enable();
+      m.touchZoomRotate.enableRotation();
+      m.keyboard.enableRotation();
+    }
+  }, [settings.north]);
+
   // 3D an/aus
   useEffect(() => {
     const m = map.current;
@@ -381,6 +409,7 @@ export default function MapView({ zones, markers, lines, onClick, fitKey, height
     <div className="map-wrap">
       <div ref={el} className="map" style={{ height }} />
       <div className="map-overlay-tl"><MapStylePicker /></div>
+      {children && <div className="map-overlay-bl">{children}</div>}
     </div>
   );
 }

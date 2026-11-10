@@ -1,13 +1,21 @@
 import { useEffect, useMemo, useState } from 'react';
 import MapView, { type Marker } from '../components/MapView';
-import { api, clock, STATE_LABELS, type GameState, type MapFeature, type Replay } from '../lib/engine';
+import { api, clock, SOURCE_LABELS, STATE_LABELS, type GameState, type MapFeature, type Replay } from '../lib/engine';
 import { errorText } from '../lib/supabase';
-import { colorFor, nameOf } from './common';
+import { colorFor, nameOf, tagOf } from './common';
 import { t as tr, lazy } from '../i18n';
 
 const REASONS: Record<string, string> = lazy({
   zeit_abgelaufen: 'Die Zeit ist abgelaufen.', alle_gefangen: 'Alle Spieler wurden gefangen.', alle_im_ziel_oder_gefangen: 'Alle sind am Fluchtpunkt oder gefangen.',
   letzter_ueberlebender: 'Nur noch eine Person ist frei.', alle_ausgeschieden: 'Alle Spieler sind ausgeschieden.', abgebrochen: 'Das Spiel wurde abgebrochen.',
+});
+
+const EVENT_LABELS: Record<string, string> = lazy({
+  game_created: 'Spiel erstellt', game_started: 'Spiel gestartet', hunt_begin: 'Jagd beginnt', speedhunt_start: 'Blitzjagd gestartet',
+  game_ended: 'Spielende', day_reset: 'Neuer Abschnitt', catch: 'Fang', emergency: 'Notfall', item_used: 'Joker eingesetzt',
+  map_saved: 'Karte gespeichert', config_changed: 'Regeln geändert', participant_joined: 'Beigetreten', participant_left: 'Ausgetreten',
+  role_assigned: 'Rolle vergeben', paused: 'Unterbrochen', resumed: 'Weiter', emergency_contact_viewed: 'Notfallkontakt angesehen',
+  tick_error: 'Fehler der Spiel-Engine', phase: 'Neue Phase',
 });
 
 export default function Result({ s, zones }: { s: GameState; zones: MapFeature[] }) {
@@ -16,6 +24,8 @@ export default function Result({ s, zones }: { s: GameState; zones: MapFeature[]
   const [t, setT] = useState(0);
   const [err, setErr] = useState<string | null>(null);
   const [playing, setPlaying] = useState(false);
+  /** Ping für Ping durchgehen: Nummer des gezeigten Pings (−1 = freie Zeit über den Regler). */
+  const [step, setStep] = useState(-1);
 
   useEffect(() => {
     api.replay(s.game.id).then((x) => {
@@ -37,6 +47,31 @@ export default function Result({ s, zones }: { s: GameState; zones: MapFeature[]
     return () => clearInterval(i);
   }, [playing, start, end]);
 
+  // Alle Pings in zeitlicher Reihenfolge, je Spieler nummeriert (A1, A2 …).
+  const steps = useMemo(() => {
+    if (!replay) return [];
+    const count = new Map<string, number>();
+    return [...replay.pings].sort((a, b) => a.at.localeCompare(b.at)).map((p) => {
+      const n = (count.get(p.participant_id) ?? 0) + 1;
+      count.set(p.participant_id, n);
+      return { ...p, nr: `${tagOf(s, p.participant_id) ?? ''}${n}`, t: new Date(p.at).getTime() / 1000 };
+    });
+  }, [replay, s]);
+
+  function goStep(i: number) {
+    if (!steps.length) return;
+    const k = Math.max(0, Math.min(steps.length - 1, i));
+    setPlaying(false);
+    setStep(k);
+    setT(steps[k].t);
+  }
+  /** Nächster Ping ab der aktuellen Zeit (auch nach dem Ziehen am Regler). */
+  function nextFromTime(dir: 1 | -1) {
+    if (step >= 0) return goStep(step + dir);
+    const i = dir > 0 ? steps.findIndex((p) => p.t > t) : steps.map((p) => p.t < t).lastIndexOf(true);
+    goStep(i < 0 ? (dir > 0 ? steps.length - 1 : 0) : i);
+  }
+
   const { markers, lines } = useMemo(() => {
     const markers: Marker[] = [];
     const lines: { id: string; points: [number, number][]; color: string }[] = [];
@@ -50,12 +85,17 @@ export default function Result({ s, zones }: { s: GameState; zones: MapFeature[]
       const p = s.participants.find((x) => x.id === pid);
       markers.push({ id: pid, lat: last[1], lng: last[2], color, label: p?.name ?? '?', kind: p?.role === 'spieler' ? 'player' : 'hunter' });
     }
-    for (const pg of replay.pings) {
-      const at = new Date(pg.at).getTime() / 1000;
-      if (at <= t && at > t - 3600) markers.push({ id: `p${pg.at}${pg.participant_id}`, lat: pg.lat, lng: pg.lng, color: pg.is_fake ? '#8b949e' : colorFor(s, pg.participant_id), label: `${nameOf(s, pg.participant_id)} · ${pg.source}${pg.is_fake ? tr(' (Fake)') : ''}`, kind: 'ping', opacity: 0.7 });
-    }
+    steps.forEach((pg, i) => {
+      const current = step === i;
+      if (!(pg.t <= t && pg.t > t - 3600) && !current) return;
+      markers.push({
+        id: `p${i}`, lat: pg.lat, lng: pg.lng, color: pg.is_fake ? '#8b949e' : colorFor(s, pg.participant_id), text: pg.nr,
+        label: `${tr('Ping {0}', { 0: pg.nr })} · ${nameOf(s, pg.participant_id)} · ${SOURCE_LABELS[pg.source] ?? pg.source} · ${clock(pg.at, s.game.timezone)}${pg.is_fake ? tr(' (Fake)') : ''}`,
+        kind: 'ping', opacity: current ? 1 : 0.7, ring: current ? '#ffd60a' : pg.source === 'speedhunt' ? '#ff3b30' : undefined,
+      });
+    });
     return { markers, lines };
-  }, [replay, t, s]);
+  }, [replay, t, s, steps, step]);
 
   const players = s.participants.filter((p) => p.role === 'spieler' || p.state === 'gefangen');
   const winners = new Set(r?.winners ?? []);
@@ -90,14 +130,30 @@ export default function Result({ s, zones }: { s: GameState; zones: MapFeature[]
         <>
           <MapView zones={zones} markers={markers} lines={lines} fitKey="replay" height="50dvh" />
           <div className="row">
-            <button className="small" onClick={() => { if (t >= end) setT(start); setPlaying(!playing); }}>{playing ? tr('Pause') : tr('Abspielen')}</button>
-            <input type="range" min={start} max={end} value={t} onChange={(e) => setT(+e.target.value)} style={{ flex: 1 }} aria-label={tr('Zeit')} />
+            <button className="small" onClick={() => { setStep(-1); if (t >= end) setT(start); setPlaying(!playing); }}>{playing ? tr('Pause') : tr('Schnelldurchlauf')}</button>
+            <input type="range" min={start} max={end} value={t} onChange={(e) => { setStep(-1); setT(+e.target.value); }} style={{ flex: 1 }} aria-label={tr('Zeit')} />
             <span className="small">{clock(new Date(t * 1000).toISOString(), s.game.timezone)}</span>
           </div>
+          {steps.length > 0 && (
+            <div className="card stack">
+              <div className="row" style={{ flexWrap: 'nowrap' }}>
+                <button className="small" onClick={() => nextFromTime(-1)} disabled={step === 0} aria-label={tr('Vorheriger Ping')}>◀</button>
+                <div className="spacer" style={{ textAlign: 'center' }}>
+                  {step >= 0 ? (
+                    <>
+                      <strong>{tr('Ping {0}', { 0: steps[step].nr })}</strong> · {nameOf(s, steps[step].participant_id)}
+                      <div className="small muted">{SOURCE_LABELS[steps[step].source] ?? steps[step].source} · {clock(steps[step].at, s.game.timezone)} · {step + 1}/{steps.length}</div>
+                    </>
+                  ) : <span className="small">{tr('Ping für Ping durchgehen ({0} Pings)', { 0: steps.length })}</span>}
+                </div>
+                <button className="small" onClick={() => nextFromTime(1)} disabled={step === steps.length - 1} aria-label={tr('Nächster Ping')}>▶</button>
+              </div>
+            </div>
+          )}
           <details className="card">
             <summary>{tr('Ereignisse (')}{replay.events.length})</summary>
             <ul className="list small">
-              {replay.events.map((e, i) => <li key={i}>{clock(e.at, s.game.timezone)} · {e.type.replace(/_/g, ' ')}</li>)}
+              {replay.events.map((e, i) => <li key={i}>{clock(e.at, s.game.timezone)} · {EVENT_LABELS[e.type] ?? e.type.replace(/_/g, ' ')}</li>)}
             </ul>
           </details>
         </>

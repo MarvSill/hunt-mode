@@ -11,6 +11,8 @@ export interface MapSettings {
   style: MapStyleId;
   /** Karte im Spiel und in der Wiederholung geneigt mit 3D-Gebäuden. */
   tilt: boolean;
+  /** Karte zeigt immer nach Norden (kein Drehen). */
+  north: boolean;
 }
 
 /** Klassische OpenStreetMap-Karte (wie früher), als Kachel-Adresse. */
@@ -29,7 +31,7 @@ export const MAP_STYLES: { id: Exclude<MapStyleId, 'auto'>; label: string; hint:
 ];
 
 const KEY = 'hm-map';
-const DEFAULTS: MapSettings = { style: 'klassisch', tilt: false };
+const DEFAULTS: MapSettings = { style: 'klassisch', tilt: false, north: false };
 
 function load(): MapSettings {
   try {

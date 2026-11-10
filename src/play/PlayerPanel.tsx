@@ -109,11 +109,23 @@ export default function PlayerPanel({ s, now, act }: PanelProps) {
         </div>
       )}
 
+      {g.exit_revealed && g.ends_at && (() => {
+        const openAt = new Date(g.ends_at).getTime() - cfg.exit.usable_minutes_before_end * 60000;
+        const open = now >= openAt;
+        return (
+          <div className={`notice ${open ? 'success' : ''} stack`} role="status">
+            <strong>🏁 {open ? t('Fluchtpunkt ist offen!') : t('Fluchtpunkt bekannt, aber noch zu')}</strong>
+            {!open && <div className="big-num">{countdown(new Date(openAt).toISOString(), now)}</div>}
+            <span className="small">{t('Gerettet ist, wer zwischen {0} und {1} (Spielende) frei im gestrichelten Kreis ist. Vorher zählt es noch nicht.', { 0: clock(new Date(openAt).toISOString(), g.timezone), 1: clock(g.ends_at, g.timezone) })}</span>
+          </div>
+        );
+      })()}
+
       <button className="primary block big" onClick={() => setShowCode(true)}>{t('Fang-Code zeigen')}</button>
 
       <Section title={t('Status')}>
         <div className="grid2">
-          {s.participants.find((p) => p.id === me.id)?.tag && <div><div className="muted small">{t('Deine Nummer')}</div><div className="big-num">{s.participants.find((p) => p.id === me.id)?.tag}</div></div>}
+          {s.participants.find((p) => p.id === me.id)?.tag && <div><div className="muted small">{t('Dein Buchstabe')}</div><div className="big-num">{s.participants.find((p) => p.id === me.id)?.tag}</div></div>}
           <div><div className="muted small">{t('Nächster Ping')}</div><div className="big-num">{me.next_ping_at ? countdown(me.next_ping_at, now) : '–'}</div></div>
           {me.hideout && (
             <div><div className="muted small">{t('Verschanzt')} {me.hideout.inside ? t('(drinnen)') : t('(draussen)')}</div>
@@ -153,7 +165,7 @@ export default function PlayerPanel({ s, now, act }: PanelProps) {
 
 
 
-      {g.exit_revealed && cfg.exit.confirm !== 'geofence' && (
+      {g.exit_revealed && cfg.exit.confirm !== 'geofence' && g.ends_at && now >= new Date(g.ends_at).getTime() - cfg.exit.usable_minutes_before_end * 60000 && (
         <button className="block" onClick={() => act(() => api.confirmExit(g.id), t('Am Fluchtpunkt!'))}>{t('Ich bin am Fluchtpunkt')}</button>
       )}
 

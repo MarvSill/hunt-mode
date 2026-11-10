@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { api } from '../lib/engine';
 import { errorText } from '../lib/supabase';
 import { t } from '../i18n';
-import { isNative } from '../lib/native';
+import { ensureNotifyPermission, isNative } from '../lib/native';
 
 interface Result { gps: boolean; accuracy: number | null; battery: number | null; notifications: string; wakeLock: boolean; camera: boolean; clock_ms: number | null }
 
@@ -32,10 +32,14 @@ export default function DeviceCheck({ gameId, minBattery }: { gameId: string; mi
     } catch {
       // kein Akku-Wert
     }
-    if (typeof Notification !== 'undefined') {
+    // Handy-App: die Erlaubnis des Handys zählt (iPhone und Android), nicht die des Browsers.
+    if (isNative) {
+      r.notifications = (await ensureNotifyPermission()) ? 'granted' : 'denied';
+    } else if (typeof Notification !== 'undefined') {
       r.notifications = Notification.permission === 'default' ? await Notification.requestPermission() : Notification.permission;
     }
-    r.wakeLock = 'wakeLock' in navigator;
+    // In der Handy-App läuft alles auch bei gesperrtem Bildschirm weiter.
+    r.wakeLock = isNative || 'wakeLock' in navigator;
     r.camera = !!navigator.mediaDevices?.getUserMedia;
     try {
       const t0 = Date.now();
@@ -68,12 +72,12 @@ export default function DeviceCheck({ gameId, minBattery }: { gameId: string; mi
       </div>
       {res && !allOk && (
         <ul className="list small">
-          <li>{ok(res.gps)} {t('Standort')} {res.gps ? `(±${res.accuracy} m)` : t('nicht erlaubt: bitte im Browser freigeben')}</li>
-          <li>{ok(res.battery == null || res.battery >= minBattery)} {t('Akku')} {res.battery != null ? `${res.battery} %` : 'unbekannt'}{res.battery != null && res.battery < minBattery && t(' (mind. {0} % nötig)', { 0: minBattery })}</li>
-          <li>{ok(res.notifications === 'granted')} {t('Benachrichtigungen:')} {res.notifications === 'granted' ? 'erlaubt' : res.notifications === 'denied' ? 'blockiert' : res.notifications}</li>
-          <li>{ok(res.wakeLock)} {t('Bildschirm bleibt an')}</li>
+          <li>{ok(res.gps)} {t('Standort')} {res.gps ? `(±${res.accuracy} m)` : isNative ? t('nicht erlaubt: bitte in den Einstellungen des Handys freigeben') : t('nicht erlaubt: bitte im Browser freigeben')}</li>
+          <li>{ok(res.battery == null || res.battery >= minBattery)} {t('Akku')} {res.battery != null ? `${res.battery} %` : t('unbekannt')}{res.battery != null && res.battery < minBattery && t(' (mind. {0} % nötig)', { 0: minBattery })}</li>
+          <li>{ok(res.notifications === 'granted')} {t('Benachrichtigungen:')} {res.notifications === 'granted' ? t('erlaubt') : res.notifications === 'denied' ? (isNative ? t('blockiert: bitte in den Einstellungen des Handys für Hunt Mode erlauben') : t('blockiert')) : res.notifications}</li>
+          <li>{ok(res.wakeLock)} {isNative ? t('Läuft auch bei gesperrtem Bildschirm') : t('Bildschirm bleibt an')}</li>
           <li>{ok(res.camera)} {t('Kamera für QR-Fang')}</li>
-          {res.clock_ms != null && <li>{ok(Math.abs(res.clock_ms) < 30000)} {t('Uhr')} {Math.abs(res.clock_ms) < 30000 ? 'stimmt' : t('weicht {0} s ab', { 0: Math.round(res.clock_ms / 1000) })}</li>}
+          {res.clock_ms != null && <li>{ok(Math.abs(res.clock_ms) < 30000)} {t('Uhr')} {Math.abs(res.clock_ms) < 30000 ? t('stimmt') : t('weicht {0} s ab', { 0: Math.round(res.clock_ms / 1000) })}</li>}
         </ul>
       )}
       {err && <div className="notice error">{err}</div>}

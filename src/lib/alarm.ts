@@ -1,4 +1,5 @@
 import { lazy } from '../i18n';
+import { Capacitor } from '@capacitor/core';
 /**
  * Alarm für Spieler bei jedem Ping und jeder Blitzjagd: Klingelton, Vibration und Meldung.
  * Jeder Spieler stellt Ton, Klingelton, Lautstärke und Vibration auf seinem Handy selbst ein
@@ -62,6 +63,24 @@ export const VIBRATION: Record<AlarmKind, number[]> = {
   blitzjagd: [500, 150, 500, 150, 500, 150, 500, 150, 500],
 };
 
+/**
+ * Vibration nach Muster [an, aus, an, …] in ms. iPhones kennen navigator.vibrate nicht:
+ * in der Handy-App läuft die Vibration darum über das Haptics-Modul, Stoss für Stoss.
+ */
+export function vibrate(pattern: number[]) {
+  if (!Capacitor.isNativePlatform()) {
+    navigator.vibrate?.(pattern);
+    return;
+  }
+  void import('@capacitor/haptics').then(({ Haptics }) => {
+    let t = 0;
+    pattern.forEach((ms, i) => {
+      if (i % 2 === 0) setTimeout(() => void Haptics.vibrate({ duration: ms }).catch(() => undefined), t);
+      t += ms;
+    });
+  }).catch(() => navigator.vibrate?.(pattern));
+}
+
 /** Ein Ton-Abschnitt: Frequenz von, Frequenz bis, Dauer (s). */
 type Segment = [number, number, number];
 
@@ -76,7 +95,7 @@ function pattern(tone: Tone): { segments: Segment[]; gap: number; wave: Oscillat
 
 /** Alarm auslösen: Vibration und Klingelton nach den Einstellungen des Spielers. */
 export function ring(kind: AlarmKind, s: AlarmSettings = loadAlarm()) {
-  if (s.vibrate) navigator.vibrate?.(VIBRATION[kind]);
+  if (s.vibrate) vibrate(VIBRATION[kind]);
   if (!s.sound || s.volume <= 0) return;
   try {
     const c = audio();

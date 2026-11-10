@@ -20,7 +20,7 @@ const SLIDES: { art: string; title: string; lead: string; points: [string, strin
     points: [
       ['🟢', 'Spieler', 'verstecken sich im Spielfeld und wollen bis zum Schluss frei bleiben.'],
       ['🔴', 'Hunter', 'jagen die Spieler als Team und versuchen sie zu fangen.'],
-      ['🗺️', 'Spielfeld', 'Ein Gebiet auf der Karte. Wer es verlässt, wird sofort sichtbar.'],
+      ['🗺️', 'Spielfeld', 'Ein Gebiet auf der Karte. Wer es verlässt, bekommt einen Alarm und wird nach kurzer Zeit für die Hunter live sichtbar.'],
     ],
   },
   {
@@ -36,7 +36,7 @@ const SLIDES: { art: string; title: string; lead: string; points: [string, strin
   {
     art: '🏁',
     title: 'Fangen und gewinnen',
-    lead: 'Erwischt ist, wer den Fang-Code des Hunters scannt. Wer frei bleibt, gewinnt.',
+    lead: 'Gefangen ist, wessen Fang-Code ein Hunter scannt. Wer frei bleibt, gewinnt.',
     points: [
       ['📷', 'Fangen', 'Der Spieler zeigt seinen Code, der Hunter scannt ihn mit der App.'],
       ['🏁', 'Fluchtpunkt', 'Am Schluss müssen die Spieler oft noch zu einem Ziel.'],
@@ -50,7 +50,7 @@ const SLIDES: { art: string; title: string; lead: string; points: [string, strin
     points: [
       ['🚨', 'Notfall', 'Der rote SOS-Knopf unterbricht das Spiel und alarmiert sofort alle.'],
       ['📞', 'Notrufe', '117 Polizei, 144 Sanität, 112 Notruf. Direkt aus der App anrufbar.'],
-      ['🔒', 'Standort', 'Wird nur während eines Spiels geteilt und danach gelöscht.'],
+      ['🔒', 'Standort', 'Wird nur während eines Spiels geteilt und nach einiger Zeit automatisch gelöscht.'],
     ],
   },
   {
