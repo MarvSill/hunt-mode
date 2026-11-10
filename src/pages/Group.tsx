@@ -5,6 +5,7 @@ import { useAuth } from '../lib/auth';
 import { STATUS_LABELS } from '../lib/games';
 import { appUrl, db, errorText } from '../lib/supabase';
 import { MessageList } from '../play/Chat';
+import Loader from '../components/Loader';
 import { t } from '../i18n';
 
 interface Group { id: string; name: string; description: string | null; invite_code: string; owner_id: string; members_can_create_games: boolean }
@@ -46,7 +47,7 @@ export default function GroupPage() {
     await load();
   }
 
-  if (!g) return <div className="app">{err ? <div className="notice error">{err}</div> : <span className="muted">{t('Lade …')}</span>}</div>;
+  if (!g) return <div className="app">{err ? <div className="notice error">{err}</div> : <Loader inline />}</div>;
   const myRole = members.find((m) => m.user_id === session?.user.id)?.role;
   const owner = g.owner_id === session?.user.id;
   const admin = myRole === 'besitzer' || myRole === 'admin';

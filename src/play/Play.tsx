@@ -20,6 +20,7 @@ import { t, lazy } from '../i18n';
 import { isNative, nativeNotify, openAppSettings } from '../lib/native';
 import NumberField from '../components/NumberField';
 import { SpeedhuntButtons, SpeedhuntDialog } from './SpeedhuntMap';
+import Loader from '../components/Loader';
 import SafetyNotice from './SafetyNotice';
 
 /** Wie viele Pings je Spieler auf der Karte: 1 = nur der letzte, 0 = alle. Jeder wählt selbst (nur auf diesem Gerät). */
@@ -233,7 +234,7 @@ export default function PlayPage() {
   if (!s) {
     return (
       <div className="app">
-        {error ? <div className="notice error">{error}</div> : <div className="muted">{t('Lade Spiel …')}</div>}
+        {error ? <div className="notice error">{error}</div> : <Loader inline text={t('Lade Spiel …')} />}
         <Link to={`/spiel/${id}`}>{t('Zurück')}</Link>
       </div>
     );

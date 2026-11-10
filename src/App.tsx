@@ -18,6 +18,7 @@ import OnboardingPage from './pages/Onboarding';
 import ProfilePage from './pages/Profile';
 import RulesPage from './pages/Rules';
 import SetupMissingPage from './pages/SetupMissing';
+import Loader from './components/Loader';
 import { t } from './i18n';
 
 // Karte und Spielansicht (Leaflet) erst bei Bedarf laden.
@@ -32,7 +33,7 @@ export default function App() {
   const [introDone, setIntroDone] = useState(introSeen);
 
   if (!supabase) return <SetupMissingPage />;
-  if (loading) return <div className="app center-screen muted">{t('Lade …')}</div>;
+  if (loading) return <Loader />;
   if (recovering) return <NewPasswordPage />;
   if (!session) {
     return (
@@ -52,7 +53,7 @@ export default function App() {
 
   return (
     <>
-      <Suspense fallback={<div className="app muted">{t('Lade …')}</div>}>
+      <Suspense fallback={<Loader />}>
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/neu" element={<NewGamePage />} />
