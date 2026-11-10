@@ -1160,4 +1160,11 @@ export const en: Record<string, string> = {
   "keine": "none",
   "{0} weniger": "{0} less",
   "{0} mehr": "{0} more",
+  "nicht erlaubt: bitte in den Einstellungen des Handys freigeben": "not allowed: please allow it in the phone’s settings",
+  "unbekannt": "unknown",
+  "erlaubt": "allowed",
+  "blockiert": "blocked",
+  "blockiert: bitte in den Einstellungen des Handys für Hunt Mode erlauben": "blocked: please allow them for Hunt Mode in the phone’s settings",
+  "stimmt": "correct",
+  "Läuft auch bei gesperrtem Bildschirm": "Works with the screen locked too",
 };

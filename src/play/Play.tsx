@@ -316,7 +316,7 @@ export default function PlayPage() {
         <div className="notice error" style={{ marginBottom: 8 }}>{t('Standort wird nicht gesendet: {0}', { 0: tracker.sendError })}</div>
       )}
       {tracker.queued > 3 && <div className="notice" style={{ marginBottom: 8 }}>{t('Offline:')} {tracker.queued} {t('Standorte warten auf Verbindung.')}</div>}
-      {!ended && notifPerm === 'default' && typeof Notification !== 'undefined' && (
+      {!ended && !isNative && notifPerm === 'default' && typeof Notification !== 'undefined' && (
         <button className="small block" style={{ marginBottom: 8 }} onClick={() => void Notification.requestPermission().then(setNotifPerm)}>{t('Benachrichtigungen erlauben')}</button>
       )}
       {msg && <div className={`notice ${msg.ok ? 'success' : 'error'}`} style={{ marginBottom: 8 }} onClick={() => setMsg(null)}>{msg.text}</div>}
