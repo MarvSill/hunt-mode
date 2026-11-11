@@ -1,0 +1,21 @@
+diff --git a/node_modules/@capacitor-community/background-geolocation/ios/Plugin/Swift/Plugin.swift b/node_modules/@capacitor-community/background-geolocation/ios/Plugin/Swift/Plugin.swift
+index d4a5965..b0bc19f 100644
+--- a/node_modules/@capacitor-community/background-geolocation/ios/Plugin/Swift/Plugin.swift
++++ b/node_modules/@capacitor-community/background-geolocation/ios/Plugin/Swift/Plugin.swift
+@@ -98,11 +98,11 @@ public class BackgroundGeolocation: CAPPlugin,
+                 .full,
+                 .charging
+             ].contains(UIDevice.current.batteryState)
+-            manager.desiredAccuracy = (
+-                externalPower
+-                ? kCLLocationAccuracyBestForNavigation
+-                : kCLLocationAccuracyBest
+-            )
++            // Hunt Mode: immer die genaue Messung zu Fuss, nie "Navigation" (sonst kann iOS den Standort
++            // auf die nächste Strasse ziehen).
++            _ = externalPower
++            manager.desiredAccuracy = kCLLocationAccuracyBest
++            manager.activityType = .fitness
+             var distanceFilter = call.getDouble("distanceFilter")
+             // It appears that setting manager.distanceFilter to 0 can prevent
+             // subsequent location updates. See issue #88.

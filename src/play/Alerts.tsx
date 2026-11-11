@@ -15,7 +15,7 @@ export function useOutsideVibration(active: boolean) {
   }, [active]);
 }
 
-type Problem = 'gps_blockiert' | 'gps_fehlt' | 'gps_still' | 'benachrichtigung';
+type Problem = 'gps_blockiert' | 'gps_fehlt' | 'gps_still' | 'ungenau' | 'benachrichtigung';
 
 /**
  * Grosser Hinweis, sobald etwas Wichtiges nicht geht: GPS aus oder blockiert, seit langem kein Standort,
@@ -55,13 +55,15 @@ export function DeviceAlert({ tracker, tracking }: { tracker: TrackerInfo; track
   else if (tracking && tracker.status === 'fehler') problem = 'gps_fehlt';
   else if (tracking && waitSince && now - waitSince > 45000) problem = 'gps_fehlt';
   else if (tracking && tracker.status === 'ok' && tracker.sentAt && now - tracker.sentAt > 3 * 60000 && document.visibilityState === 'visible') problem = 'gps_still';
+  else if (tracking && tracker.status === 'ok' && tracker.last && tracker.last.acc > 150) problem = 'ungenau';
   else if (isNative && notifyOk === false) problem = 'benachrichtigung';
   if (!problem || (snoozed[problem] ?? 0) > now) return null;
 
-  const title = problem === 'benachrichtigung' ? t('Benachrichtigungen einschalten!') : problem === 'gps_still' ? t('Standort kommt nicht an!') : t('GPS einschalten!');
+  const title = problem === 'benachrichtigung' ? t('Benachrichtigungen einschalten!') : problem === 'gps_still' ? t('Standort kommt nicht an!') : problem === 'ungenau' ? t('Standort ungenau!') : t('GPS einschalten!');
   const text = problem === 'gps_blockiert'
     ? t('Hunt Mode darf deinen Standort nicht sehen. Ohne Standort kannst du nicht mitspielen. Erlaube den Standort (am besten „Immer“).')
     : problem === 'gps_fehlt' ? t('Dein Handy findet gerade keinen Standort. Schalte die Ortung (GPS) ein und geh wenn möglich ins Freie.')
+    : problem === 'ungenau' ? t('Dein Handy meldet den Standort nur auf {0} m genau. Schalte in den Einstellungen bei Hunt Mode „Genauer Standort“ ein (iPhone) bzw. „Genauen Standort verwenden“ (Android).', { 0: tracker.last?.acc ?? '?' })
     : problem === 'gps_still' ? t('Seit über 3 Minuten wurde dein Standort nicht mehr gesendet. Prüfe, ob Ortung und Internet eingeschaltet sind.')
     : t('Ohne Benachrichtigungen verpasst du Pings, Blitzjagden und Notfälle. Erlaube sie für Hunt Mode.');
 

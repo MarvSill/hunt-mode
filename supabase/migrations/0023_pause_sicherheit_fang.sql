@@ -384,3 +384,29 @@ begin
 end; $$;
 revoke execute on function public.copy_map(uuid, uuid) from public, anon;
 grant execute on function public.copy_map(uuid, uuid) to authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Ping so genau wie möglich, nie verschoben: statt eines Mittelwerts (der einen Punkt ergeben kann, an dem
+-- niemand war) zählt der genaueste echte Messpunkt der letzten 20 Sekunden, bei Gleichstand der neueste.
+create or replace function public.best_position(p_participant_id uuid, p_now timestamptz,
+  out lat double precision, out lng double precision, out accuracy_m real, out age_s int)
+language plpgsql stable security definer set search_path = public, extensions as $$
+declare
+  v_at timestamptz;
+begin
+  select ST_Y(s.geom), ST_X(s.geom), s.accuracy_m, s.at
+    into lat, lng, accuracy_m, v_at
+  from public.location_samples s
+  where s.participant_id = p_participant_id and s.at > p_now - interval '20 seconds' and s.at <= p_now
+    and coalesce(s.accuracy_m, 0) < 100 and not s.is_mock
+  order by coalesce(s.accuracy_m, 50), s.at desc
+  limit 1;
+  if v_at is not null then
+    age_s := greatest(0, extract(epoch from (p_now - v_at))::int);
+    return;
+  end if;
+  select p.lat, p.lng, p.accuracy_m, greatest(0, extract(epoch from (p_now - p.at))::int)
+    into lat, lng, accuracy_m, age_s
+  from public.positions p where participant_id = p_participant_id;
+end; $$;
+revoke execute on function public.best_position(uuid, timestamptz) from public, anon, authenticated;

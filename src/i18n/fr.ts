@@ -1238,4 +1238,6 @@ export const fr: Record<string, string> = {
   "Die Einstellungen werden übernommen. Willst du auch die Karte übernehmen (Spielfeld, Gefahrenzonen, Startpunkt und Fluchtpunkte)?": "Les réglages sont repris. Veux-tu aussi reprendre la carte (zone de jeu, zones dangereuses, point de départ et points d’évasion) ?",
   "Ja, mit derselben Karte": "Oui, avec la même carte",
   "Nein, Karte neu zeichnen": "Non, dessiner une nouvelle carte",
+  "Standort ungenau!": "Position imprécise !",
+  "Dein Handy meldet den Standort nur auf {0} m genau. Schalte in den Einstellungen bei Hunt Mode „Genauer Standort“ ein (iPhone) bzw. „Genauen Standort verwenden“ (Android).": "Ton téléphone ne donne ta position qu’à {0} m près. Dans les réglages de Hunt Mode, active « Position exacte » (iPhone) ou « Utiliser la position exacte » (Android).",
 };
