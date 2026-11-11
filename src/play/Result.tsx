@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import ReplayAsk from '../components/ReplayAsk';
 import MapView, { type Marker } from '../components/MapView';
 import { api, clock, SOURCE_LABELS, STATE_LABELS, type GameState, type MapFeature, type Replay } from '../lib/engine';
 import { errorText } from '../lib/supabase';
@@ -25,6 +25,7 @@ export default function Result({ s, zones }: { s: GameState; zones: MapFeature[]
   const [t, setT] = useState(0);
   const [err, setErr] = useState<string | null>(null);
   const [playing, setPlaying] = useState(false);
+  const [replayAsk, setReplayAsk] = useState(false);
   /** Ping für Ping durchgehen: Nummer des gezeigten Pings (−1 = freie Zeit über den Regler). */
   const [step, setStep] = useState(-1);
 
@@ -110,7 +111,8 @@ export default function Result({ s, zones }: { s: GameState; zones: MapFeature[]
           : winners.size ? tr('Sieger: {0}', { 0: [...winners].map((w) => nameOf(s, w)).join(', ') }) : tr('Die Hunter gewinnen')}</h1>
         <div className="muted">{REASONS[r?.reason ?? ''] ?? ''}</div>
         {r && <div className="small">{r.hours} h · {r.catches} {tr('Fänge ·')} {r.speedhunts} {tr('Blitzjagden ·')} {r.pings} {tr('Pings')}</div>}
-        <Link to={`/neu?von=${s.game.id}`} className="button small" style={{ alignSelf: 'center' }}>🔁 {tr('Gleiche Variante nochmal spielen')}</Link>
+        <button type="button" className="small" style={{ alignSelf: 'center' }} onClick={() => setReplayAsk(true)}>🔁 {tr('Gleiche Variante nochmal spielen')}</button>
+        {replayAsk && <ReplayAsk gameId={s.game.id} name={s.game.name} onClose={() => setReplayAsk(false)} />}
         {s.game.config.win.prize && winners.size > 0 && <div className="badge green" style={{ alignSelf: 'center' }}>{tr('Preis:')} {s.game.config.win.prize}</div>}
       </div>
       <div className="card">

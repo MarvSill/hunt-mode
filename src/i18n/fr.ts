@@ -1234,4 +1234,8 @@ export const fr: Record<string, string> = {
   "Karte übernehmen": "Reprendre la carte",
   "Spielfeld, Gefahrenzonen, Startpunkt und Fluchtpunkte wie im Spiel „{0}“. Du kannst sie danach noch ändern.": "Zone de jeu, zones dangereuses, point de départ et points d’évasion comme dans la partie « {0} ». Tu peux encore les modifier ensuite.",
   "Weiter zur Karte (übernommen)": "Continuer vers la carte (reprise)",
+  "„{0}“ nochmal spielen": "Rejouer « {0} »",
+  "Die Einstellungen werden übernommen. Willst du auch die Karte übernehmen (Spielfeld, Gefahrenzonen, Startpunkt und Fluchtpunkte)?": "Les réglages sont repris. Veux-tu aussi reprendre la carte (zone de jeu, zones dangereuses, point de départ et points d’évasion) ?",
+  "Ja, mit derselben Karte": "Oui, avec la même carte",
+  "Nein, Karte neu zeichnen": "Non, dessiner une nouvelle carte",
 };

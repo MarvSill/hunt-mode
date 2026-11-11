@@ -1234,4 +1234,8 @@ export const en: Record<string, string> = {
   "Karte übernehmen": "Copy the map",
   "Spielfeld, Gefahrenzonen, Startpunkt und Fluchtpunkte wie im Spiel „{0}“. Du kannst sie danach noch ändern.": "Play area, danger zones, start point and escape points as in the game “{0}”. You can still change them afterwards.",
   "Weiter zur Karte (übernommen)": "Continue to the map (copied)",
+  "„{0}“ nochmal spielen": "Play “{0}” again",
+  "Die Einstellungen werden übernommen. Willst du auch die Karte übernehmen (Spielfeld, Gefahrenzonen, Startpunkt und Fluchtpunkte)?": "The settings are copied. Do you also want to copy the map (play area, danger zones, start point and escape points)?",
+  "Ja, mit derselben Karte": "Yes, with the same map",
+  "Nein, Karte neu zeichnen": "No, draw a new map",
 };

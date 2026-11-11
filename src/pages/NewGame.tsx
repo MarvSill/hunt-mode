@@ -64,7 +64,7 @@ export default function NewGamePage() {
   const [origin, setOrigin] = useState<string | null>(null);
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
   /** "Nochmal spielen": auch die Karte des früheren Spiels übernehmen. */
-  const [copyMap, setCopyMap] = useState(true);
+  const [copyMap, setCopyMap] = useState(params.get('karte') !== '0');
   /** Hat die Person schon selbst etwas gewählt? Dann die geladenen Grundeinstellungen nicht mehr darüberschreiben. */
   const touched = useRef(false);
 
