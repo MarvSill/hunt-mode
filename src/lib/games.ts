@@ -35,6 +35,9 @@ export interface Game {
   meeting_point: string | null;
   timezone: string;
   created_at: string;
+  paused_at?: string | null;
+  pause_kind?: string | null;
+  group_id?: string | null;
 }
 
 export interface RosterEntry {
@@ -129,4 +132,23 @@ export function diffConfig(before: GameConfig, after: GameConfig): ConfigChange[
     }
   }
   return changes;
+}
+
+/** Eigene, gespeicherte Spiel-Variante (nur für die Person, die sie gespeichert hat). */
+export interface Template { id: string; name: string; config_json: unknown; created_at: string }
+
+export async function listTemplates() {
+  const { data, error } = await db().from('config_templates').select('id,name,config_json,created_at').order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as Template[];
+}
+
+export async function saveTemplate(name: string, config: GameConfig) {
+  const { error } = await db().from('config_templates').insert({ name, config_json: config });
+  if (error) throw error;
+}
+
+export async function deleteTemplate(id: string) {
+  const { error } = await db().from('config_templates').delete().eq('id', id);
+  if (error) throw error;
 }

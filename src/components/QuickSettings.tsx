@@ -1,6 +1,6 @@
 import NumberField from './NumberField';
 import type { ReactNode } from 'react';
-import { CATCH_METHODS, JOKER_TYPES, type GameConfig } from '../shared/config';
+import { JOKER_TYPES, type GameConfig } from '../shared/config';
 import { QUICK_HELP, SETTING_HELP } from '../shared/help';
 import { optionLabel } from '../shared/schemaMeta';
 import { huntMinutes, timeLimits } from '../shared/timeRules';
@@ -105,23 +105,10 @@ export default function QuickSettings({ config, onChange }: Props) {
         )}
       </Box>
 
-      <Box title={t('Fangen und Gewinnen')} icon="🏁" summary={`${config.catch.method.includes('qr') ? t('QR-Code') : t('Berühren')}${config.exit.enabled ? t(' · mit Fluchtpunkt') : ''}`} info={SETTING_HELP.catch}>
+      <Box title={t('Fangen und Gewinnen')} icon="🏁" summary={`${t('Code oder Bestätigung')}${config.exit.enabled ? t(' · mit Fluchtpunkt') : ''}`} info={SETTING_HELP.catch}>
         <div className="field">
           <span>{t('Wie wird gefangen?')} <Hint label={t('Wie wird gefangen?')} /></span>
-          <div className="chips">
-            {CATCH_METHODS.filter((m) => m === 'qr' || m === 'touch_confirm').map((m) => {
-              const on = config.catch.method.includes(m);
-              return (
-                <button key={m} type="button" className={`chip${on ? ' on' : ''}`} aria-pressed={on}
-                  onClick={() => {
-                    const list = on ? config.catch.method.filter((x) => x !== m) : [...config.catch.method, m];
-                    if (list.length) set('catch', 'method', list);
-                  }}>
-                  {m === 'qr' ? t('QR-Code scannen') : t('Berühren + bestätigen')}
-                </button>
-              );
-            })}
-          </div>
+          <span className="muted small">{t('Immer beide Wege: Zahlencode eingeben oder Fang melden und der Spieler bestätigt.')}</span>
         </div>
         <Toggle label={t('Fluchtpunkt am Schluss (Spieler müssen hin)')} value={config.exit.enabled} onChange={(v) => set('exit', 'enabled', v)} />
         {config.exit.enabled && (

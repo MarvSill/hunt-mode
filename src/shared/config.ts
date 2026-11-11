@@ -314,6 +314,8 @@ export function normalizeConfig(c: GameConfig): GameConfig {
   // Spielzeit gilt alles inklusive: der Vorsprung ist ein Teil davon.
   c.start.head_start_minutes = Math.min(c.start.head_start_minutes, Math.max(0, c.game.duration_minutes - 5));
   c.exit.usable_minutes_before_end = Math.min(c.exit.usable_minutes_before_end, c.exit.reveal_minutes_before_end);
+  // Fangen geht immer auf beide Arten: Zahlencode eingeben oder Fang melden und der Spieler bestätigt.
+  c.catch.method = ['qr', 'touch_confirm'];
   return c;
 }
 

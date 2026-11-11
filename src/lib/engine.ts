@@ -43,7 +43,9 @@ export interface GameState {
   game: {
     id: string; name: string; code: string; status: string; is_test: boolean; host: boolean; start_at: string | null;
     hunt_start_at: string | null; ends_at: string | null; deadline_at: string | null; next_day_at: string | null;
-    current_day: number; phase?: number; phase_count?: number; next_phase_at?: string | null; paused: boolean; pause_reason: string | null; timezone: string; speedhunts_left: number;
+    current_day: number; phase?: number; phase_count?: number; next_phase_at?: string | null; paused: boolean; pause_reason: string | null;
+    /** Warum das Spiel steht: SOS, Pause des Hosts oder Warten auf den Sicherheitshinweis. */
+    pause_kind: 'notfall' | 'host' | 'sicherheit' | null; timezone: string; speedhunts_left: number;
     exit_revealed: boolean; exit_reveal_at: string | null; map_version: number;
     result: { reason: string; winners: string[]; mode: string; scores: Record<string, number>; hours: number; catches: number; pings: number; speedhunts: number } | null;
     meeting_point: string | null; config: GameConfig; group_id: string | null; quiet: boolean;
@@ -55,6 +57,8 @@ export interface GameState {
     hideout: { id: string; inside: boolean; accum_s: number; entered_at: string; max_s: number; lat: number; lng: number } | null;
     transit: { id: string; mode: string; line: string | null; started_at: string } | null;
     device_check: Record<string, unknown>;
+    /** Sicherheitshinweis für dieses Spiel bestätigt. */
+    safety_ok: boolean;
   };
   participants: Participant[];
   positions: Position[];
@@ -68,6 +72,8 @@ export interface GameState {
   hideouts: { participant_id: string; inside: boolean; accum_s: number; lat: number; lng: number }[];
   notifications: Notification[];
   next_silent_ping_at: string | null;
+  /** Spieler und Hunter, die den Sicherheitshinweis noch nicht bestätigt haben. */
+  safety_missing: string[];
   free_players: number;
 }
 
@@ -124,7 +130,7 @@ export const api = {
   deviceCheck: (g: string, checks: Record<string, unknown>) => rpc('set_device_check', { p_game_id: g, p_checks: checks }),
   speedhuntStart: (g: string, target: string) => rpc<string>('speedhunt_start', { p_game_id: g, p_target: target }),
   speedhuntQuery: (sh: string) => rpc('speedhunt_query', { p_speedhunt_id: sh }),
-  catchCode: (g: string) => rpc<{ code: string; valid_s: number; qr: string }>('my_catch_code', { p_game_id: g }),
+  catchCode: (g: string) => rpc<{ code: string; valid_s: number }>('my_catch_code', { p_game_id: g }),
   catchByCode: (g: string, code: string, lat?: number, lng?: number) =>
     rpc<{ catch_id: string; status: string; runner: string }>('catch_by_code', { p_game_id: g, p_code: code, p_lat: lat ?? null, p_lng: lng ?? null }),
   catchClaim: (g: string, runner: string, lat?: number, lng?: number) =>
@@ -146,10 +152,15 @@ export const api = {
   endGame: (g: string) => rpc('gm_end_game', { p_game_id: g }),
   send: (g: string, channel: string, body: string) => rpc('send_message', { p_game_id: g, p_channel: channel, p_body: body }),
   replay: (g: string) => rpc<Replay>('game_replay', { p_game_id: g }),
+  pause: (g: string, reason: string) => rpc('host_pause', { p_game_id: g, p_reason: reason }),
+  resume: (g: string) => rpc('host_resume', { p_game_id: g }),
+  safetyConfirm: (g: string) => rpc('safety_confirm', { p_game_id: g }),
+  safetyForce: (g: string) => rpc('safety_force_start', { p_game_id: g }),
 };
 
 export interface Replay {
   start: string;
+  hunt_start?: string | null;
   end: string;
   tracks: Record<string, [number, number, number][]>;
   pings: { participant_id: string; at: string; lat: number; lng: number; source: string; is_fake: boolean }[];
@@ -187,9 +198,14 @@ export const ITEM_LABELS: Record<string, string> = lazy({
   hotel: 'Hotel', wahl: 'Joker nach Wahl',
 });
 
+/** Eigenes Zeichen für jeden Joker. */
+export const ITEM_ICONS: Record<string, string> = {
+  regeneration: '🔋', hunter_erfragen: '🔭', catch_free: '🛡️', fake_ping: '🎭', hotel: '🏨', wahl: '🎲',
+};
+
 /** Was ein Joker oder Bonus bewirkt, in einem Satz. */
 export const ITEM_HELP: Record<string, string> = lazy({
-  regeneration: 'Du wirst eine Zeit lang nicht gepingt, und die Hunter können keine Blitzjagd auf dich starten. Nicht einsetzbar, solange eine Blitzjagd läuft.',
+  regeneration: 'Du wirst eine Zeit lang nicht gepingt, und die Hunter können keine Blitzjagd auf dich starten. Fangen dürfen sie dich aber weiterhin. Nicht einsetzbar, solange eine Blitzjagd läuft.',
   hunter_erfragen: 'Beim Einsetzen siehst du einmalig, wo alle Hunter in diesem Moment sind (nicht live).',
   catch_free: 'Du kannst eine Zeit lang nicht gefangen werden.',
   fake_ping: 'Dein nächster Ping zeigt einen Ort, den du auf der Karte wählst.',

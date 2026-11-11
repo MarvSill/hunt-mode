@@ -30,7 +30,9 @@ Live: https://marvsill.github.io/hunt-mode/ · Repo: github.com/MarvSill/hunt-mo
 ## Regeln, die gelten
 - Keine Spielleitung und keine Zentrale: die App regelt alles, der Host wählt selbst eine Rolle (Spieler, Hunter, Zuschauer).
 - Ein Startpunkt für alle: Spieler laufen los, Hunter warten dort bis Ende Vorsprung. Pings sind immer genau.
-- Das Spiel läuft am Stück: keine Spieltage, keine jagdfreien Zeiten, keine Pause.
+- Das Spiel läuft am Stück: keine Spieltage, keine jagdfreien Zeiten. Pausieren kann nur der Host (die Zeit hält an, Regeln ändern nur in der Pause).
+- Der Vorsprung startet erst, wenn alle Spieler und Hunter den Sicherheitshinweis bestätigt haben.
+- Fangen: Zahlencode eingeben oder Fang melden + Spieler bestätigt (Ablehnen = kein Fang). Kein QR-Code.
 - Begriffe: Hunter-Team, Blitzjagd, Ping, Fluchtpunkt, Nähe-Alarm. Blitzjagden starten nur die Hunter, ohne Zeitlimit.
 - Notfall geht immer an alle Hunter (und den Host); Nummern 117 / 144 / 112.
 - Chat: Spieler schreiben den Huntern (alle Hunter lesen mit), Hunter einem oder allen Spielern, Hunter-Team unter sich. Spieler nie mit anderen Spielern.
@@ -39,4 +41,4 @@ Live: https://marvsill.github.io/hunt-mode/ · Repo: github.com/MarvSill/hunt-mo
 - Bei jedem Ping und jeder Blitzjagd klingelt das Handy aller Spieler (Ton, Lautstärke, Vibration stellt jeder selbst ein).
 - Keine Strafen. SOS unterbricht das ganze Spiel und alarmiert alle. Fluchtpunkt: min. 4 Kandidaten, Wahl erst bei Bekanntgabe, nur Spieler sehen ihn.
 - Fortbewegung nur erlaubt/verboten (ÖV/Taxi/Auto, Velo/Trottinett), kein Live-Standort.
-- Standort wird nur gesendet, solange die App offen ist (Browser-Grenze). Marvin will Hintergrund-Ortung (native App) – noch offen, immer wieder daran erinnern.
+- Web-App: Standort nur, solange die App offen ist (Browser-Grenze). Handy-App: Standort auch im Hintergrund. Push bei gesperrtem Bildschirm fehlt noch (Android: Firebase, iPhone: Apple Developer Program) – Marvin hat es vorerst zurückgestellt.

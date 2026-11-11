@@ -1,13 +1,14 @@
-import { useCallback, useState } from 'react';
+import { useState } from 'react';
 import { api, clock, countdown, SOURCE_LABELS, STATE_LABELS, TRANSPORT_LABELS, uploadProof } from '../lib/engine';
 import { Confirm, nameOf, nameTag, Section, type PanelProps } from './common';
-import Scanner from './Scanner';
 import { t } from '../i18n';
 
 export default function HunterPanel({ s, now, act, pos }: PanelProps) {
   const g = s.game;
   const cfg = g.config;
-  const [scan, setScan] = useState(false);
+  const [codeOpen, setCodeOpen] = useState(false);
+  const [code, setCode] = useState('');
+  const [claimOpen, setClaimOpen] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const players = s.participants.filter((p) => p.role === 'spieler');
   const free = players.filter((p) => ['aktiv', 'ausserhalb', 'notfall'].includes(p.state));
@@ -16,22 +17,60 @@ export default function HunterPanel({ s, now, act, pos }: PanelProps) {
   const myProof = s.catches.filter((c) => c.hunter_id === s.me.id && c.status === 'wartet_auf_beweis');
   const myPending = s.catches.filter((c) => c.hunter_id === s.me.id && c.status === 'wartet_auf_bestaetigung');
 
-  const onCode = useCallback((code: string) => {
-    setScan(false);
+  const myRejected = s.catches.filter((c) => c.hunter_id === s.me.id && c.status === 'abgelehnt' && now - new Date(c.at).getTime() < 10 * 60000);
+
+  function sendCode() {
+    const c = code.replace(/\D/g, '');
+    if (c.length !== 6) return;
+    setCodeOpen(false);
+    setCode('');
     void act(async () => {
-      const r = await api.catchByCode(g.id, code, pos?.lat, pos?.lng);
+      const r = await api.catchByCode(g.id, c, pos?.lat, pos?.lng);
       setResult(r.status === 'gueltig' ? t('{0} gefangen!', { 0: r.runner }) : t('{0}: Beweis nötig', { 0: r.runner }));
       return r;
     });
-  }, [act, g.id, pos]);
+  }
 
   return (
     <div className="stack">
-      {scan && <Scanner onCode={onCode} onClose={() => setScan(false)} />}
+      {codeOpen && (
+        <div className="overlay" role="dialog" aria-label={t('Fang-Code eingeben')} onClick={() => setCodeOpen(false)}>
+          <form className="card stack" style={{ maxWidth: 400, width: '100%', background: 'var(--surface)' }} onClick={(e) => e.stopPropagation()}
+            onSubmit={(e) => { e.preventDefault(); sendCode(); }}>
+            <strong style={{ fontSize: 20 }}>🔢 {t('Fang-Code eingeben')}</strong>
+            <span className="small muted">{t('Der Spieler zeigt dir unter „Aktionen“ seinen 6-stelligen Code. Gib ihn hier ein, dann gilt der Fang sofort.')}</span>
+            <input autoFocus inputMode="numeric" autoComplete="one-time-code" maxLength={7} placeholder="123 456" aria-label={t('Fang-Code')}
+              value={code} onChange={(e) => setCode(e.target.value.replace(/[^\d ]/g, ''))} style={{ fontSize: 32, textAlign: 'center', letterSpacing: 6 }} />
+            <button type="submit" className="primary block big" disabled={code.replace(/\D/g, '').length !== 6}>{t('Fang bestätigen')}</button>
+            <button type="button" className="ghost block" onClick={() => setCodeOpen(false)}>{t('Abbrechen')}</button>
+          </form>
+        </div>
+      )}
+      {claimOpen && (
+        <div className="overlay" role="dialog" aria-label={t('Fang melden')} onClick={() => setClaimOpen(false)}>
+          <div className="card stack" style={{ maxWidth: 400, width: '100%', background: 'var(--surface)' }} onClick={(e) => e.stopPropagation()}>
+            <strong style={{ fontSize: 20 }}>🤚 {t('Wen hast du gefangen?')}</strong>
+            <span className="small muted">{t('Der Spieler bekommt eine Meldung und bestätigt oder lehnt ab. Lehnt er ab, gilt der Fang nicht; dann lass dir den Fang-Code zeigen.')}</span>
+            {free.filter((p) => p.state !== 'notfall').map((p) => (
+              <button key={p.id} type="button" className="block" onClick={() => {
+                setClaimOpen(false);
+                void act(() => api.catchClaim(g.id, p.id, pos?.lat, pos?.lng), t('Fang gemeldet. {0} muss bestätigen.', { 0: p.name }));
+              }}>{nameTag(s, p.id)}</button>
+            ))}
+            {free.length === 0 && <div className="muted small">{t('Kein Spieler ist mehr frei.')}</div>}
+            <button type="button" className="ghost block" onClick={() => setClaimOpen(false)}>{t('Abbrechen')}</button>
+          </div>
+        </div>
+      )}
       {g.status === 'vorsprung' && <div className="notice">{t('Vorsprung der Spieler. Die Jagd beginnt in')} {countdown(g.hunt_start_at, now)}{t('. Wartet am Startpunkt.')}</div>}
       {result && <div className="notice success">{result}</div>}
 
-      <button className="primary block big" disabled={!live} onClick={() => setScan(true)}>{t('Fangen (Code scannen)')}</button>
+      <div className="grid2">
+        <button className="primary big" disabled={!live} onClick={() => setCodeOpen(true)}>🔢 {t('Code eingeben')}</button>
+        <button className="primary big" disabled={!live} onClick={() => setClaimOpen(true)}>🤚 {t('Fang melden')}</button>
+      </div>
+      <div className="muted small">{t('Zwei Wege, jeder geht für sich: den Fang-Code des Spielers eingeben, oder den Fang melden und der Spieler bestätigt.')}</div>
+      {myRejected.map((c) => <div key={c.id} className="notice error">{t('{0} hat den Fang abgelehnt. Lass dir den Fang-Code zeigen.', { 0: nameOf(s, c.runner_id) })}</div>)}
 
       {myProof.map((c) => (
         <div key={c.id} className="notice stack">
@@ -66,10 +105,10 @@ export default function HunterPanel({ s, now, act, pos }: PanelProps) {
                     {STATE_LABELS[p.state] ?? p.state}
                     {last && ` · ${SOURCE_LABELS[last.source] ?? last.source} ${clock(last.at)}${last.stale_seconds ? t(' ({0} min alt)', { 0: Math.round(last.stale_seconds / 60) }) : ''}`}
                     {transit && t(' · fährt {0} {1}', { 0: TRANSPORT_LABELS[transit.mode] ?? transit.mode, 1: transit.line ?? '' })}
-                    {p.next_ping_at && t(' · nächster Ping {0}', { 0: clock(p.next_ping_at) })}
+                    {p.next_ping_at && t(' · nächster Ping in {0}', { 0: countdown(p.next_ping_at, now) })}
                   </div>
                 </div>
-                {live && ['aktiv', 'ausserhalb'].includes(p.state) && cfg.catch.method.includes('touch_confirm') && (
+                {live && ['aktiv', 'ausserhalb'].includes(p.state) && (
                   <Confirm className="small" label={t('Gefangen')} confirm={t('{0} gefangen?', { 0: p.name })} onYes={() => act(() => api.catchClaim(g.id, p.id, pos?.lat, pos?.lng), t('Fang gemeldet.'))} />
                 )}
               </li>
@@ -80,7 +119,7 @@ export default function HunterPanel({ s, now, act, pos }: PanelProps) {
 
       <div className="card small">
         {cfg.taskforce.bounty_per_catch > 0 && <div>{t('Deine Punkte:')} <strong>{s.me.bounty}</strong></div>}
-        {s.next_silent_ping_at && <div>{t('Nächster Ping:')} {clock(s.next_silent_ping_at)} {t('(in')} {countdown(s.next_silent_ping_at, now)})</div>}
+        {s.next_silent_ping_at && <div style={{ fontSize: 18 }}>⏱ {t('Nächster Ping in {0}', { 0: countdown(s.next_silent_ping_at, now) })} <span className="muted small">({clock(s.next_silent_ping_at)})</span></div>}
       </div>
     </div>
   );

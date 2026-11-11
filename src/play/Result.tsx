@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import ReplayAsk from '../components/ReplayAsk';
 import MapView, { type Marker } from '../components/MapView';
 import { api, clock, SOURCE_LABELS, STATE_LABELS, type GameState, type MapFeature, type Replay } from '../lib/engine';
 import { errorText } from '../lib/supabase';
@@ -24,6 +25,7 @@ export default function Result({ s, zones }: { s: GameState; zones: MapFeature[]
   const [t, setT] = useState(0);
   const [err, setErr] = useState<string | null>(null);
   const [playing, setPlaying] = useState(false);
+  const [replayAsk, setReplayAsk] = useState(false);
   /** Ping für Ping durchgehen: Nummer des gezeigten Pings (−1 = freie Zeit über den Regler). */
   const [step, setStep] = useState(-1);
 
@@ -80,7 +82,8 @@ export default function Result({ s, zones }: { s: GameState; zones: MapFeature[]
       const upto = pts.filter((p) => p[0] <= t);
       if (!upto.length) continue;
       const color = colorFor(s, pid);
-      lines.push({ id: pid, color, points: upto.slice(-60).map((p) => [p[1], p[2]]) });
+      // Der ganze Weg bis zum gewählten Zeitpunkt (alle 10 s ein Punkt), nicht nur die Pings.
+      lines.push({ id: pid, color, points: upto.map((p) => [p[1], p[2]]) });
       const last = upto[upto.length - 1];
       const p = s.participants.find((x) => x.id === pid);
       markers.push({ id: pid, lat: last[1], lng: last[2], color, label: p?.name ?? '?', kind: p?.role === 'spieler' ? 'player' : 'hunter' });
@@ -104,9 +107,12 @@ export default function Result({ s, zones }: { s: GameState; zones: MapFeature[]
     <div className="stack">
       <div className="card stack" style={{ textAlign: 'center' }}>
         <div className="brand">{tr('Spielende')}</div>
-        <h1 style={{ margin: 0 }}>{winners.size ? tr('Sieger: {0}', { 0: [...winners].map((w) => nameOf(s, w)).join(', ') }) : tr('Die Hunter gewinnen')}</h1>
+        <h1 style={{ margin: 0 }}>{r?.reason === 'abgebrochen' ? tr('Spiel abgebrochen: keiner hat gewonnen')
+          : winners.size ? tr('Sieger: {0}', { 0: [...winners].map((w) => nameOf(s, w)).join(', ') }) : tr('Die Hunter gewinnen')}</h1>
         <div className="muted">{REASONS[r?.reason ?? ''] ?? ''}</div>
         {r && <div className="small">{r.hours} h · {r.catches} {tr('Fänge ·')} {r.speedhunts} {tr('Blitzjagden ·')} {r.pings} {tr('Pings')}</div>}
+        <button type="button" className="small" style={{ alignSelf: 'center' }} onClick={() => setReplayAsk(true)}>🔁 {tr('Gleiche Variante nochmal spielen')}</button>
+        {replayAsk && <ReplayAsk gameId={s.game.id} name={s.game.name} onClose={() => setReplayAsk(false)} />}
         {s.game.config.win.prize && winners.size > 0 && <div className="badge green" style={{ alignSelf: 'center' }}>{tr('Preis:')} {s.game.config.win.prize}</div>}
       </div>
       <div className="card">
@@ -115,7 +121,7 @@ export default function Result({ s, zones }: { s: GameState; zones: MapFeature[]
             <li key={p.id}>
               <span className="dot" style={{ background: colorFor(s, p.id) }} />
               <span className="spacer">{p.tag && <span className="tag">{p.tag}</span>}{p.name}</span>
-              <span className={`badge${winners.has(p.id) ? ' green' : ''}`}>{winners.has(p.id) ? tr('Sieg') : STATE_LABELS[p.state] ?? p.state}</span>
+              <span className={`badge${winners.has(p.id) ? ' green' : ''}`}>{winners.has(p.id) ? tr('Sieg') : r?.reason === 'abgebrochen' && ['aktiv', 'ausserhalb', 'notfall'].includes(p.state) ? tr('Abgebrochen') : STATE_LABELS[p.state] ?? p.state}</span>
               {r?.mode === 'punkte' && <span className="badge">{r.scores[p.id] ?? 0} P</span>}
             </li>
           ))}
@@ -125,6 +131,7 @@ export default function Result({ s, zones }: { s: GameState; zones: MapFeature[]
         </ul>
       </div>
       <h2>{tr('Wiederholung')}</h2>
+      <div className="muted small" style={{ marginTop: -6, marginBottom: 8 }}>{tr('Die Linien zeigen den genauen Weg jeder Person (aufgezeichnet, solange der Standort gesendet wurde). Die Kästchen sind die Pings.')}</div>
       {err && <div className="notice error">{err}</div>}
       {replay && (
         <>

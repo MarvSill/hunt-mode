@@ -18,7 +18,7 @@ export default function PrivacyPage() {
           <li>{t('Konto: E-Mail-Adresse und Passwort (verschlüsselt).')}</li>
           <li>{t('Profil: Benutzername, Anzeigename, Altersbestätigung.')}</li>
           <li>{t('Notfallkontakt: Name und Telefonnummer. Sichtbar nur bei einem Notfall, für die Hunter deines Spiels.')}</li>
-          <li>{t('Standort: nur während eines laufenden Spiels und nur solange die App offen ist. Nach Spielende werden die Standortdaten automatisch gelöscht; übrig bleibt höchstens die Wiederholung des Spiels für die Teilnehmenden.')}</li>
+          <li>{t('Standort: nur während eines laufenden Spiels. Der Weg wird aufgezeichnet, damit die Teilnehmenden ihn nach Spielende in der Wiederholung ansehen können. Nach 30 Tagen werden die Standortdaten automatisch gelöscht, wird das Spiel gelöscht, sofort.')}</li>
           <li>{t('Spielinhalte: Chat-Nachrichten, Meldungen, Fänge und Ergebnisse deiner Spiele.')}</li>
         </ul>
         <strong>{t('Wer die Daten sieht')}</strong>

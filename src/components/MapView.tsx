@@ -3,6 +3,7 @@
  * (Knöpfe auf der Karte oder im Profil). Zonen, Punkte und Marker liegen über der Grundkarte.
  */
 import maplibregl, { type GeoJSONSource, type StyleSpecification } from 'maplibre-gl';
+import { pinElement, PIN_TIP_OFFSET } from '../lib/pin';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { useEffect, useRef, type ReactNode } from 'react';
 import { bbox, circle, pointOnFeature } from '@turf/turf';
@@ -102,7 +103,11 @@ function markerEl(m: Marker): HTMLElement {
   if (m.ring) d.style.boxShadow = `0 0 0 2px #fff, 0 0 0 6px ${m.ring}, 0 3px 8px rgba(0,0,0,.45)`;
   if (m.text) d.textContent = m.text;
   d.title = m.label;
-  return d;
+  if (!ping || !m.text) return d;
+  // Ping mit Nummer: Kartennadel, deren Spitze genau auf den Ort zeigt.
+  const pin = pinElement(m.color, m.text, m.ring, m.opacity ?? 1);
+  pin.title = m.label;
+  return pin;
 }
 
 function pointEl(kind: string): HTMLElement {
@@ -300,8 +305,9 @@ export default function MapView({ zones, markers, lines, onClick, fitKey, height
     });
     for (const mk of htmlMarkers.current) mk.remove();
     htmlMarkers.current = list.map((x) => {
-      const mk = new maplibregl.Marker({ element: markerEl(x) }).setLngLat([x.lng, x.lat])
-        .setPopup(new maplibregl.Popup({ offset: 12, closeButton: false }).setHTML(esc(x.popup ? `${x.label} · ${x.popup}` : x.label)))
+      const pin = (x.kind === 'ping' || x.kind === 'fake') && !!x.text;
+      const mk = new maplibregl.Marker({ element: markerEl(x), anchor: pin ? 'bottom' : 'center', offset: pin ? [0, PIN_TIP_OFFSET] : [0, 0] }).setLngLat([x.lng, x.lat])
+        .setPopup(new maplibregl.Popup({ offset: pin ? 38 : 12, closeButton: false }).setHTML(esc(x.popup ? `${x.label} · ${x.popup}` : x.label)))
         .addTo(m);
       if (x.kind === 'me') mk.getElement().style.zIndex = '5';
       return mk;

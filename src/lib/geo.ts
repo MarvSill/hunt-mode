@@ -103,8 +103,8 @@ export interface MapCheckInput {
   manualShrink: boolean;
   /** Innerste Zone (Spielfeld der letzten Phase), falls bekannt. */
   finalField?: Area | null;
-  players: number;
-  durationMinutes: number;
+  /** Empfohlene Fläche des Spielfelds in km² (siehe recommendedFieldKm2). */
+  recommendedKm2: number;
 }
 
 function distM(a: Position, b: Position): number {
@@ -141,10 +141,8 @@ export function checkMap(i: MapCheckInput): MapIssue[] {
     if (km2 > 500) out.push({ level: 'warning', text: t('Das Spielfeld ist grösser als 500 km².') });
     if (km2 > 0 && km2 < 0.02) out.push({ level: 'warning', text: t('Das Spielfeld ist sehr klein (unter 0,02 km²).') });
     if (restricted && areaKm2(restricted) > 0.4 * km2) out.push({ level: 'warning', text: t('Sperrzonen bedecken mehr als 40 % des Spielfelds.') });
-    const rec = recommendedKm2PerPlayer(i.durationMinutes);
-    const per = km2 / Math.max(1, i.players);
-    if (per < rec[0] / 2 || per > rec[1] * 2) {
-      out.push({ level: 'warning', text: t('Fläche pro Spieler {0} km², empfohlen {1}–{2} km² bei dieser Spieldauer.', { 0: per.toFixed(2), 1: rec[0], 2: rec[1] }) });
+    if (i.recommendedKm2 > 0 && (km2 < i.recommendedKm2 / 2 || km2 > i.recommendedKm2 * 2)) {
+      out.push({ level: 'warning', text: t('Das Spielfeld hat {0} km², empfohlen sind etwa {1} km² (nur ein Richtwert, die passende Grösse hängt auch von der Umgebung ab).', { 0: km2.toFixed(2), 1: i.recommendedKm2.toFixed(1) }) });
     }
   }
   if (restricted) {
@@ -163,12 +161,30 @@ export function checkMap(i: MapCheckInput): MapIssue[] {
   return out;
 }
 
-/** Empfohlene Fläche pro Spieler in km² (Spezifikation 22.5). */
-export function recommendedKm2PerPlayer(minutes: number): [number, number] {
-  if (minutes <= 90) return [0.05, 0.15];
-  if (minutes <= 240) return [0.15, 0.5];
-  if (minutes <= 1440) return [1, 3];
-  return [3, 8];
+/**
+ * Empfohlene Fläche des Spielfelds in km² (Formel von Marvin, Runde 15):
+ * Fläche = 2 km² × (Ping-Abstand ÷ 4 min)^0,84 × (Anzahl Pings ÷ 5)^0,5 × ((Spieler + Hunter) ÷ 2)^0,3 × Fortbewegung
+ * - Anzahl Pings = Spieldauer ÷ Ping-Abstand
+ * - Fortbewegung: zu Fuss 1, Velo/Trottinett 2, ÖV 3 (das schnellste erlaubte Mittel zählt)
+ * Ein langer Ping-Abstand heisst, die Spieler kommen weiter weg; mehr Pings heissen mehr Chancen für die Hunter.
+ * Nur ein Richtwert: die passende Grösse hängt auch von der Umgebung ab.
+ */
+export function recommendedFieldKm2(i: { pingMinutes: number; durationMinutes: number; people: number; motorized: boolean; bikes: boolean }): number {
+  const ping = Math.max(1, i.pingMinutes);
+  const pings = Math.max(1, i.durationMinutes / ping);
+  const move = i.motorized ? 3 : i.bikes ? 2 : 1;
+  return 2 * (ping / 4) ** 0.84 * (pings / 5) ** 0.5 * (Math.max(1, i.people) / 2) ** 0.3 * move;
+}
+
+/** Rechteck (3 : 2, breiter als hoch) mit gewünschter Fläche um einen Mittelpunkt. */
+export function rectWithArea(center: Position, km2: number): Area {
+  const h = Math.sqrt((km2 * 2) / 3) * 1000; // Höhe in m
+  const w = (h * 3) / 2;
+  const n = destination(center, h / 2, 0, { units: 'meters' }).geometry.coordinates[1];
+  const sLat = destination(center, h / 2, 180, { units: 'meters' }).geometry.coordinates[1];
+  const e = destination(center, w / 2, 90, { units: 'meters' }).geometry.coordinates[0];
+  const wLng = destination(center, w / 2, 270, { units: 'meters' }).geometry.coordinates[0];
+  return { type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [[[wLng, sLat], [e, sLat], [e, n], [wLng, n], [wLng, sLat]]] } };
 }
 
 /** Kreisförmiges Spielfeld mit gewünschter Fläche um einen Mittelpunkt. */

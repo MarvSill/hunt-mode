@@ -6,7 +6,7 @@ import { STATUS_LABELS } from '../lib/games';
 import { appUrl, db, errorText } from '../lib/supabase';
 import { MessageList } from '../play/Chat';
 import Loader from '../components/Loader';
-import { t } from '../i18n';
+import { t, locale } from '../i18n';
 
 interface Group { id: string; name: string; description: string | null; invite_code: string; owner_id: string; members_can_create_games: boolean }
 interface Member { user_id: string; username: string; display_name: string; role: string }
@@ -51,6 +51,9 @@ export default function GroupPage() {
   const myRole = members.find((m) => m.user_id === session?.user.id)?.role;
   const owner = g.owner_id === session?.user.id;
   const admin = myRole === 'besitzer' || myRole === 'admin';
+  // Vergangene Spiele kann man nicht mehr beitreten: sie stehen im Verlauf.
+  const past = games.filter((x) => ['beendet', 'archiviert'].includes(x.status));
+  const current = games.filter((x) => !['beendet', 'archiviert'].includes(x.status));
 
   async function share() {
     const url = appUrl(`/gruppe/${g!.invite_code}`);
@@ -86,16 +89,41 @@ export default function GroupPage() {
       <h2>{t('Spiele der Gruppe')}</h2>
       <div className="card">
         <ul className="list">
-          {games.map((x) => (
-            <li key={x.id}>
-              <span className="spacer">{x.name} <span className="muted small">{t('Code')} {x.code}</span></span>
-              <span className="badge">{STATUS_LABELS[x.status] ?? x.status}</span>
-              <Link to={`/beitreten/${x.code}`} className="button small">{t('Öffnen')}</Link>
-            </li>
-          ))}
-          {games.length === 0 && <li className="muted small">{t('Noch keine. Erstelle ein Spiel und ordne es dieser Gruppe zu.')}</li>}
+          {current.map((x) => {
+            const lobby = ['entwurf', 'geplant', 'lobby'].includes(x.status);
+            return (
+              <li key={x.id}>
+                <span className="spacer">{x.name} {lobby && <span className="muted small">{t('Code')} {x.code}</span>}</span>
+                <span className="badge">{STATUS_LABELS[x.status] ?? x.status}</span>
+                {lobby
+                  ? <Link to={`/beitreten/${x.code}`} className="button small">{t('Beitreten')}</Link>
+                  : <Link to={`/spiel/${x.id}`} className="button small">{t('Öffnen')}</Link>}
+              </li>
+            );
+          })}
+          {current.length === 0 && <li className="muted small">{t('Gerade kein offenes Spiel. Erstelle ein Spiel und ordne es dieser Gruppe zu.')}</li>}
         </ul>
       </div>
+      {past.length > 0 && (
+        <details className="acc">
+          <summary>
+            <span className="ico" aria-hidden="true">🗄️</span>
+            <span className="spacer"><span className="t">{t('Verlauf')}</span><span className="s" style={{ display: 'block' }}>{t('{0} vergangene Spiele', { 0: past.length })}</span></span>
+            <Icon name="chevron" className="chev" />
+          </summary>
+          <div className="body">
+            <ul className="list">
+              {past.map((x) => (
+                <li key={x.id}>
+                  <span className="spacer">{x.name}{x.start_at && <span className="muted small"> · {new Date(x.start_at).toLocaleDateString(locale())}</span>}</span>
+                  <span className="badge">{STATUS_LABELS[x.status] ?? x.status}</span>
+                  <Link to={`/spiel/${x.id}`} className="button small ghost">{t('Ergebnis')}</Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </details>
+      )}
 
       <h2>{t('Mitglieder (')}{members.length})</h2>
       <div className="card">

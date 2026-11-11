@@ -4,6 +4,7 @@ import Icon from '../components/Icon';
 import { useAuth } from '../lib/auth';
 import { STATUS_LABELS, deleteGame, joinGame, myGames, type Game } from '../lib/games';
 import { errorText } from '../lib/supabase';
+import ReplayAsk from '../components/ReplayAsk';
 import Loader from '../components/Loader';
 import { t, locale } from '../i18n';
 
@@ -120,6 +121,7 @@ export default function HomePage() {
 function GameRow({ g, host, onDelete }: { g: Game; host?: boolean; onDelete?: () => void }) {
   const done = DONE.includes(g.status);
   const [ask, setAsk] = useState(false);
+  const [replay, setReplay] = useState(false);
   if (ask && onDelete) {
     return (
       <div className="game-card stack" style={{ alignItems: 'stretch' }}>
@@ -133,6 +135,8 @@ function GameRow({ g, host, onDelete }: { g: Game; host?: boolean; onDelete?: ()
     );
   }
   return (
+    <>
+    {replay && <ReplayAsk gameId={g.id} name={g.name} onClose={() => setReplay(false)} />}
     <Link to={`/spiel/${g.id}`} className="game-card">
       <span className={`status-dot ${done ? 'done' : 'lobby'}`} />
       <div className="spacer">
@@ -143,10 +147,15 @@ function GameRow({ g, host, onDelete }: { g: Game; host?: boolean; onDelete?: ()
           {g.start_at && ` · ${new Date(g.start_at).toLocaleString(locale(), { dateStyle: 'short', timeStyle: 'short' })}`}
         </div>
       </div>
+      {done && (
+        <button type="button" className="ghost small" aria-label={t('Nochmal spielen')} title={t('Nochmal spielen')}
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); setReplay(true); }}>🔁</button>
+      )}
       {onDelete && (
         <button type="button" className="ghost small" aria-label={t('Spiel löschen')} onClick={(e) => { e.preventDefault(); e.stopPropagation(); setAsk(true); }}>🗑</button>
       )}
       <Icon name="chevron" />
     </Link>
+    </>
   );
 }
