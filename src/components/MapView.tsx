@@ -3,6 +3,7 @@
  * (Knöpfe auf der Karte oder im Profil). Zonen, Punkte und Marker liegen über der Grundkarte.
  */
 import maplibregl, { type GeoJSONSource, type StyleSpecification } from 'maplibre-gl';
+import { pinElement, PIN_TIP_OFFSET } from '../lib/pin';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { useEffect, useRef, type ReactNode } from 'react';
 import { bbox, circle, pointOnFeature } from '@turf/turf';
@@ -103,19 +104,8 @@ function markerEl(m: Marker): HTMLElement {
   if (m.text) d.textContent = m.text;
   d.title = m.label;
   if (!ping || !m.text) return d;
-  // Ping mit Nummer: Fähnchen über dem Punkt. Die Spitze mit dem kleinen Punkt zeigt genau auf den Ort,
-  // so sieht man den genauen Standort auch ohne weit hineinzuzoomen.
-  const pin = document.createElement('div');
-  pin.className = 'hm-pin';
-  pin.style.opacity = String(m.opacity ?? 1);
-  d.style.opacity = '1';
-  const tip = document.createElement('i');
-  tip.className = 'hm-pin-tip';
-  tip.style.borderTopColor = m.color;
-  const dot = document.createElement('b');
-  dot.className = 'hm-pin-dot';
-  dot.style.background = m.color;
-  pin.append(d, tip, dot);
+  // Ping mit Nummer: Kartennadel, deren Spitze genau auf den Ort zeigt.
+  const pin = pinElement(m.color, m.text, m.ring, m.opacity ?? 1);
   pin.title = m.label;
   return pin;
 }
@@ -316,8 +306,8 @@ export default function MapView({ zones, markers, lines, onClick, fitKey, height
     for (const mk of htmlMarkers.current) mk.remove();
     htmlMarkers.current = list.map((x) => {
       const pin = (x.kind === 'ping' || x.kind === 'fake') && !!x.text;
-      const mk = new maplibregl.Marker({ element: markerEl(x), anchor: pin ? 'bottom' : 'center' }).setLngLat([x.lng, x.lat])
-        .setPopup(new maplibregl.Popup({ offset: pin ? 40 : 12, closeButton: false }).setHTML(esc(x.popup ? `${x.label} · ${x.popup}` : x.label)))
+      const mk = new maplibregl.Marker({ element: markerEl(x), anchor: pin ? 'bottom' : 'center', offset: pin ? [0, PIN_TIP_OFFSET] : [0, 0] }).setLngLat([x.lng, x.lat])
+        .setPopup(new maplibregl.Popup({ offset: pin ? 38 : 12, closeButton: false }).setHTML(esc(x.popup ? `${x.label} · ${x.popup}` : x.label)))
         .addTo(m);
       if (x.kind === 'me') mk.getElement().style.zIndex = '5';
       return mk;

@@ -63,6 +63,8 @@ export default function NewGamePage() {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [origin, setOrigin] = useState<string | null>(null);
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
+  /** "Nochmal spielen": auch die Karte des früheren Spiels übernehmen. */
+  const [copyMap, setCopyMap] = useState(true);
   /** Hat die Person schon selbst etwas gewählt? Dann die geladenen Grundeinstellungen nicht mehr darüberschreiben. */
   const touched = useRef(false);
 
@@ -159,6 +161,10 @@ export default function NewGamePage() {
         const { error: gErr } = await db().rpc('set_game_group', { p_game_id: game.id, p_group_id: groupId });
         if (gErr) throw gErr;
       }
+      if (fromGame && copyMap) {
+        const { error: mErr } = await db().rpc('copy_map', { p_from: fromGame, p_to: game.id });
+        if (mErr) throw mErr;
+      }
       // Schritt 4: zuerst die Karte, erst danach gibt es den Code zum Einladen.
       navigate(`/spiel/${game.id}/karte?neu=1`, { replace: true });
     } catch (err) {
@@ -237,6 +243,12 @@ export default function NewGamePage() {
           <div className="notice small" style={{ marginTop: 8 }}>
             {fromGame ? t('Gleiche Einstellungen wie im Spiel „{0}“. Du kannst sie unten noch anpassen.', { 0: origin })
               : t('Übernommen vom letzten Spiel „{0}“. Tippe eine Vorlage an, um neu zu beginnen.', { 0: origin })}
+            {fromGame && (
+              <label className="check" style={{ marginTop: 8 }}>
+                <input type="checkbox" checked={copyMap} onChange={(e) => setCopyMap(e.target.checked)} />
+                <span><strong>{t('Karte übernehmen')}</strong><br /><span className="muted small">{t('Spielfeld, Gefahrenzonen, Startpunkt und Fluchtpunkte wie im Spiel „{0}“. Du kannst sie danach noch ändern.', { 0: origin })}</span></span>
+              </label>
+            )}
           </div>
         )}
         {presetId === 'eigenes' && <div className="muted small" style={{ marginTop: 8 }}>{t('Eigenes Spiel: Es gelten deine Einstellungen unter „Anpassen“. Tippe eine Vorlage an, um wieder mit ihr zu beginnen.')}</div>}
@@ -313,7 +325,7 @@ export default function NewGamePage() {
         <div className="sticky-cta">
           {error && <div className="notice error" style={{ marginBottom: 8 }}>{error}</div>}
           <button className="primary block big" data-guide="create" disabled={busy || !name.trim()}>
-            {busy ? t('Erstelle …') : name.trim() ? t('Weiter zur Karte') : t('Erst einen Namen eingeben')}
+            {busy ? t('Erstelle …') : !name.trim() ? t('Erst einen Namen eingeben') : fromGame && copyMap ? t('Weiter zur Karte (übernommen)') : t('Weiter zur Karte')}
           </button>
         </div>
       </form>

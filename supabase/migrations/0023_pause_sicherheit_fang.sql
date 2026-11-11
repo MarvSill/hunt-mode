@@ -351,3 +351,36 @@ drop policy if exists "Varianten: eigene" on public.config_templates;
 create policy "Varianten: eigene" on public.config_templates for all to authenticated
   using (user_id = auth.uid()) with check (user_id = auth.uid());
 grant select, insert, update, delete on public.config_templates to authenticated;
+
+-- ---------------------------------------------------------------------------
+-- "Nochmal spielen": die Karte eines früheren Spiels übernehmen (Spielfeld, Gefahrenzonen, Start- und Fluchtpunkte).
+-- Von der Engine erzeugte Stufen der automatischen Verkleinerung werden nicht kopiert, die entstehen beim Start neu.
+create or replace function public.copy_map(p_from uuid, p_to uuid)
+returns int language plpgsql security definer set search_path = public, extensions as $$
+declare
+  v_auto boolean;
+  n int;
+begin
+  if not public.is_game_host(p_to) then raise exception 'Nur der Host kann die Karte bearbeiten.' using errcode = '42501'; end if;
+  if not public.is_game_member(p_from) then raise exception 'Du warst in diesem Spiel nicht dabei.' using errcode = '42501'; end if;
+  if not exists (select 1 from public.games where id = p_to and status in ('entwurf', 'geplant', 'lobby')) then
+    raise exception 'Die Karte ist ab Spielstart gesperrt.' using errcode = 'P0001';
+  end if;
+  v_auto := public.cfg_text((select config_json from public.games where id = p_from), 'zone', 'shrink_mode', 'aus') = 'auto';
+  delete from public.zones where game_id = p_to;
+  insert into public.zones (game_id, kind, name, color, geom, radius_m, day_index, grows, ping_interval_override,
+    crossing_allowed, restricted_type)
+  select p_to, z.kind, z.name, z.color, z.geom, z.radius_m,
+    case when v_auto then null else z.day_index end, z.grows, z.ping_interval_override, z.crossing_allowed, z.restricted_type
+  from public.zones z
+  where z.game_id = p_from and z.kind in ('spielfeld', 'sperrzone', 'exit', 'treffpunkt')
+    and not (v_auto and z.kind = 'spielfeld' and coalesce(z.day_index, 1) > 1)
+  order by z.created_at;
+  get diagnostics n = row_count;
+  perform public.place_hunter_wait(p_to);
+  perform public.log_game_event(p_to, 'map_saved', jsonb_build_object('zones', n, 'copied_from', p_from));
+  perform public.bump(p_to);
+  return n;
+end; $$;
+revoke execute on function public.copy_map(uuid, uuid) from public, anon;
+grant execute on function public.copy_map(uuid, uuid) to authenticated;

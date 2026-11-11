@@ -1231,4 +1231,7 @@ export const en: Record<string, string> = {
   "Es gibt immer beide Wege, jeder kann ohne den anderen benutzt werden.\nZahlencode: der Spieler zeigt seinen 6-stelligen Fang-Code, der Hunter tippt ihn ein. Dann gilt der Fang sofort.\nFang melden: der Hunter tippt auf den gefangenen Spieler, der Spieler bestätigt oder lehnt ab. Lehnt er ab, gilt der Fang nicht.": "There are always both ways, each can be used without the other.\nNumber code: the player shows their 6-digit catch code, the hunter types it in. The catch then counts right away.\nReport catch: the hunter taps the caught player, who confirms or declines. If they decline, the catch does not count.",
   "Zahlencode": "Number code",
   "Standort: nur während eines laufenden Spiels. Der Weg wird aufgezeichnet, damit die Teilnehmenden ihn nach Spielende in der Wiederholung ansehen können. Nach 30 Tagen werden die Standortdaten automatisch gelöscht, wird das Spiel gelöscht, sofort.": "Location: only during a running game. The route is recorded so participants can watch it in the replay after the game. Location data is deleted automatically after 30 days, or immediately if the game is deleted.",
+  "Karte übernehmen": "Copy the map",
+  "Spielfeld, Gefahrenzonen, Startpunkt und Fluchtpunkte wie im Spiel „{0}“. Du kannst sie danach noch ändern.": "Play area, danger zones, start point and escape points as in the game “{0}”. You can still change them afterwards.",
+  "Weiter zur Karte (übernommen)": "Continue to the map (copied)",
 };

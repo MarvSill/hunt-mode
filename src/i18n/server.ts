@@ -301,6 +301,7 @@ const RULES: Rule[] = [
   r('{N} sagt, es war kein Fang. Lass dir den Fang-Code zeigen und gib ihn ein.', '$1 dit que ce n’était pas une capture. Demande-lui son code de capture et saisis-le.', '$1 says it was not a catch. Ask for the catch code and enter it.'),
   r('Spiel abgebrochen', 'Partie interrompue', 'Game cancelled'),
   r('Keiner hat gewonnen.', 'Personne n’a gagné.', 'Nobody won.'),
+  r('Du warst in diesem Spiel nicht dabei.', 'Tu ne participais pas à cette partie.', 'You were not part of this game.'),
   // Gruppen
   r('Keine Gruppe mit diesem Code gefunden.', 'Aucun groupe trouvé avec ce code.', 'No group found with this code.'),
   r('Nur Admins können Mitglieder entfernen.', 'Seuls les admins peuvent retirer des membres.', 'Only admins can remove members.'),
