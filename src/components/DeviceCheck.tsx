@@ -76,7 +76,6 @@ export default function DeviceCheck({ gameId, minBattery }: { gameId: string; mi
           <li>{ok(res.battery == null || res.battery >= minBattery)} {t('Akku')} {res.battery != null ? `${res.battery} %` : t('unbekannt')}{res.battery != null && res.battery < minBattery && t(' (mind. {0} % nötig)', { 0: minBattery })}</li>
           <li>{ok(res.notifications === 'granted')} {t('Benachrichtigungen:')} {res.notifications === 'granted' ? t('erlaubt') : res.notifications === 'denied' ? (isNative ? t('blockiert: bitte in den Einstellungen des Handys für Hunt Mode erlauben') : t('blockiert')) : res.notifications}</li>
           <li>{ok(res.wakeLock)} {isNative ? t('Läuft auch bei gesperrtem Bildschirm') : t('Bildschirm bleibt an')}</li>
-          <li>{ok(res.camera)} {t('Kamera für QR-Fang')}</li>
           {res.clock_ms != null && <li>{ok(Math.abs(res.clock_ms) < 30000)} {t('Uhr')} {Math.abs(res.clock_ms) < 30000 ? t('stimmt') : t('weicht {0} s ab', { 0: Math.round(res.clock_ms / 1000) })}</li>}
         </ul>
       )}

@@ -120,6 +120,7 @@ export default function HomePage() {
 function GameRow({ g, host, onDelete }: { g: Game; host?: boolean; onDelete?: () => void }) {
   const done = DONE.includes(g.status);
   const [ask, setAsk] = useState(false);
+  const navigate = useNavigate();
   if (ask && onDelete) {
     return (
       <div className="game-card stack" style={{ alignItems: 'stretch' }}>
@@ -143,6 +144,10 @@ function GameRow({ g, host, onDelete }: { g: Game; host?: boolean; onDelete?: ()
           {g.start_at && ` · ${new Date(g.start_at).toLocaleString(locale(), { dateStyle: 'short', timeStyle: 'short' })}`}
         </div>
       </div>
+      {done && (
+        <button type="button" className="ghost small" aria-label={t('Nochmal spielen')} title={t('Nochmal spielen')}
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); navigate(`/neu?von=${g.id}`); }}>🔁</button>
+      )}
       {onDelete && (
         <button type="button" className="ghost small" aria-label={t('Spiel löschen')} onClick={(e) => { e.preventDefault(); e.stopPropagation(); setAsk(true); }}>🗑</button>
       )}

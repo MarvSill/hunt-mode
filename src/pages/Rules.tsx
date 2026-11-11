@@ -56,7 +56,9 @@ export default function RulesPage() {
     return <div className="app">{msg ? <div className="notice error">{msg.text}</div> : <Loader inline />}</div>;
   }
 
-  const editable = game.host_id === session?.user.id && ['entwurf', 'geplant', 'lobby'].includes(game.status);
+  // Vor dem Start oder während einer Pause des Hosts (dann nur, wenn es dringend nötig ist).
+  const pausedByHost = ['vorsprung', 'laeuft', 'finale'].includes(game.status) && !!game.paused_at && game.pause_kind === 'host';
+  const editable = game.host_id === session?.user.id && (['entwurf', 'geplant', 'lobby'].includes(game.status) || pausedByHost);
   const changes = diffConfig(saved, result.config);
 
   function edit(next: GameConfig) {
@@ -87,9 +89,14 @@ export default function RulesPage() {
   return (
     <div className="app">
       <div className="topbar">
-        <Link to={`/spiel/${game.id}`} className="button ghost back" aria-label={t('Zurück')}><Icon name="back" /></Link>
+        <Link to={pausedByHost ? `/spiel/${game.id}/live` : `/spiel/${game.id}`} className="button ghost back" aria-label={t('Zurück')}><Icon name="back" /></Link>
         <h1>{t('Regeln')}</h1>
       </div>
+      {pausedByHost && editable && (
+        <div className="notice" style={{ marginBottom: 12 }}>
+          {t('Das Spiel ist pausiert. Ändere nur, was wirklich nötig ist. Die Spielzeit zählt weiterhin ab dem Start; Zeiten, die schon vorbei sind, ändern sich nicht mehr. Alle bekommen eine Meldung.')}
+        </div>
+      )}
       {!editable && (
         <div className="card">
           <RulesSummary config={config} />

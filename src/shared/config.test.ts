@@ -142,10 +142,11 @@ describe('Validierung', () => {
     expect('penalty' in c).toBe(false);
   });
 
-  it('Handschellen mit Minderjährigen sind verboten', () => {
+  it('Fangen geht immer mit Zahlencode und mit Bestätigung (sonst nichts)', () => {
     const c = mergeConfig(defaultConfig(), { catch: { method: ['qr', 'handcuffs'] } });
-    expect(validateConfig(c, { hasMinors: true }).canStart).toBe(false);
-    expect(validateConfig(c, { hasMinors: false }).canStart).toBe(true);
+    const v = validateConfig(c, { hasMinors: true });
+    expect(v.config.catch.method).toEqual(['qr', 'touch_confirm']);
+    expect(v.canStart).toBe(true);
   });
 
   it('Bekanntgabe des Fluchtpunkts vor Spielbeginn wird angepasst', () => {

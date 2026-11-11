@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { api, clock, countdown, ITEM_HELP, ITEM_LABELS } from '../lib/engine';
+import { api, clock, countdown, ITEM_HELP, ITEM_ICONS, ITEM_LABELS } from '../lib/engine';
 import { formatMinutes } from '../shared/format';
 import CatchCode from './CatchCode';
 import { Confirm, nameOf, Section, type PanelProps } from './common';
@@ -36,7 +36,7 @@ export default function PlayerPanel({ s, now, act }: PanelProps) {
       {pendingCatch && (
         <div className="notice error stack">
           <strong>{nameOf(s, pendingCatch.hunter_id)} {t('meldet, dass du gefangen wurdest.')}</strong>
-          <span className="small">{t('Antwort bis')} {clock(pendingCatch.expires_at)}{t('. Ohne Antwort entscheidet der GPS-Abstand.')}</span>
+          <span className="small">{t('Antwort bis')} {clock(pendingCatch.expires_at)}{t('. Lehnst du ab, gilt der Fang nicht. Ohne Antwort entscheidet der GPS-Abstand.')}</span>
           <div className="row">
             <button className="primary" onClick={() => act(() => api.catchRespond(pendingCatch.id, true))}>{t('Ja, gefangen')}</button>
             <button onClick={() => act(() => api.catchRespond(pendingCatch.id, false))}>{t('Nein, stimmt nicht')}</button>
@@ -114,12 +114,15 @@ export default function PlayerPanel({ s, now, act }: PanelProps) {
         const open = now >= openAt;
         return (
           <div className={`notice ${open ? 'success' : ''} stack`} role="status">
-            <strong>🏁 {open ? t('Fluchtpunkt ist offen!') : t('Fluchtpunkt bekannt, aber noch zu')}</strong>
-            {!open && <div className="big-num">{countdown(new Date(openAt).toISOString(), now)}</div>}
+            <strong>🏁 {open ? t('Fluchtpunkt noch offen bis {0}', { 0: clock(g.ends_at, g.timezone) }) : t('Fluchtpunkt bekannt, aber noch zu')}</strong>
+            {!open && <div className="big-num">{t('öffnet in {0}', { 0: countdown(new Date(openAt).toISOString(), now) })}</div>}
+            {open && <div className="big-num">{t('noch {0}', { 0: countdown(g.ends_at, now) })}</div>}
             <span className="small">{t('Gerettet ist, wer zwischen {0} und {1} (Spielende) frei im gestrichelten Kreis ist. Vorher zählt es noch nicht.', { 0: clock(new Date(openAt).toISOString(), g.timezone), 1: clock(g.ends_at, g.timezone) })}</span>
           </div>
         );
       })()}
+
+      {cfg.joker.enabled && <JokerBox s={s} now={now} act={act} running={running} />}
 
       <button className="primary block big" onClick={() => setShowCode(true)}>{t('Fang-Code zeigen')}</button>
 
@@ -142,26 +145,6 @@ export default function PlayerPanel({ s, now, act }: PanelProps) {
         {me.hideout?.inside && <button className="small" onClick={() => act(() => api.hideout(g.id, false))}>{t('Ich bin wieder draussen')}</button>}
       </Section>
 
-      {(me.inventory.length > 0) && (
-        <Section title={t('Joker')}>
-          {me.inventory.map((i) => (
-            <div key={i.id} className="row">
-              <span className="spacer">
-                {ITEM_LABELS[i.type] ?? i.type}{i.minutes ? ` (${formatMinutes(i.minutes)})` : ''}
-                {ITEM_HELP[i.type] && <span className="muted tiny" style={{ display: 'block' }}>{ITEM_HELP[i.type]}</span>}
-              </span>
-              {i.type === 'wahl' ? (
-                <select aria-label={t('Joker wählen')} disabled={!running} defaultValue="" onChange={(e) => e.target.value && act(() => api.useItem(i.id, { type: e.target.value }), t('Joker aktiv.'))}>
-                  <option value="">{t('Einsetzen …')}</option>
-                  {cfg.joker.types.map((t) => <option key={t.type} value={t.type}>{ITEM_LABELS[t.type]}</option>)}
-                </select>
-              ) : (
-                <Confirm className="small" disabled={!running} label={t('Einsetzen')} confirm={t('Jetzt einsetzen?')} onYes={() => act(() => api.useItem(i.id), t('Eingesetzt.'))} />
-              )}
-            </div>
-          ))}
-        </Section>
-      )}
 
 
 
@@ -170,6 +153,46 @@ export default function PlayerPanel({ s, now, act }: PanelProps) {
       )}
 
       <Confirm className="ghost block" label={t('Aufgeben')} confirm={t('Wirklich aufgeben?')} onYes={() => act(() => api.giveUp(g.id))} />
+    </div>
+  );
+}
+
+/** Joker gut sichtbar: grosser Titel, darunter jeder Joker mit eigenem Zeichen. Noch gesperrte mit Uhrzeit. */
+function JokerBox({ s, now, act, running }: Pick<PanelProps, 's' | 'now' | 'act'> & { running: boolean }) {
+  const g = s.game;
+  const cfg = g.config;
+  const huntStart = g.hunt_start_at ? new Date(g.hunt_start_at).getTime() : null;
+  const locked = huntStart == null ? cfg.joker.types : cfg.joker.types.filter((j) => huntStart + j.after_minutes * 60000 > now);
+  if (s.me.inventory.length === 0 && locked.length === 0) return null;
+  return (
+    <div className="joker-box">
+      <h2 className="joker-title">🃏 {t('Deine Joker')}</h2>
+      <div className="joker-grid">
+        {s.me.inventory.map((i) => (
+          <div key={i.id} className="joker-card">
+            <div className="joker-icon" aria-hidden="true">{ITEM_ICONS[i.type] ?? '🃏'}</div>
+            <div className="joker-name">{ITEM_LABELS[i.type] ?? i.type}{i.minutes ? ` · ${formatMinutes(i.minutes)}` : ''}</div>
+            {ITEM_HELP[i.type] && <div className="muted tiny">{ITEM_HELP[i.type]}</div>}
+            {i.type === 'wahl' ? (
+              <select aria-label={t('Joker wählen')} disabled={!running} defaultValue="" onChange={(e) => e.target.value && act(() => api.useItem(i.id, { type: e.target.value }), t('Joker aktiv.'))}>
+                <option value="">{t('Einsetzen …')}</option>
+                {cfg.joker.types.map((j) => <option key={j.type} value={j.type}>{ITEM_LABELS[j.type]}</option>)}
+              </select>
+            ) : (
+              <Confirm className="primary small" disabled={!running} label={t('Einsetzen')} confirm={t('Jetzt einsetzen?')} onYes={() => act(() => api.useItem(i.id), t('Eingesetzt.'))} />
+            )}
+          </div>
+        ))}
+        {locked.map((j, k) => (
+          <div key={`l${k}`} className="joker-card locked">
+            <div className="joker-icon" aria-hidden="true">{ITEM_ICONS[j.type] ?? '🃏'}</div>
+            <div className="joker-name">{ITEM_LABELS[j.type] ?? j.type}{j.minutes ? ` · ${formatMinutes(j.minutes)}` : ''}</div>
+            <div className="muted tiny">🔒 {huntStart != null
+              ? t('frei ab {0}', { 0: clock(new Date(huntStart + j.after_minutes * 60000).toISOString(), g.timezone) })
+              : t('frei {0} nach Jagdbeginn', { 0: formatMinutes(j.after_minutes) })}</div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

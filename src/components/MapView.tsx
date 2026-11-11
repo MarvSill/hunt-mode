@@ -102,7 +102,22 @@ function markerEl(m: Marker): HTMLElement {
   if (m.ring) d.style.boxShadow = `0 0 0 2px #fff, 0 0 0 6px ${m.ring}, 0 3px 8px rgba(0,0,0,.45)`;
   if (m.text) d.textContent = m.text;
   d.title = m.label;
-  return d;
+  if (!ping || !m.text) return d;
+  // Ping mit Nummer: Fähnchen über dem Punkt. Die Spitze mit dem kleinen Punkt zeigt genau auf den Ort,
+  // so sieht man den genauen Standort auch ohne weit hineinzuzoomen.
+  const pin = document.createElement('div');
+  pin.className = 'hm-pin';
+  pin.style.opacity = String(m.opacity ?? 1);
+  d.style.opacity = '1';
+  const tip = document.createElement('i');
+  tip.className = 'hm-pin-tip';
+  tip.style.borderTopColor = m.color;
+  const dot = document.createElement('b');
+  dot.className = 'hm-pin-dot';
+  dot.style.background = m.color;
+  pin.append(d, tip, dot);
+  pin.title = m.label;
+  return pin;
 }
 
 function pointEl(kind: string): HTMLElement {
@@ -300,8 +315,9 @@ export default function MapView({ zones, markers, lines, onClick, fitKey, height
     });
     for (const mk of htmlMarkers.current) mk.remove();
     htmlMarkers.current = list.map((x) => {
-      const mk = new maplibregl.Marker({ element: markerEl(x) }).setLngLat([x.lng, x.lat])
-        .setPopup(new maplibregl.Popup({ offset: 12, closeButton: false }).setHTML(esc(x.popup ? `${x.label} · ${x.popup}` : x.label)))
+      const pin = (x.kind === 'ping' || x.kind === 'fake') && !!x.text;
+      const mk = new maplibregl.Marker({ element: markerEl(x), anchor: pin ? 'bottom' : 'center' }).setLngLat([x.lng, x.lat])
+        .setPopup(new maplibregl.Popup({ offset: pin ? 40 : 12, closeButton: false }).setHTML(esc(x.popup ? `${x.label} · ${x.popup}` : x.label)))
         .addTo(m);
       if (x.kind === 'me') mk.getElement().style.zIndex = '5';
       return mk;

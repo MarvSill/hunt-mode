@@ -15,8 +15,7 @@ export function rulesInWords(c: GameConfig): [string, string][] {
   if (c.speedhunt.enabled) {
     out.push(['⚡', t('Blitzjagd: Die Hunter dürfen {0}-mal im Spiel eine Blitzjagd starten, mit {1} Standort-Abfragen auf einen Spieler, ohne Zeitlimit.', { 0: c.speedhunt.quota_per_day[0] ?? 0, 1: c.speedhunt.queries })]);
   }
-  const how = c.catch.method.includes('qr') ? t('den Fang-Code des Spielers scannt') : t('den Spieler berührt und beide bestätigen');
-  out.push(['🤚', t('Gefangen ist, wer erwischt wird: der Hunter {0}.', { 0: how })]);
+  out.push(['🤚', t('Gefangen ist, wer erwischt wird: der Hunter gibt den Fang-Code des Spielers ein, oder er meldet den Fang und der Spieler bestätigt. Lehnt der Spieler ab, gilt der Fang nicht.')]);
   out.push(['🗺️', t('Wer das Spielfeld verlässt, bekommt einen Alarm und {0} Sekunden Zeit zurückzukommen, sonst sehen ihn die Hunter live. Ab dem 3. Verlassen sofort live. Nach {1} draussen {2}.', { 0: c.out_of_bounds.grace_seconds, 1: formatMinutes(c.out_of_bounds.max_minutes), 2: t('gilt man als gefangen') })]);
   out.push(['⚠️', t('Gefahrenzonen (Autobahn, Gleise, grosse Gewässer) nie betreten. Sonst gilt dasselbe: Alarm, {0} Sekunden Zeit, dann live; ab dem 3. Mal sofort live. Sonst passt jeder selbst auf sich auf.', { 0: c.out_of_bounds.grace_seconds })]);
   if (c.exit.enabled) out.push(['🏁', t('{0} vor Schluss erfahren nur die Spieler den Fluchtpunkt (zufällig gewählt). Ab dann dürfen Spieler zusammen sein. Offen ist er erst {1} vor Schluss: gerettet ist, wer zwischen der Freigabe und dem Spielende frei im Kreis ist.', { 0: formatMinutes(c.exit.reveal_minutes_before_end), 1: formatMinutes(c.exit.usable_minutes_before_end) })]);

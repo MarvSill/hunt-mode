@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { MapFeature } from './engine';
-import { areaKm2, bandFromLine, checkMap, exitPlaceOk, nearestExitPlace, circleWithArea, middleOf, pointAtDistance, pointInside, spreadPoints, clipTo, fieldOfPhase, outsideShare, shrinkArea, type Area } from './geo';
+import { recommendedFieldKm2, rectWithArea, areaKm2, bandFromLine, checkMap, exitPlaceOk, nearestExitPlace, circleWithArea, middleOf, pointAtDistance, pointInside, spreadPoints, clipTo, fieldOfPhase, outsideShare, shrinkArea, type Area } from './geo';
 
 const square = (x: number, y: number, d: number): Area => ({
   type: 'Feature', properties: {},
@@ -42,7 +42,7 @@ describe('geo', () => {
   });
 
   it('prüft die Karte', () => {
-    const base = { exitEnabled: true, phases: 1, autoShrink: false, manualShrink: false, players: 5, durationMinutes: 180 };
+    const base = { exitEnabled: true, phases: 1, autoShrink: false, manualShrink: false, recommendedKm2: 1 };
     expect(checkMap({ ...base, features: [] }).some((i) => i.text.includes('Spielfeld'))).toBe(true);
     const ok = [zone('spielfeld', field), point('treffpunkt', 8.51, 47.31), point('exit', 8.515, 47.315), point('exit', 8.505, 47.315), point('exit', 8.515, 47.305), point('exit', 8.505, 47.305)];
     expect(checkMap({ ...base, features: ok }).filter((i) => i.level === 'error')).toEqual([]);
@@ -85,5 +85,15 @@ describe('Fluchtpunkt automatisch verschieben', () => {
 
   it('lässt richtige Punkte gelten', () => {
     expect(exitPlaceOk([8.535, 47.375], inner, danger)).toBe(true);
+  });
+
+  it('empfiehlt die Fläche nach der Formel', () => {
+    // 4 min Abstand, 5 Pings (20 min), 2 Personen, zu Fuss: genau 2 km²
+    expect(recommendedFieldKm2({ pingMinutes: 4, durationMinutes: 20, people: 2, motorized: false, bikes: false })).toBeCloseTo(2, 5);
+    // Viermal so viele Pings ergeben die doppelte Fläche
+    expect(recommendedFieldKm2({ pingMinutes: 4, durationMinutes: 80, people: 2, motorized: false, bikes: false })).toBeCloseTo(4, 5);
+    // ÖV erlaubt: dreimal so gross
+    expect(recommendedFieldKm2({ pingMinutes: 4, durationMinutes: 20, people: 2, motorized: true, bikes: true })).toBeCloseTo(6, 5);
+    expect(areaKm2(rectWithArea([8.5, 47.3], 3))).toBeCloseTo(3, 1);
   });
 });

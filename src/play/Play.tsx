@@ -22,6 +22,7 @@ import NumberField from '../components/NumberField';
 import { SpeedhuntButtons, SpeedhuntDialog } from './SpeedhuntMap';
 import Loader from '../components/Loader';
 import SafetyNotice from './SafetyNotice';
+import { DeviceAlert, useOutsideVibration } from './Alerts';
 
 /** Wie viele Pings je Spieler auf der Karte: 1 = nur der letzte, 0 = alle. Jeder wählt selbst (nur auf diesem Gerät). */
 function loadPingCount(): number {
@@ -133,12 +134,18 @@ export default function PlayPage() {
     try { localStorage.setItem('hm-pings', String(v)); } catch { /* nur für diese Sitzung */ }
   };
   const [blitzOpen, setBlitzOpen] = useState(false);
+  const [pauseReason, setPauseReason] = useState('');
   const tracker = useTracker(id, tracking, kick);
   const pos = tracker.last ? { lat: tracker.last.lat, lng: tracker.last.lng } : null;
   // Handy-App im Hintergrund: nach jedem gesendeten Standort auch den Spielstand holen (neue Pings und Meldungen).
   useEffect(() => {
     if (isNative && tracker.sentAt && document.visibilityState !== 'visible') void reload();
   }, [tracker.sentAt, reload]);
+
+  // Ausserhalb des Spielfelds oder in einer Gefahrenzone: Dauer-Vibration, bis man wieder drin ist.
+  const outside = !!s && role === 'spieler' && !s.game.paused && ['vorsprung', 'laeuft', 'finale'].includes(s.game.status)
+    && (s.me.out_pending || s.me.state === 'ausserhalb' || s.me.in_restricted);
+  useOutsideVibration(outside);
 
   // Karte neu laden, wenn sich Zonen ändern (Ankündigung, Exit, neue Sperrzone).
   useEffect(() => {
@@ -245,9 +252,10 @@ export default function PlayPage() {
   const players = s.participants.filter((p) => p.role === 'spieler');
   const live = ['vorsprung', 'laeuft', 'finale'].includes(g.status);
   const exitOpenAt = g.ends_at ? new Date(g.ends_at).getTime() - g.config.exit.usable_minutes_before_end * 60000 : null;
-  const headline = g.paused ? t('UNTERBROCHEN: NOTFALL') : g.status === 'vorsprung' ? t('Jagd in {0}', { 0: countdown(g.hunt_start_at, now) })
-    : g.status === 'finale' && exitOpenAt && now < exitOpenAt ? t('Fluchtpunkt offen ab {0} · Ende in {1}', { 0: clock(new Date(exitOpenAt).toISOString(), g.timezone), 1: countdown(g.ends_at, now) })
-    : g.status === 'finale' ? t('Fluchtpunkt offen · Ende in {0}', { 0: countdown(g.ends_at, now) })
+  const headline = g.paused ? (g.pause_kind === 'host' ? t('PAUSE') : g.pause_kind === 'sicherheit' ? t('WARTEN AUF ALLE') : t('UNTERBROCHEN: NOTFALL'))
+    : g.status === 'vorsprung' ? t('Jagd in {0}', { 0: countdown(g.hunt_start_at, now) })
+    : g.status === 'finale' && exitOpenAt && now < exitOpenAt ? t('Fluchtpunkt öffnet um {0} · Ende in {1}', { 0: clock(new Date(exitOpenAt).toISOString(), g.timezone), 1: countdown(g.ends_at, now) })
+    : g.status === 'finale' ? t('Fluchtpunkt noch {0} offen', { 0: countdown(g.ends_at, now) })
     : ended ? t('Spiel beendet') : t('Ende in {0}', { 0: countdown(g.ends_at, now) });
 
   const roleLabel = role === 'spieler' ? t('Spieler') : role === 'zuschauer' ? t('Zuschauer') : t('Hunter');
@@ -268,7 +276,7 @@ export default function PlayPage() {
         <div className="spacer play-head">
           <div className="sub-line">
             <span className={`role-pill ${role === 'spieler' ? 'spieler' : role === 'zuschauer' ? 'zuschauer' : 'hunter'}`} style={{ padding: '1px 8px', marginRight: 6 }}>{roleLabel}</span>
-            {g.name}{g.is_test ? t(' · Probelauf') : ''}{(g.phase_count ?? 0) > 1 && g.config.zone.shrink_every_minutes > 0 && t(' · Phase {0}/{1}', { 0: g.phase, 1: g.phase_count })}
+            {g.name}{g.is_test ? t(' · Probelauf') : ''}{(g.phase_count ?? 0) > 1 && g.config.zone.shrink_every_minutes > 0 && t(' · Spielfeld-Stufe {0}/{1}', { 0: g.phase, 1: g.phase_count })}
           </div>
           <div className="headline">{headline}</div>
         </div>
@@ -300,7 +308,12 @@ export default function PlayPage() {
         ))}
       </div>
 
-      {g.paused && (
+      {g.paused && g.pause_kind === 'host' && (
+        <div className="notice pulse" role="alert" style={{ marginBottom: 8 }}>
+          <strong>{t('Spiel pausiert.')}</strong> {g.pause_reason && g.pause_reason !== 'Pause' ? `${g.pause_reason}. ` : ''}{t('Die Zeit steht still. Sobald der Host fortsetzt, geht es genau dort weiter.')}
+        </div>
+      )}
+      {g.paused && (g.pause_kind === 'notfall' || !g.pause_kind) && (
         <div className="notice error pulse" role="alert" style={{ marginBottom: 8 }}>
           <strong>{t('Spiel unterbrochen.')}</strong> {g.pause_reason ?? t('Notfall')}{t('. Geht zum Standort auf der Karte und helft. Sobald der Notfall beendet ist, geht das Spiel weiter.')}
         </div>
@@ -322,7 +335,8 @@ export default function PlayPage() {
       )}
       {msg && <div className={`notice ${msg.ok ? 'success' : 'error'}`} style={{ marginBottom: 8 }} onClick={() => setMsg(null)}>{msg.text}</div>}
 
-      {!ended && <SafetyNotice gameId={g.id} />}
+      {!ended && <SafetyNotice s={s} act={act} />}
+      {!ended && <DeviceAlert tracker={tracker} tracking={tracking} />}
       {ended ? <Result s={s} zones={zones} /> : (
         <>
           <EmergencyBox s={s} act={act} showMap={() => setTab('karte')} />
@@ -338,6 +352,12 @@ export default function PlayPage() {
           <div style={{ display: tab === 'karte' ? 'block' : 'none' }}>
             <div className="map-box">
               <MapView zones={zones} markers={markers} fitKey={g.id} height="62dvh" showDay={g.phase ?? g.current_day}>
+                {(() => {
+                  // Timer bis zum nächsten Ping (Hunter: nächster Ping irgendeines Spielers, Spieler: der eigene).
+                  const next = role === 'spieler' ? s.me.next_ping_at : s.next_silent_ping_at;
+                  if (!next || g.paused || g.status === 'vorsprung') return null;
+                  return <span className="map-chip timer" aria-live="off">⏱ {t('Nächster Ping in {0}', { 0: countdown(next, now) })}</span>;
+                })()}
                 {role === 'hunter' && <SpeedhuntButtons s={s} act={act} onOpen={() => setBlitzOpen(true)} />}
                 {s.pings.some((p) => p.lat != null) && (
                   <span className="map-chip">
@@ -387,7 +407,20 @@ export default function PlayPage() {
                     </div>
                   </>
                 )}
-                <Confirm className="ghost" disabled={!live} label={t('Spiel abbrechen')} confirm={t('Spiel jetzt für alle beenden?')} onYes={() => act(() => api.endGame(g.id))} />
+                {live && !g.paused && (
+                  <div className="stack">
+                    <input aria-label={t('Grund (freiwillig)')} placeholder={t('Grund (freiwillig)')} value={pauseReason} maxLength={80} onChange={(e) => setPauseReason(e.target.value)} />
+                    <Confirm className="block" label={t('⏸ Spiel pausieren')} confirm={t('Spiel für alle anhalten? Die Zeit steht still, bis du fortsetzt.')}
+                      onYes={() => act(() => api.pause(g.id, pauseReason), t('Spiel pausiert.')).then((ok) => { if (ok) setPauseReason(''); })} />
+                  </div>
+                )}
+                {live && g.paused && g.pause_kind === 'host' && (
+                  <div className="stack">
+                    <button className="primary block big" onClick={() => act(() => api.resume(g.id), t('Das Spiel läuft wieder.'))}>{t('▶ Spiel fortsetzen')}</button>
+                    <Link to={`/spiel/${g.id}/regeln`} className="button block">{t('Einstellungen ändern (nur wenn nötig)')}</Link>
+                  </div>
+                )}
+                <Confirm className="ghost" disabled={!live} label={t('Spiel abbrechen')} confirm={t('Spiel jetzt für alle abbrechen? Dann hat keiner gewonnen.')} onYes={() => act(() => api.endGame(g.id))} />
               </Section>
             )}
             <details className="acc">

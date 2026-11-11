@@ -15,10 +15,11 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import Info from '../components/Info';
 import { esc, pointIcon, zoneBadge, zoneStyle } from '../components/leafletZones';
 import { STEP_HELP, ZONE_HELP } from '../shared/help';
+import { formatMinutes } from '../shared/format';
 import { api, ZONE_INFO, ZONE_KINDS, type MapFeature, type ZoneKind } from '../lib/engine';
 import {
   areaKm2, bandFromLine, centerOf, checkMap, circleWithArea, clipTo, exitPlaceOk, fieldOfPhase, INSIDE_FIELD, middleOf, nearestExitPlace, outsideShare, pointInside,
-  recommendedKm2PerPlayer, RESTRICTED_TYPES, restrictedInfo, shrinkArea, spreadPoints, unionAll, type Area,
+  recommendedFieldKm2, rectWithArea, RESTRICTED_TYPES, restrictedInfo, shrinkArea, spreadPoints, unionAll, type Area,
 } from '../lib/geo';
 import { diffConfig, getGame, updateConfig, type Game } from '../lib/games';
 import { suggestHazards, type HazardSuggestion } from '../lib/hazards';
@@ -93,7 +94,6 @@ export default function MapEditorPage() {
   /** Eigener Standort (blauer Punkt), um Spielfeld und Startpunkt dort zu setzen. */
   const [me, setMe] = useState<{ lat: number; lng: number; acc: number } | null>(null);
   const meLayer = useRef<L.LayerGroup | null>(null);
-  const stepPicked = useRef(false);
   const el = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
   const base = useRef<L.Layer | null>(null);
@@ -273,18 +273,8 @@ export default function MapEditorPage() {
     l.addLayer(L.circleMarker([me.lat, me.lng], { radius: 8, color: '#fff', weight: 3, fillColor: '#1f6feb', fillOpacity: 1, interactive: false }).bindTooltip(t('Du bist hier')));
   }, [me, loaded]);
 
-  // Beim Öffnen beim ersten offenen Schritt beginnen.
-  useEffect(() => {
-    if (!loaded || !config || stepPicked.current) return;
-    stepPicked.current = true;
-    const f = itemsRef.current.map((x) => x.feature);
-    const has = (k: ZoneKind) => f.some((x) => x.properties.kind === k);
-    const exit = config.exit.enabled;
-    // Schritte: 0 Spielfeld, 1 Startpunkt, 2 Kleiner werden, 3 Fluchtpunkt (falls an), dann Gefahren und Prüfen.
-    const order: [number, boolean][] = [[0, !!fieldOfPhase(f, 1)], [1, has('treffpunkt')], ...(exit ? [[3, has('exit')] as [number, boolean]] : [])];
-    const open = order.find(([, d]) => !d);
-    setStepIdx(open ? open[0] : (exit ? 6 : 5) - 1);
-  }, [loaded, config]);
+  // Beim Öffnen immer ganz vorne beginnen: wer das Spiel erstellt, entscheidet selbst, ob die App das Spielfeld
+  // erstellt oder ob er es selbst zeichnet. Weiter geht es nur mit „Weiter“.
 
   // Symbole auf Gefahrenzonen
   useEffect(() => {
@@ -461,9 +451,6 @@ export default function MapEditorPage() {
     setItems((prev) => [...prev, it]);
     setDirty(true);
     if (moved) setMsg({ ok: true, text: t('Der Fluchtpunkt lag in einer Gefahrenzone oder ausserhalb der kleinsten Zone und wurde an die nächste erlaubte Stelle verschoben.') });
-    // Pflicht-Schritte: nach dem Setzen gleich weiter zum nächsten Schritt.
-    if (p.kind === 'spielfeld' && !p.phase && !field1) setStepIdx(1);
-    if (p.kind === 'treffpunkt') setStepIdx(2);
     // Fluchtpunkte: gleich den nächsten antippen, ohne jedes Mal den Knopf zu drücken.
     if (p.kind === 'exit') {
       const n = itemsRef.current.filter((x) => x.feature.properties.kind === 'exit').length + 1;
@@ -703,21 +690,20 @@ export default function MapEditorPage() {
     return m ? (m.feature.geometry as GeoJSON.Point).coordinates : null;
   };
 
-  /** Spielfeld als Kreis mit gewünschter Fläche um den eigenen Standort (ohne Standort: Kartenmitte). */
-  function quickField(km2: number) {
+  /** Spielfeld als Kreis oder Rechteck mit gewünschter Fläche um den eigenen Standort (ohne Standort: Kartenmitte). */
+  function quickField(km2: number, form: 'kreis' | 'rechteck') {
     const m = map.current;
     if (!m) return;
     const c = me ? L.latLng(me.lat, me.lng) : m.getCenter();
     for (const old of itemsRef.current.filter((x) => x.feature.properties.kind === 'spielfeld' && !x.feature.properties.day_index)) group.current?.removeLayer(old.layer);
-    const shape = circleWithArea([c.lng, c.lat], km2);
+    const shape = form === 'rechteck' ? rectWithArea([c.lng, c.lat], km2) : circleWithArea([c.lng, c.lat], km2);
     const it = addItem({ type: 'Feature', geometry: shape.geometry, properties: { kind: 'spielfeld', name: t('Spielfeld') } });
     const next = [...itemsRef.current.filter((x) => !(x.feature.properties.kind === 'spielfeld' && !x.feature.properties.day_index)), it];
     itemsRef.current = next;
     setItems(next);
     setDirty(true);
     m.fitBounds((it.layer as L.Polygon).getBounds(), { padding: [20, 20] });
-    setMsg({ ok: true, text: me ? t('Spielfeld um deinen Standort erstellt. Du kannst es antippen und die Ecken verschieben.') : t('Spielfeld erstellt. Du kannst es antippen und die Ecken verschieben.') });
-    setStepIdx(1);
+    setMsg({ ok: true, text: me ? t('Spielfeld um deinen Standort erstellt. Du kannst es antippen und die Ecken verschieben. Danach „Weiter“.') : t('Spielfeld erstellt. Du kannst es antippen und die Ecken verschieben. Danach „Weiter“.') });
   }
 
   function autoMeet(): GeoJSON.Position | null {
@@ -747,7 +733,6 @@ export default function MapEditorPage() {
   function autoPoints() {
     autoMeet();
     setMsg({ ok: true, text: t('Startpunkt gesetzt. Zum Verschieben antippen und ziehen.') });
-    setStepIdx(2);
   }
 
   /** Startpunkt genau dort, wo man gerade steht. */
@@ -757,7 +742,6 @@ export default function MapEditorPage() {
     if (f1 && !pointInside([me.lng, me.lat], f1)) return setMsg({ ok: false, text: t('Du stehst ausserhalb des Spielfelds. Der Startpunkt muss im Spielfeld liegen.') });
     placePoints('treffpunkt', [[me.lng, me.lat]], 30);
     setMsg({ ok: true, text: t('Startpunkt an deinem Standort gesetzt.') });
-    setStepIdx(2);
   }
 
   function goStep(i: number) {
@@ -775,12 +759,15 @@ export default function MapEditorPage() {
   const field1 = fieldOfPhase(features, 1);
   const km2 = areaKm2(field1);
   const has = (k: ZoneKind) => features.some((f) => f.properties.kind === k);
-  const players = config.roles.players_max;
-  const rec = recommendedKm2PerPlayer(config.game.duration_minutes);
+  const recKm2 = recommendedFieldKm2({
+    pingMinutes: config.ping.interval_minutes, durationMinutes: config.game.duration_minutes,
+    people: config.roles.players_max + config.roles.hunters_max,
+    motorized: config.transport.motorized_allowed, bikes: config.transport.bikes_allowed,
+  });
   const issues = checkMap({
     features, exitEnabled: config.exit.enabled && config.win.mode !== 'letzter_ueberlebender', phases,
     autoShrink: shrink === 'auto', manualShrink: shrink === 'manuell', finalField: phaseFields[phaseFields.length - 1] ?? null,
-    players, durationMinutes: config.game.duration_minutes,
+    recommendedKm2: recKm2,
   });
   const sticking = field1 ? items.filter((it) => INSIDE_FIELD.includes(it.feature.properties.kind) && isArea(it.feature) && outsideShare(asArea(it.feature), field1) > 0.01) : [];
   const unitLabel = t('Phase');
@@ -795,14 +782,7 @@ export default function MapEditorPage() {
     { id: 'fertig', icon: '✅', title: t('Prüfen'), text: t('Hier siehst du, ob die Karte bereit ist.'), done: !issues.some((i) => i.level === 'error') },
   ];
   const cur = steps[Math.min(stepIdx, steps.length - 1)];
-  const sizes = (() => {
-    const n = Math.max(2, players);
-    return [
-      { label: t('Klein'), km2: n * rec[0] },
-      { label: t('Mittel'), km2: n * ((rec[0] + rec[1]) / 2), recommended: true },
-      { label: t('Gross'), km2: n * rec[1] },
-    ];
-  })();
+  const kmText = (v: number) => (v < 1 ? `${Math.round(v * 100)} ha` : `${v.toFixed(1)} km²`);
   const legend = (['spielfeld', 'sperrzone', 'treffpunkt', 'exit'] as ZoneKind[]).filter((k) => k === 'spielfeld' || has(k));
 
   return (
@@ -850,7 +830,7 @@ export default function MapEditorPage() {
         {shrink !== 'aus' && phases > 1 && <span><i className="swatch dashed" />{t('spätere Grenze')}</span>}
       </div>
       <div className="muted small" style={{ margin: '6px 0' }}>
-        {km2 > 0 ? t('Spielfeld {0} km² · {1} km² pro Spieler (empfohlen {2}–{3})', { 0: km2.toFixed(2), 1: (km2 / Math.max(1, players)).toFixed(2), 2: rec[0], 3: rec[1] }) : t('Noch kein Spielfeld.')}
+        {km2 > 0 ? t('Spielfeld {0} km² · empfohlen etwa {1}', { 0: km2.toFixed(2), 1: kmText(recKm2) }) : t('Noch kein Spielfeld. Empfohlen etwa {0}.', { 0: kmText(recKm2) })}
       </div>
       {msg && <div className={`notice ${msg.ok ? 'success' : 'error'}`} style={{ marginBottom: 12 }}>{msg.text}</div>}
 
@@ -877,15 +857,20 @@ export default function MapEditorPage() {
 
           {cur.id === 'feld' && (
             <>
-              <div className="muted small"><strong>{t('Am einfachsten:')}</strong> {me ? t('Grösse antippen: das Spielfeld wird als Kreis um deinen Standort (blauer Punkt) gelegt.') : t('Karte auf den Ort schieben (oder oben suchen), dann Grösse antippen.')}</div>
-              <div className="tool-row size-row">
-                {sizes.map((z) => (
-                  <button key={z.label} className={`size-btn${z.recommended ? ' primary' : ''}`} onClick={() => quickField(z.km2)}>
-                    <strong>{z.label}</strong><span className="small">{z.km2 < 1 ? `${Math.round(z.km2 * 100)} ha` : `${z.km2.toFixed(1)} km²`}{z.recommended ? t(' · empfohlen') : ''}</span>
-                  </button>
-                ))}
+              <div className="notice small">
+                <strong>{t('Empfohlene Fläche: etwa {0}', { 0: kmText(recKm2) })}</strong>
+                <div>{t('Berechnet aus Ping-Abstand ({0}), Anzahl Pings, Anzahl Personen ({1}) und Fortbewegung. Das ist nur ein Richtwert: die passende Grösse hängt auch von der Umgebung ab (Häuser, Wald, Wasser, Strassen). Du kannst die Fläche jederzeit selbst anpassen.', { 0: formatMinutes(config.ping.interval_minutes), 1: config.roles.players_max + config.roles.hunters_max })}</div>
               </div>
-              <div className="muted small">{t('Oder selbst zeichnen:')}</div>
+              <div className="muted small"><strong>{t('Von der App erstellen lassen:')}</strong> {me ? t('Form wählen, das Spielfeld wird mit der empfohlenen Fläche um deinen Standort (blauer Punkt) gelegt.') : t('Karte auf den Ort schieben (oder oben suchen), dann Form wählen.')}</div>
+              <div className="tool-row size-row">
+                <button className="size-btn primary" onClick={() => quickField(recKm2, 'kreis')}>
+                  <strong>{t('◯ Kreis')}</strong><span className="small">{kmText(recKm2)}</span>
+                </button>
+                <button className="size-btn primary" onClick={() => quickField(recKm2, 'rechteck')}>
+                  <strong>{t('▭ Rechteck')}</strong><span className="small">{kmText(recKm2)}</span>
+                </button>
+              </div>
+              <div className="muted small"><strong>{t('Oder selbst zeichnen:')}</strong> {t('Zeichne die Fläche so, wie sie zur Umgebung passt.')}</div>
               <div className="tool-row">
                 <button onClick={draw({ kind: 'spielfeld', tool: 'Circle' })}>{t('◯ Kreis')}</button>
                 <button onClick={draw({ kind: 'spielfeld', tool: 'Rectangle' })}>{t('▭ Rechteck')}</button>
