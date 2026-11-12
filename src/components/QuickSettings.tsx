@@ -12,6 +12,7 @@ import { t, lazy } from '../i18n';
 export const JOKER_LABELS: Record<string, string> = lazy({
   regeneration: 'Regeneration (keine Pings, keine Blitzjagd auf ihn)',
   hunter_erfragen: 'Hunter-Standorte (einmaliger Ping aller Hunter)',
+  naehe_radar: 'Nähe-Radar (zeigt, ob ein Hunter nah ist)',
 });
 
 /**
@@ -138,7 +139,7 @@ export default function QuickSettings({ config, onChange }: Props) {
                   <select aria-label={t('Joker {0}', { 0: i + 1 })} value={x.type} style={{ flex: 1 }}
                     onChange={(e) => {
                       const type = e.target.value as JokerEntry['type'];
-                      setJokers(j.types.map((y, k) => (k === i ? { type, after_minutes: y.after_minutes, ...(type === 'hunter_erfragen' ? {} : { minutes: y.minutes ?? 15 }) } : y)));
+                      setJokers(j.types.map((y, k) => (k === i ? { type, after_minutes: y.after_minutes, ...(type === 'hunter_erfragen' ? {} : { minutes: y.minutes ?? 15 }), ...(type === 'naehe_radar' ? { distance_m: y.distance_m ?? 500 } : {}) } : y)));
                     }}>
                     {JOKER_TYPES.map((t) => <option key={t} value={t}>{JOKER_LABELS[t]}</option>)}
                   </select>
@@ -149,6 +150,10 @@ export default function QuickSettings({ config, onChange }: Props) {
                 {x.type !== 'hunter_erfragen' && (
                   <Duration label={t('Wirkt so lange')} value={x.minutes ?? 15} min={1} max={Math.min(1440, hunt)}
                     onChange={(v) => setJokers(j.types.map((y, k) => (k === i ? { ...y, minutes: v } : y)))} />
+                )}
+                {x.type === 'naehe_radar' && (
+                  <Stepper label={t('Gilt als nah unter (m)')} value={x.distance_m ?? 500} min={50} max={500} step={50}
+                    onChange={(v) => setJokers(j.types.map((y, k) => (k === i ? { ...y, distance_m: v } : y)))} />
                 )}
               </div>
             ))}
@@ -163,15 +168,8 @@ export default function QuickSettings({ config, onChange }: Props) {
         <div className="muted small">{t('Zu Fuss geht immer. Fahrten muss man nicht anmelden, und niemand wird dabei live gezeigt.')}</div>
       </Box>
 
-      <Box title={t('Extras')} icon="✨" summary={[config.hideout.enabled && t('Verschanzen'), config.proximity.enabled && t('Nähe-Alarm'), config.spectator.enabled && t('Zuschauer')].filter(Boolean).join(' · ') || t('keine')} info={SETTING_HELP.extras}>
+      <Box title={t('Extras')} icon="✨" summary={[config.hideout.enabled && t('Verschanzen'), config.spectator.enabled && t('Zuschauer')].filter(Boolean).join(' · ') || t('keine')} info={SETTING_HELP.extras}>
         <Toggle label={t('Verschanzen-Regel (nicht zu lange am selben Ort)')} value={config.hideout.enabled} onChange={(v) => set('hideout', 'enabled', v)} />
-        <Toggle label={t('Alarm, wenn Spieler zusammen laufen')} value={config.proximity.enabled} onChange={(v) => set('proximity', 'enabled', v)} />
-        {config.proximity.enabled && (
-          <>
-            <Stepper label={t('Abstand für den Nähe-Alarm (m)')} value={config.proximity.distance_m} min={10} max={2000} step={10} onChange={(v) => set('proximity', 'distance_m', v)} />
-            <Duration label={t('Zeit zum Auseinandergehen')} value={config.proximity.warn_minutes} min={0} max={30} onChange={(v) => set('proximity', 'warn_minutes', v)} />
-          </>
-        )}
         <Toggle label={t('Zuschauer erlaubt')} value={config.spectator.enabled} onChange={(v) => set('spectator', 'enabled', v)} />
       </Box>
     </div>

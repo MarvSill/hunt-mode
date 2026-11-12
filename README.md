@@ -15,7 +15,7 @@ ohne Pause und ohne Spielleitung: die App regelt alles selbst.
 - **Spiel-Engine auf dem Server** (läuft alle 15 s, auch wenn niemand die App offen hat):
   Vorsprung, Pings mit Frische-Regel, Blitzjagden mit allen Einschränkungen,
   Fang per rotierendem QR-Code oder Bestätigung, Ausserhalb-Zeit, Sperrzonen, ÖV-Pflicht und Erkennung,
-  Verschanzen, Nähe-Alarm, Joker mit Freischaltzeit (Regeneration, Hunter-Standorte,
+  Verschanzen, Joker mit Freischaltzeit (Regeneration, Hunter-Standorte,
   Schutzschild), Verstösse mit Eskalation, Notfall, Fluchtpunkt, Spielende und Sieger
 - **Ansichten** für Spieler, Hunter (inkl. Zentrale) und Zuschauer: Live-Karte, Meldungen mit Ton/Vibration,
   Chat (Spieler ↔ Hunter, Hunter-Team; Spieler untereinander nie)

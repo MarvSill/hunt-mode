@@ -33,7 +33,7 @@ export const TRANSPORT_MODES = [
   'eigenes_fahrzeug',
 ] as const;
 
-export const JOKER_TYPES = ['regeneration', 'hunter_erfragen'] as const;
+export const JOKER_TYPES = ['regeneration', 'hunter_erfragen', 'naehe_radar'] as const;
 
 export const CATCH_METHODS = ['qr', 'touch_confirm', 'nfc', 'bluetooth', 'handcuffs'] as const;
 
@@ -42,6 +42,8 @@ export const CATCH_METHODS = ['qr', 'touch_confirm', 'nfc', 'bluetooth', 'handcu
 const jokerTypeSchema = z.object({
   type: z.enum(JOKER_TYPES),
   minutes: z.number().int().min(0).max(1440).optional(),
+  // Nur Nähe-Radar: ab welchem Abstand ein Hunter als "nah" gilt.
+  distance_m: z.number().int().min(50).max(500).optional(),
   after_minutes: z.number().int().min(0).max(20160).default(0),
 });
 
@@ -206,16 +208,6 @@ export const gameConfigSchema = z.object({
     })
     .default({})
     .describe('Joker'),
-  proximity: z
-    .object({
-      enabled: bool(true, 'Nähe-Alarm aktiv'),
-      distance_m: int(150, 10, 2000, 'Abstand (m)'),
-      active_after_minutes: int(10, 0, 600, 'Aktiv ab Start (min)'),
-      hysteresis_m: int(50, 0, 500, 'Hysterese (m)'),
-      warn_minutes: int(2, 0, 30, 'Zeit zum Auseinandergehen (min)'),
-    })
-    .default({})
-    .describe('Nähe-Alarm'),
   taskforce: z
     .object({
       bounty_per_catch: int(0, 0, 100000, 'Punkte pro Fang (Hunter)'),

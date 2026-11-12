@@ -5,13 +5,14 @@ import { t, lazy } from '../i18n';
 const JOKER_NAMES: Record<string, string> = lazy({
   regeneration: 'Regeneration',
   hunter_erfragen: 'Hunter-Standorte',
+  naehe_radar: 'Nähe-Radar',
 });
 
 /** Die Regeln in normalen Sätzen, für alle verständlich. */
 export function rulesInWords(c: GameConfig): [string, string][] {
   const out: [string, string][] = [];
   out.push(['⏱️', t('Das Spiel dauert {0} am Stück, ohne Pause, und endet pünktlich. Davon sind die ersten {1} Vorsprung der Spieler. Direkt danach kommt der erste Ping.', { 0: formatMinutes(c.game.duration_minutes), 1: formatMinutes(c.start.head_start_minutes) })]);
-  out.push(['📍', t('Alle {0} sehen die Hunter, wo die Spieler gerade sind. Bei jedem Ping und jeder Blitzjagd klingelt das Handy aller Spieler.', { 0: formatMinutes(c.ping.interval_minutes) })]);
+  out.push(['📍', t('Alle {0} sehen die Hunter, wo die Spieler gerade sind. Die Spieler sehen diese Pings auch (ausser bei Blitzjagden). Bei jedem Ping und jeder Blitzjagd klingelt das Handy aller Spieler.', { 0: formatMinutes(c.ping.interval_minutes) })]);
   if (c.speedhunt.enabled) {
     out.push(['⚡', t('Blitzjagd: Die Hunter dürfen {0}-mal im Spiel eine Blitzjagd starten, mit {1} Standort-Abfragen auf einen Spieler, ohne Zeitlimit.', { 0: c.speedhunt.quota_per_day[0] ?? 0, 1: c.speedhunt.queries })]);
   }
@@ -25,7 +26,6 @@ export function rulesInWords(c: GameConfig): [string, string][] {
   }
   const moves = [c.transport.motorized_allowed && t('ÖV, Taxi und Auto'), c.transport.bikes_allowed && t('Velo und Trottinett')].filter(Boolean);
   out.push(['🚌', moves.length ? t('Erlaubt sind zu Fuss sowie {0}.', { 0: moves.join(t(' und ')) }) : t('Nur zu Fuss: keine Fahrzeuge, kein ÖV.')]);
-  if (c.proximity.enabled) out.push(['👥', t('Nähe-Alarm: Kommen sich zwei Spieler näher als {0} m, werden beide gewarnt und haben {1} Zeit, sich zu trennen. Sonst bekommen die Hunter ihren Ping.', { 0: c.proximity.distance_m, 1: formatMinutes(c.proximity.warn_minutes) })]);
   out.push(['🚨', t('Notfall (SOS): Das Spiel wird unterbrochen, und alle werden alarmiert und helfen. Danach geht es weiter, die Zeit wird angehängt.')]);
   if (c.hideout.enabled) out.push(['🏠', t('Verschanzen: höchstens {0} am selben Ort.', { 0: formatMinutes(c.hideout.max_minutes) })]);
   return out;

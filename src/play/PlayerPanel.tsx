@@ -56,19 +56,6 @@ export default function PlayerPanel({ s, now, act }: PanelProps) {
       )}
 
 
-      {(() => {
-        // Nähe-Alarm: Countdown, solange die Warnung gilt.
-        const near = s.notifications.find((n) => n.kind === 'proximity_self');
-        const deadline = near?.payload.deadline as string | undefined;
-        if (!near || !deadline || new Date(deadline).getTime() <= now || s.game.exit_revealed) return null;
-        return (
-          <div className="notice error stack" role="alert">
-            <strong>{near.title}</strong>
-            <div className="big-num red">{countdown(deadline, now)}</div>
-            <span className="small">{t('Entfernt euch voneinander. Seid ihr dann noch zu nahe, bekommen die Hunter euren Ping. Wo')} {String(near.payload.name ?? t('der andere'))} {t('ist, siehst du auf der Karte.')}</span>
-          </div>
-        );
-      })()}
 
       {me.out_pending && me.state !== 'ausserhalb' && (() => {
         // Countdown aus der letzten Warnung: so lange Zeit, um ins Spielfeld zurückzukehren.
@@ -109,6 +96,8 @@ export default function PlayerPanel({ s, now, act }: PanelProps) {
         </div>
       )}
 
+      {me.radar && <RadarCard radar={me.radar} now={now} />}
+
       {g.exit_revealed && g.ends_at && (() => {
         const openAt = new Date(g.ends_at).getTime() - cfg.exit.usable_minutes_before_end * 60000;
         const open = now >= openAt;
@@ -136,7 +125,7 @@ export default function PlayerPanel({ s, now, act }: PanelProps) {
           )}
           {me.live && <div><div className="muted small">{t('Sichtbarkeit')}</div><div className="big-num red">{t('LIVE')}</div></div>}
         </div>
-        {me.effects.filter((e) => e.type !== 'fake_ping' && e.type !== 'hunter_snapshot' && e.type !== 'leo').map((e) => (
+        {me.effects.filter((e) => e.type !== 'fake_ping' && e.type !== 'hunter_snapshot' && e.type !== 'leo' && e.type !== 'naehe_radar').map((e) => (
           <div key={e.id} className="badge green">{ITEM_LABELS[e.type] ?? e.type} {t('bis')} {clock(e.ends_at)}</div>
         ))}
         {cfg.hideout.enabled && cfg.hideout.detection !== 'automatisch' && !me.hideout?.inside && running && (
@@ -171,7 +160,7 @@ function JokerBox({ s, now, act, running }: Pick<PanelProps, 's' | 'now' | 'act'
         {s.me.inventory.map((i) => (
           <div key={i.id} className="joker-card">
             <div className="joker-icon" aria-hidden="true">{ITEM_ICONS[i.type] ?? '🃏'}</div>
-            <div className="joker-name">{ITEM_LABELS[i.type] ?? i.type}{i.minutes ? ` · ${formatMinutes(i.minutes)}` : ''}</div>
+            <div className="joker-name">{ITEM_LABELS[i.type] ?? i.type}{i.minutes ? ` · ${formatMinutes(i.minutes)}` : ''}{i.distance_m ? ` · ${i.distance_m} m` : ''}</div>
             {ITEM_HELP[i.type] && <div className="muted tiny">{ITEM_HELP[i.type]}</div>}
             {i.type === 'wahl' ? (
               <select aria-label={t('Joker wählen')} disabled={!running} defaultValue="" onChange={(e) => e.target.value && act(() => api.useItem(i.id, { type: e.target.value }), t('Joker aktiv.'))}>
@@ -186,13 +175,26 @@ function JokerBox({ s, now, act, running }: Pick<PanelProps, 's' | 'now' | 'act'
         {locked.map((j, k) => (
           <div key={`l${k}`} className="joker-card locked">
             <div className="joker-icon" aria-hidden="true">{ITEM_ICONS[j.type] ?? '🃏'}</div>
-            <div className="joker-name">{ITEM_LABELS[j.type] ?? j.type}{j.minutes ? ` · ${formatMinutes(j.minutes)}` : ''}</div>
+            <div className="joker-name">{ITEM_LABELS[j.type] ?? j.type}{j.minutes ? ` · ${formatMinutes(j.minutes)}` : ''}{j.type === 'naehe_radar' ? ` · ${j.distance_m ?? 500} m` : ''}</div>
             <div className="muted tiny">🔒 {huntStart != null
               ? t('frei ab {0}', { 0: clock(new Date(huntStart + j.after_minutes * 60000).toISOString(), g.timezone) })
               : t('frei {0} nach Jagdbeginn', { 0: formatMinutes(j.after_minutes) })}</div>
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+/** Nähe-Radar (Joker): gross und klar, ob ein Hunter nah ist. Wo er ist, zeigt er nie. */
+function RadarCard({ radar, now }: { radar: NonNullable<PanelProps['s']['me']['radar']>; now: number }) {
+  const near = radar.near;
+  return (
+    <div className={`notice stack ${near ? 'error pulse' : near === false ? 'success' : ''}`} role="status" aria-live="polite">
+      <strong style={{ fontSize: 18 }}>📡 {near
+        ? t('Hunter näher als {0} m!', { 0: radar.distance_m })
+        : near === false ? t('Kein Hunter näher als {0} m', { 0: radar.distance_m }) : t('Nähe-Radar: dein Standort fehlt noch')}</strong>
+      <span className="small">{t('Nähe-Radar noch {0}. Es zeigt nur, ob ein Hunter nah ist, nicht wo.', { 0: countdown(radar.ends_at, now) })}</span>
     </div>
   );
 }
