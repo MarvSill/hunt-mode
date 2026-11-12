@@ -197,7 +197,7 @@ export const en: Record<string, string> = {
   "Der Fluchtpunkt wird ignoriert.": "The escape point is ignored.",
   "Der Fluchtpunkt würde vor Spielbeginn bekanntgegeben.": "The escape point would be announced before the game starts.",
   "Der Host verteilt die Rollen. Du kannst dir eine wünschen.": "The host assigns the roles. You can wish for one.",
-  "Der Spieler zeigt seinen Code, der Hunter scannt ihn mit der App.": "The player shows their code, the hunter scans it with the app.",
+  "Der Spieler zeigt seinen Zahlencode, der Hunter tippt ihn ein. Oder der Hunter meldet den Fang, und der Spieler bestätigt.": "The player shows their number code, the hunter types it in. Or the hunter reports the catch, and the player confirms.",
   "Der Startpunkt liegt ausserhalb des Spielfelds.": "The starting point is outside the play area.",
   "Der Startpunkt oder ein Fluchtpunkt liegt in einer Gefahrenzone.": "The starting point or an escape point is in a danger zone.",
   "Der Teil ausserhalb wurde abgeschnitten: die Zone liegt jetzt ganz {0}.": "The part outside was cut off: the zone now lies fully {0}.",
