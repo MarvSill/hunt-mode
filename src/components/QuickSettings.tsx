@@ -168,15 +168,8 @@ export default function QuickSettings({ config, onChange }: Props) {
         <div className="muted small">{t('Zu Fuss geht immer. Fahrten muss man nicht anmelden, und niemand wird dabei live gezeigt.')}</div>
       </Box>
 
-      <Box title={t('Extras')} icon="✨" summary={[config.hideout.enabled && t('Verschanzen'), config.proximity.enabled && t('Nähe-Alarm'), config.spectator.enabled && t('Zuschauer')].filter(Boolean).join(' · ') || t('keine')} info={SETTING_HELP.extras}>
+      <Box title={t('Extras')} icon="✨" summary={[config.hideout.enabled && t('Verschanzen'), config.spectator.enabled && t('Zuschauer')].filter(Boolean).join(' · ') || t('keine')} info={SETTING_HELP.extras}>
         <Toggle label={t('Verschanzen-Regel (nicht zu lange am selben Ort)')} value={config.hideout.enabled} onChange={(v) => set('hideout', 'enabled', v)} />
-        <Toggle label={t('Alarm, wenn Spieler zusammen laufen')} value={config.proximity.enabled} onChange={(v) => set('proximity', 'enabled', v)} />
-        {config.proximity.enabled && (
-          <>
-            <Stepper label={t('Abstand für den Nähe-Alarm (m)')} value={config.proximity.distance_m} min={10} max={2000} step={10} onChange={(v) => set('proximity', 'distance_m', v)} />
-            <Duration label={t('Zeit zum Auseinandergehen')} value={config.proximity.warn_minutes} min={0} max={30} onChange={(v) => set('proximity', 'warn_minutes', v)} />
-          </>
-        )}
         <Toggle label={t('Zuschauer erlaubt')} value={config.spectator.enabled} onChange={(v) => set('spectator', 'enabled', v)} />
       </Box>
     </div>

@@ -56,19 +56,6 @@ export default function PlayerPanel({ s, now, act }: PanelProps) {
       )}
 
 
-      {(() => {
-        // Nähe-Alarm: Countdown, solange die Warnung gilt.
-        const near = s.notifications.find((n) => n.kind === 'proximity_self');
-        const deadline = near?.payload.deadline as string | undefined;
-        if (!near || !deadline || new Date(deadline).getTime() <= now || s.game.exit_revealed) return null;
-        return (
-          <div className="notice error stack" role="alert">
-            <strong>{near.title}</strong>
-            <div className="big-num red">{countdown(deadline, now)}</div>
-            <span className="small">{t('Entfernt euch voneinander. Seid ihr dann noch zu nahe, bekommen die Hunter euren Ping. Wo')} {String(near.payload.name ?? t('der andere'))} {t('ist, siehst du auf der Karte.')}</span>
-          </div>
-        );
-      })()}
 
       {me.out_pending && me.state !== 'ausserhalb' && (() => {
         // Countdown aus der letzten Warnung: so lange Zeit, um ins Spielfeld zurückzukehren.

@@ -185,7 +185,7 @@ export const STATE_LABELS: Record<string, string> = lazy({
 });
 
 export const SOURCE_LABELS: Record<string, string> = lazy({
-  silent: 'Ping', speedhunt: 'Blitzjagd', transit: 'ÖV', proximity: 'Nähe-Alarm', fake: 'Fake',
+  silent: 'Ping', speedhunt: 'Blitzjagd', transit: 'ÖV', fake: 'Fake',
   hotel_end: 'Hotel', out_of_bounds: 'Ausserhalb', penalty: 'Strafe', gm: 'Sonder-Ping', kein_signal: 'Kein Signal',
   challenge: 'Aufgabe', device_switch: 'Gerätewechsel',
 });
@@ -207,7 +207,7 @@ export const ITEM_ICONS: Record<string, string> = {
 
 /** Was ein Joker oder Bonus bewirkt, in einem Satz. */
 export const ITEM_HELP: Record<string, string> = lazy({
-  regeneration: 'Du wirst eine Zeit lang nicht gepingt, und die Hunter können keine Blitzjagd auf dich starten. Fangen dürfen sie dich aber weiterhin, und beim Nähe-Alarm wirst du trotzdem gepingt. Nicht einsetzbar, solange eine Blitzjagd läuft.',
+  regeneration: 'Du wirst eine Zeit lang nicht gepingt, und die Hunter können keine Blitzjagd auf dich starten. Fangen dürfen sie dich aber weiterhin. Nicht einsetzbar, solange eine Blitzjagd läuft.',
   hunter_erfragen: 'Beim Einsetzen siehst du einmalig, wo alle Hunter in diesem Moment sind (nicht live).',
   naehe_radar: 'Eine Zeit lang siehst du, ob ein Hunter näher als der eingestellte Abstand ist. Wo er ist, siehst du nicht.',
   catch_free: 'Du kannst eine Zeit lang nicht gefangen werden.',

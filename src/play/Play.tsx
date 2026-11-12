@@ -194,7 +194,6 @@ export default function PlayPage() {
     const byPlayer = new Map<string, typeof s.pings>();
     for (const p of [...s.pings].sort((a, b) => a.at.localeCompare(b.at))) {
       if (p.lat == null || p.lng == null) continue;
-      if (role === 'spieler' && p.participant_id === s.me.id && p.source === 'proximity') continue;
       if (role === 'spieler' && othersHidden && p.participant_id !== s.me.id) continue;
       byPlayer.set(p.participant_id, [...(byPlayer.get(p.participant_id) ?? []), p]);
     }
@@ -233,11 +232,6 @@ export default function PlayPage() {
         for (const h of (e.payload.hunters as { name: string; tag?: string; lat: number; lng: number; at?: string }[]) ?? []) {
           list.push({ id: `hs${e.id}${h.name}`, lat: h.lat, lng: h.lng, color: '#f85149', kind: 'hunter', label: t('Hunter {0} · Ping {1} (nicht live)', { 0: h.tag ? `${h.tag} ${h.name}` : h.name, 1: clock(h.at) }), text: h.tag });
         }
-      }
-    }
-    for (const n of s.notifications.slice(0, 10)) {
-      if (n.kind === 'proximity_self' && n.payload.lat != null && now - new Date(n.at).getTime() < 15 * 60000) {
-        list.push({ id: `px${n.id}`, lat: n.payload.lat as number, lng: n.payload.lng as number, color: '#d29922', kind: 'player', label: n.payload.tag != null ? t('Spieler {0} (in der Nähe)', { 0: n.payload.tag }) : t('{0} (in der Nähe)', { 0: n.payload.name }), text: (n.payload.tag as string | undefined) });
       }
     }
     for (const e of s.emergencies) {

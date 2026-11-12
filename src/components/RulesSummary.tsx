@@ -26,7 +26,6 @@ export function rulesInWords(c: GameConfig): [string, string][] {
   }
   const moves = [c.transport.motorized_allowed && t('ÖV, Taxi und Auto'), c.transport.bikes_allowed && t('Velo und Trottinett')].filter(Boolean);
   out.push(['🚌', moves.length ? t('Erlaubt sind zu Fuss sowie {0}.', { 0: moves.join(t(' und ')) }) : t('Nur zu Fuss: keine Fahrzeuge, kein ÖV.')]);
-  if (c.proximity.enabled) out.push(['👥', t('Nähe-Alarm: Kommen sich zwei Spieler näher als {0} m, werden beide gewarnt und haben {1} Zeit, sich zu trennen. Sonst bekommen die Hunter ihren Ping.', { 0: c.proximity.distance_m, 1: formatMinutes(c.proximity.warn_minutes) })]);
   out.push(['🚨', t('Notfall (SOS): Das Spiel wird unterbrochen, und alle werden alarmiert und helfen. Danach geht es weiter, die Zeit wird angehängt.')]);
   if (c.hideout.enabled) out.push(['🏠', t('Verschanzen: höchstens {0} am selben Ort.', { 0: formatMinutes(c.hideout.max_minutes) })]);
   return out;

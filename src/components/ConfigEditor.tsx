@@ -18,8 +18,6 @@ const HIDDEN = new Set([
   // Anzahl sichtbarer Pings wählt jeder auf der Karte.
   'ping.first_ping_delay_minutes', 'exit.arrival_deadline_offset_minutes',
   'speedhunt.no_consecutive_same_target', 'catch.method', 'speedhunt.consecutive_allowed_when_players_left_le', 'ping.history_per_player',
-  // Nähe-Alarm gilt immer ab Ende des Vorsprungs.
-  'proximity.active_after_minutes',
 ]);
 
 interface Props {

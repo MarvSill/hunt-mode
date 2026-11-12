@@ -196,8 +196,8 @@ Abweichungen von der Spezifikation und Annahmen, wo sie nichts festlegt.
 - Pings nie verschoben: Der Server nimmt für einen Ping den genauesten echten Messpunkt der letzten 20 Sekunden (vorher Median von Breite und Länge einzeln über 30 s, was einen Punkt ergeben konnte, an dem niemand war). Auf dem iPhone misst die App immer mit "Best" und Aktivität "Fitness" (zu Fuss), nie mit "Navigation", damit iOS den Standort nicht auf Strassen zieht (Patch des Plugins in `patches/`, angewendet mit `patch-package` beim `npm install`). Ist der Standort ungenauer als 150 m, kommt ein grosser Hinweis, "Genauer Standort" einzuschalten.
 
 ## Runde 16 (2026-11-12)
-- Spieler sehen die Pings der anderen Spieler, sobald die Hunter sie sehen. Ausgenommen: Blitzjagd-Pings und Nähe-Alarm-Pings der anderen. Zweck: sich besser auf der Karte verteilen.
+- Spieler sehen die Pings der anderen Spieler, sobald die Hunter sie sehen. Ausgenommen: Blitzjagd-Pings der anderen. Zweck: sich besser auf der Karte verteilen.
 - Jeder Spieler wählt selbst: nur letzter / letzte 3 / alle / eigene Anzahl Pings, und ob die Pings der anderen Spieler sichtbar sind (nur auf dem eigenen Gerät).
 - Neuer Joker „Nähe-Radar“ 📡: beim Erstellen werden Abstand (50–500 m, Standard 500 m) und Dauer eingestellt. Solange er wirkt, sieht der Spieler nur, ob ein Hunter näher ist (nie wo). Kommt ein Hunter nah, klingelt das Handy laut wie bei einer Blitzjagd. Zählt Hunter mit Standort der letzten 10 min.
 - Joker „Richtung zum nächsten Hunter“ wird nicht gebaut (Marvin).
-- Nähe-Alarm zweier Spieler: aktiv sofort nach dem Vorsprung (keine Wartezeit). Meldungen an Spieler und Hunter mit Buchstaben („Spieler B“) statt Namen. Regeneration schützt beim Nähe-Alarm nicht: gepingt wird trotzdem, und wer Regeneration hat, wird darauf hingewiesen.
+- Der Nähe-Alarm (zwei Spieler zu nahe beieinander) ist ganz entfernt (Marvin): keine Warnung, kein Ping an die Hunter, keine Einstellung mehr. Migration 0024 nimmt die Prüfung aus dem Spieltakt und löscht Funktion und Tabelle. Frühere Einträge zum Nähe-Alarm gelten nicht mehr.

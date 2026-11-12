@@ -208,16 +208,6 @@ export const gameConfigSchema = z.object({
     })
     .default({})
     .describe('Joker'),
-  proximity: z
-    .object({
-      enabled: bool(true, 'Nähe-Alarm aktiv'),
-      distance_m: int(150, 10, 2000, 'Abstand (m)'),
-      active_after_minutes: int(10, 0, 600, 'Aktiv ab Start (min)'),
-      hysteresis_m: int(50, 0, 500, 'Hysterese (m)'),
-      warn_minutes: int(2, 0, 30, 'Zeit zum Auseinandergehen (min)'),
-    })
-    .default({})
-    .describe('Nähe-Alarm'),
   taskforce: z
     .object({
       bounty_per_catch: int(0, 0, 100000, 'Punkte pro Fang (Hunter)'),

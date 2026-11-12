@@ -103,9 +103,6 @@ export function validateConfig(input: GameConfig, ctx: ValidationContext = {}): 
   }
 
 
-  if (config.proximity.enabled && ctx.fieldWidthM !== undefined && config.proximity.distance_m > ctx.fieldWidthM / 2) {
-    add('warning', 'proximity_always', t('Alarm wird fast dauernd ausgelöst.'), 'proximity.distance_m');
-  }
 
   if (config.win.mode === 'letzter_ueberlebender' && config.exit.enabled) {
     add('warning', 'exit_ignored', t('Der Fluchtpunkt wird ignoriert.'), 'win.mode', 'exit.enabled');

@@ -9467,3 +9467,1362 @@ begin
   perform public.bump(g.id);
   return jsonb_build_object('type', v_type);
 end; $$;
+
+-- ===== 0021_ping_alarm_immer.sql =====
+
+-- 0021: Bei jedem Ping klingelt es bei allen Spielern, auch wenn vom gepingten Spieler
+-- gerade kein Standort da ist. Die Hunter bekommen dann die Meldung "Kein Standort".
+
+create or replace function public.ping_alarm(p_game public.games, p_p public.participants)
+returns void language plpgsql security definer set search_path = public, extensions as $$
+begin
+  -- Bei jedem Ping werden alle Spieler alarmiert; wer gepingt wurde, erfährt es.
+  declare v_o record;
+  begin
+    for v_o in select id from public.participants where game_id = p_game.id and role = 'spieler' and state in ('aktiv', 'ausserhalb', 'notfall') loop
+      if v_o.id = p_p.id then
+        perform public.notify(p_game.id, null, v_o.id, 'ping_self', 'Du wurdest gepingt', 'Die Hunter sehen jetzt, wo du gerade bist.', '{}', 'hoch');
+      else
+        perform public.notify(p_game.id, null, v_o.id, 'ping', 'Ping', 'Die Hunter haben gerade den Standort eines Spielers bekommen.', '{}', 'hoch');
+      end if;
+    end loop;
+  end;
+end; $$;
+
+create or replace function public.process_ping_due(p_game public.games, p_p public.participants, p_now timestamptz)
+returns void language plpgsql security definer set search_path = public, extensions as $$
+declare
+  v_cfg jsonb := p_game.config_json;
+  v_suppressed boolean;
+  v_pos record;
+  v_max_age int := public.cfg_int(v_cfg, 'ping', 'max_age_seconds', 60);
+  v_wait int := public.cfg_int(v_cfg, 'ping', 'fresh_fix_wait_seconds', 30);
+  v_hotel public.active_effects;
+begin
+  if p_p.next_ping_at is null or p_p.next_ping_at > p_now then return; end if;
+  if p_p.state not in ('aktiv', 'ausserhalb') then
+    if p_p.state in ('gefangen', 'disqualifiziert', 'aufgegeben', 'im_ziel') then
+      update public.participants set next_ping_at = null where id = p_p.id;
+    else
+      perform public.schedule_next_ping(p_game, p_p.id, p_now);
+    end if;
+    return;
+  end if;
+
+  select * into v_hotel from public.active_effects
+  where participant_id = p_p.id and type = 'hotel' and starts_at <= p_now and (ends_at is null or ends_at > p_now) limit 1;
+  v_suppressed := public.in_quiet_hours(p_game, p_now)
+    or public.has_effect(p_p.id, 'regeneration', p_now)
+    or public.has_effect(p_p.id, 'leo', p_now)
+    or (public.cfg_text(v_cfg, 'ping', 'during_speedhunt', 'weiterlaufen') = 'aussetzen' and (public.running_speedhunt_on(p_p.id)).id is not null)
+    or (v_hotel.id is not null and public.cfg_text(v_cfg, 'bonus', 'hotel_pings', 'weiter') = 'pausiert');
+  if v_suppressed then
+    if public.cfg_bool(v_cfg, 'ping', 'show_suppressed_to_taskforce', false) then
+      perform public.create_ping(p_game, p_p.id, 'kein_signal', null, null, null, null, null, null, null, 0, p_now);
+    end if;
+    perform public.schedule_next_ping(p_game, p_p.id, p_now);
+    return;
+  end if;
+
+  select * into v_pos from public.best_position(p_p.id, p_now);
+  if v_pos.lat is null then
+    perform public.create_ping(p_game, p_p.id, 'kein_signal', null, null, null, null, null, null, 'Noch kein Standort', 0, p_now);
+    perform public.schedule_next_ping(p_game, p_p.id, p_now);
+    -- Auch ohne Standort klingelt es bei allen Spielern; die Hunter erfahren, dass kein Standort kam.
+    perform public.notify(p_game.id, 'taskforce', null, 'ping_missing', 'Kein Standort: ' || public.pname(p_p.id),
+      'Das Handy hat noch keinen Standort gesendet (App geschlossen oder kein GPS).', '{}', 'hoch');
+    perform public.ping_alarm(p_game, p_p);
+    return;
+  end if;
+  if v_pos.age_s > v_max_age then
+    if p_p.ping_pending_until is null then
+      update public.participants set ping_pending_until = p_now + make_interval(secs => v_wait), location_request_at = p_now
+      where id = p_p.id;
+      return;
+    elsif p_now < p_p.ping_pending_until then
+      return;
+    end if;
+  end if;
+
+  perform public.create_ping(p_game, p_p.id, 'silent', v_pos.lat, v_pos.lng, v_pos.accuracy_m,
+    case when v_pos.age_s > v_max_age then v_pos.age_s end, null, null, null, 0, p_now);
+  update public.participants set last_silent_ping_at = p_now, location_request_at = null where id = p_p.id;
+  perform public.schedule_next_ping(p_game, p_p.id, p_now);
+  perform public.ping_alarm(p_game, p_p);
+end; $$;
+
+-- Hunter sehen alle bisherigen Pings (vorher höchstens 5 je Spieler).
+update public.games
+set config_json = jsonb_set(config_json, '{ping,history_per_player}', '200'::jsonb, true)
+where config_json ? 'ping' and coalesce((config_json #>> '{ping,history_per_player}')::int, 0) < 200;
+
+-- ===== 0022_spielzeit_fluchtpunkt_blitzjagd.sql =====
+
+-- 0022: Rückmeldungen aus dem Testspiel
+-- 1. Spielzeit gilt alles inklusive: vom Start (mit Vorsprung) bis zum Ende, ohne Nachspielzeit.
+-- 2. Nach dem Vorsprung kommt sofort ein Ping (kein "Erster Ping nach …" mehr).
+-- 3. Fluchtpunkt: Bekanntgabe X min vor Schluss, nutzbar erst Y min vor Schluss (bis Spielende).
+-- 4. Blitzjagd: beim Start gleich die erste Abfrage; nie zweimal hintereinander dieselbe Person.
+-- 5. Countdown ausserhalb des Spielfelds läuft auch ab, wenn das Handy gerade keinen neuen Standort schickt.
+-- 6. Spieler haben Buchstaben (A, B, C …), damit die Pings nummeriert werden können (A1, A2 …).
+-- 7. Vergangene Spiele löschen.
+
+-- Länge der Jagd (Spielzeit ohne Vorsprung), mindestens 5 min.
+create or replace function public.hunt_minutes(p_cfg jsonb)
+returns int language sql immutable as $$
+  select greatest(5, public.cfg_int(p_cfg, 'game', 'duration_minutes', 180) - public.cfg_int(p_cfg, 'start', 'head_start_minutes', 0));
+$$;
+
+-- Phasen der Verkleinerung passen in die Jagd (nach dem Vorsprung).
+create or replace function public.phase_count(p_cfg jsonb)
+returns int language sql immutable as $$
+  select case when public.shrink_every_minutes(p_cfg) > 0
+    then least(50, greatest(1, ceil(public.hunt_minutes(p_cfg)::numeric / public.shrink_every_minutes(p_cfg))::int))
+    else public.cfg_int(p_cfg, 'game', 'days', 4) end;
+$$;
+
+-- Nutzbar ab so vielen Minuten vor Schluss (höchstens so viel wie die Bekanntgabe).
+create or replace function public.exit_usable_minutes(p_cfg jsonb)
+returns int language sql immutable as $$
+  select least(public.cfg_int(p_cfg, 'exit', 'reveal_minutes_before_end', 20),
+               greatest(0, public.cfg_int(p_cfg, 'exit', 'usable_minutes_before_end', 2)));
+$$;
+
+create or replace function public.exit_active(p_game public.games, p_now timestamptz)
+returns boolean language sql stable as $$
+  select p_game.exit_revealed and p_game.ends_at is not null
+     and p_now >= p_game.ends_at - make_interval(mins => public.exit_usable_minutes(p_game.config_json));
+$$;
+
+-- ---------------------------------------------------------------------------
+-- Start: Zeiten neu berechnen (alles inklusive), Spieler bekommen Buchstaben.
+alter function public.start_game(uuid, boolean) rename to start_game_basis;
+revoke execute on function public.start_game_basis(uuid, boolean) from public, anon, authenticated;
+
+create or replace function public.start_game(p_game_id uuid, p_test boolean default false)
+returns jsonb language plpgsql security definer set search_path = public, extensions as $$
+declare
+  g public.games;
+  v_cfg jsonb;
+  v_total int;
+  v_head int;
+  v_reveal int;
+  v_z public.zones;
+begin
+  select * into g from public.games where id = p_game_id;
+  if g.id is null then raise exception 'Spiel nicht gefunden.' using errcode = 'P0001'; end if;
+  v_cfg := g.config_json;
+  v_total := public.cfg_int(v_cfg, 'game', 'duration_minutes', 180);
+  v_head := public.cfg_int(v_cfg, 'start', 'head_start_minutes', 0);
+  if v_head > v_total - 5 then
+    raise exception 'Der Vorsprung muss mindestens 5 min kürzer sein als die Spielzeit.' using errcode = 'P0001';
+  end if;
+
+  perform public.start_game_basis(p_game_id, p_test);
+
+  select * into g from public.games where id = p_game_id for update;
+  v_reveal := least(public.cfg_int(v_cfg, 'exit', 'reveal_minutes_before_end', 20), v_total - v_head);
+  update public.games set
+    ends_at = start_at + make_interval(mins => v_total),
+    deadline_at = start_at + make_interval(mins => v_total),
+    exit_reveal_at = case when public.cfg_bool(v_cfg, 'exit', 'enabled', true)
+      then start_at + make_interval(mins => v_total - v_reveal) end
+  where id = p_game_id returning * into g;
+  if public.shrink_every_minutes(v_cfg) > 0 then
+    update public.games set state_json = state_json || jsonb_build_object('next_phase_at',
+      case when public.phase_count(v_cfg) > 1 and public.phase_start(g, 2) < g.ends_at then public.phase_start(g, 2) end)
+    where id = p_game_id returning * into g;
+  end if;
+  -- Phasen nach Spielende gibt es nicht.
+  for v_z in select * from public.zones where game_id = p_game_id and kind = 'spielfeld' and day_index > public.phase_count(v_cfg) loop
+    update public.zones set visible_from = 'infinity' where id = v_z.id;
+  end loop;
+
+  -- Spieler: Buchstaben A, B, C … (danach A2, B2 …); Hunter bleiben H1, H2 …
+  update public.participants p set tag = chr(65 + ((n.rn - 1) % 26)::int) || case when n.rn > 26 then ((n.rn - 1) / 26 + 1)::text else '' end
+  from (select id, row_number() over (order by joined_at, id) rn
+        from public.participants where game_id = p_game_id and role = 'spieler') n
+  where p.id = n.id;
+
+  perform public.bump(p_game_id);
+  return jsonb_build_object('hunt_start_at', g.hunt_start_at, 'ends_at', g.ends_at);
+end; $$;
+revoke execute on function public.start_game(uuid, boolean) from public, anon;
+grant execute on function public.start_game(uuid, boolean) to authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Jagdbeginn: sofort ein Ping für alle Spieler, danach im eingestellten Abstand.
+create or replace function public.hunt_begin(p_game public.games, p_now timestamptz)
+returns public.games language plpgsql security definer set search_path = public as $$
+begin
+  update public.games set status = 'laeuft', current_day = 0 where id = p_game.id returning * into p_game;
+  p_game := public.day_reset(p_game, p_now);
+  update public.participants set next_ping_at = p_game.hunt_start_at, ping_pending_until = null
+  where game_id = p_game.id and role = 'spieler' and state = 'aktiv';
+  perform public.notify(p_game.id, 'alle', null, 'hunt_begin', 'Die Jagd beginnt!', 'Die Hunter sind unterwegs.', '{}', 'hoch');
+  perform public.log_game_event(p_game.id, 'hunt_begin');
+  return p_game;
+end; $$;
+
+-- Ping-Takt ab Jagdbeginn (ohne Verzögerung des ersten Pings).
+create or replace function public.next_ping_time(p_game public.games, p_from timestamptz, p_interval int)
+returns timestamptz language plpgsql stable set search_path = public as $$
+declare
+  v_cfg jsonb := p_game.config_json;
+  v_offset int := public.cfg_int(v_cfg, 'ping', 'offset_minutes', 0);
+  v_jitter int := public.cfg_int(v_cfg, 'ping', 'jitter_minutes', 0);
+  v_local timestamp;
+  v_midnight timestamp;
+  v_min double precision;
+  v_k bigint;
+  v_t timestamptz;
+begin
+  if public.cfg_bool(v_cfg, 'time', 'align_to_full_hour', false) then
+    v_local := p_from at time zone p_game.timezone;
+    v_midnight := date_trunc('day', v_local);
+    v_min := extract(epoch from (v_local - v_midnight)) / 60.0;
+    v_k := floor((v_min - v_offset) / p_interval) + 1;
+    v_t := (v_midnight + make_interval(mins => (v_offset + v_k * p_interval)::int)) at time zone p_game.timezone;
+  else
+    v_k := greatest(1, floor(extract(epoch from (p_from - p_game.hunt_start_at)) / 60.0 / p_interval) + 1);
+    v_t := p_game.hunt_start_at + make_interval(mins => (v_k * p_interval)::int);
+  end if;
+  if v_t <= p_from then v_t := v_t + make_interval(mins => p_interval); end if;
+  if v_jitter > 0 then v_t := v_t + make_interval(secs => floor(random() * v_jitter * 60)); end if;
+  return v_t;
+end; $$;
+
+-- ---------------------------------------------------------------------------
+-- Fluchtpunkt erst nutzbar ab Y min vor Schluss.
+create or replace function public.process_location(p_game public.games, p_p public.participants, p_point extensions.geometry, p_speed real, p_now timestamptz)
+returns void language plpgsql security definer set search_path = public, extensions as $$
+declare
+  v_cfg jsonb := p_game.config_json;
+  v_hq public.zones;
+  v_exit public.zones;
+begin
+  if p_game.status = 'vorsprung' and p_p.role in ('hunter', 'zentrale') and public.cfg_bool(v_cfg, 'start', 'hunters_must_stay_in_hq', true) then
+    select * into v_hq from public.zones where game_id = p_game.id and kind = 'hq' limit 1;
+    if v_hq.id is not null and public.dist_m(v_hq.geom, p_point) > coalesce(v_hq.radius_m, public.cfg_int(v_cfg, 'start', 'hq_radius_m', 100)) + public.cfg_int(v_cfg, 'zone', 'edge_tolerance_m', 25)
+       and not exists (select 1 from public.violations where participant_id = p_p.id and type = 'hunter_hq') then
+      perform public.create_violation(p_game, p_p.id, 'hunter_hq', jsonb_build_object('lat', ST_Y(p_point), 'lng', ST_X(p_point)), p_now);
+    end if;
+    return;
+  end if;
+
+  if p_p.role <> 'spieler' or p_game.status not in ('laeuft', 'finale') then return; end if;
+  if p_p.state not in ('aktiv', 'ausserhalb') then return; end if;
+
+  perform public.check_player_zone(p_game, p_p, p_point, p_now);
+  select * into p_p from public.participants where id = p_p.id;
+  perform public.check_transport(p_game, p_p, p_point, p_speed, p_now);
+  select * into p_p from public.participants where id = p_p.id;
+  perform public.check_hideout(p_game, p_p, p_point, p_now);
+
+  if p_game.exit_zone_id is not null and public.exit_active(p_game, p_now)
+     and public.cfg_text(v_cfg, 'exit', 'confirm', 'geofence') = 'geofence' and p_now <= p_game.deadline_at then
+    select * into v_exit from public.zones where id = p_game.exit_zone_id;
+    if public.dist_m(v_exit.geom, p_point) <= coalesce(v_exit.radius_m, public.cfg_int(v_cfg, 'exit', 'radius_m', 30)) then
+      perform public.reach_exit(p_game, p_p.id, p_now);
+    end if;
+  end if;
+end; $$;
+
+create or replace function public.confirm_exit(p_game_id uuid, p_participant uuid default null)
+returns void language plpgsql security definer set search_path = public, extensions as $$
+declare
+  v_me public.participants;
+  g public.games;
+  v_exit public.zones;
+  v_pos public.positions;
+  v_now timestamptz;
+begin
+  v_me := public.require_participant(p_game_id);
+  g := public.require_running(p_game_id);
+  v_now := public.engine_now(p_game_id);
+  if not g.exit_revealed then raise exception 'Der Fluchtpunkt ist noch nicht bekannt.' using errcode = 'P0001'; end if;
+  if not public.exit_active(g, v_now) then
+    raise exception 'Der Fluchtpunkt ist erst ab % offen.', to_char((g.ends_at - make_interval(mins => public.exit_usable_minutes(g.config_json))) at time zone g.timezone, 'HH24:MI')
+      using errcode = 'P0001';
+  end if;
+  if v_me.role = 'gm' and p_participant is not null then
+    perform public.reach_exit(g, p_participant, v_now);
+  elsif v_me.role = 'spieler' then
+    select * into v_exit from public.zones where id = g.exit_zone_id;
+    select * into v_pos from public.positions where participant_id = v_me.id;
+    if v_pos.participant_id is null or public.dist_m(v_exit.geom, v_pos.geom) > coalesce(v_exit.radius_m, 30) + coalesce(v_pos.accuracy_m, 0) + 20 then
+      raise exception 'Du bist noch nicht am Fluchtpunkt.' using errcode = 'P0001';
+    end if;
+    perform public.reach_exit(g, v_me.id, v_now);
+  else
+    raise exception 'Nicht erlaubt.' using errcode = '42501';
+  end if;
+  perform public.bump(p_game_id);
+end; $$;
+
+-- ---------------------------------------------------------------------------
+-- Tick: Bekanntgabe und Freigabe des Fluchtpunkts, Countdown ausserhalb auch ohne neuen Standort.
+alter function public.tick_game(uuid) rename to tick_game_basis;
+revoke execute on function public.tick_game_basis(uuid) from public, anon, authenticated;
+
+create or replace function public.tick_game(p_game_id uuid)
+returns void language plpgsql security definer set search_path = public, extensions as $$
+declare
+  g public.games;
+  v_cfg jsonb;
+  v_now timestamptz;
+  v_open timestamptz;
+  v_name text;
+  v_p public.participants;
+  v_pos public.positions;
+  v_grace int;
+begin
+  select * into g from public.games where id = p_game_id;
+  if g.id is null or g.status not in ('laeuft', 'finale') or g.paused_at is not null then
+    perform public.tick_game_basis(p_game_id);
+    return;
+  end if;
+  v_cfg := g.config_json;
+  v_now := now() + g.clock_offset;
+  v_open := g.ends_at - make_interval(mins => public.exit_usable_minutes(v_cfg));
+
+  -- Bekanntgabe (vor dem Basis-Tick, damit dort nichts doppelt passiert).
+  if public.cfg_bool(v_cfg, 'exit', 'enabled', true) and not g.exit_revealed and g.exit_reveal_at is not null and g.exit_reveal_at <= v_now then
+    select * into g from public.games where id = p_game_id for update;
+    if not g.exit_revealed then
+      if g.exit_zone_id is null then
+        update public.games set exit_zone_id = (
+          select z.id from public.zones z where z.game_id = g.id and z.kind = 'exit'
+          order by case when ST_Covers(coalesce(public.spielfeld_day(g.id, public.phase_count(v_cfg)), z.geom), z.geom) then 0 else 1 end, random()
+          limit 1)
+        where id = g.id returning * into g;
+      end if;
+      update public.zones set visible_from = v_now, visible_to = 'spieler' where id = g.exit_zone_id;
+      update public.games set exit_revealed = true, status = 'finale', map_version = map_version + 1 where id = g.id returning * into g;
+      select coalesce(nullif(name, ''), 'siehe Karte') into v_name from public.zones where id = g.exit_zone_id;
+      perform public.notify(g.id, 'spieler', null, 'exit_reveal', 'Fluchtpunkt bekannt: ' || coalesce(v_name, 'siehe Karte'),
+        'Er ist erst ab ' || to_char(v_open at time zone g.timezone, 'HH24:MI') || ' offen. Seid zwischen '
+        || to_char(v_open at time zone g.timezone, 'HH24:MI') || ' und ' || to_char(g.ends_at at time zone g.timezone, 'HH24:MI')
+        || ' im Kreis. Ab jetzt dürft ihr auch zusammen sein.', jsonb_build_object('open_at', v_open), 'kritisch');
+      perform public.notify(g.id, 'taskforce', null, 'exit_reveal', 'Die Spieler kennen jetzt den Fluchtpunkt',
+        'Ihr erfahrt ihn nicht. Er ist ab ' || to_char(v_open at time zone g.timezone, 'HH24:MI') || ' bis zum Spielende offen.', '{}', 'hoch');
+    end if;
+  end if;
+
+  perform public.tick_game_basis(p_game_id);
+
+  select * into g from public.games where id = p_game_id;
+  if g.status not in ('laeuft', 'finale') or g.paused_at is not null then return; end if;
+
+  -- Freigabe: ab jetzt zählt, wer im Kreis steht.
+  if g.exit_revealed and g.exit_zone_id is not null and v_now >= v_open and not coalesce((g.state_json ->> 'exit_open')::boolean, false) then
+    update public.games set state_json = state_json || '{"exit_open": true}' where id = g.id returning * into g;
+    perform public.notify(g.id, 'spieler', null, 'exit_open', 'Fluchtpunkt ist jetzt offen!',
+      'Seid bis ' || to_char(g.ends_at at time zone g.timezone, 'HH24:MI') || ' im Kreis, dann seid ihr gerettet.', '{}', 'kritisch');
+    perform public.recheck_exit(g, v_now);
+    select * into g from public.games where id = p_game_id;
+    if g.status not in ('laeuft', 'finale') then perform public.bump(g.id); return; end if;
+  end if;
+
+  -- Countdown abgelaufen, aber kein neuer Standort: mit dem letzten bekannten Standort weiterprüfen.
+  v_grace := public.cfg_int(v_cfg, 'out_of_bounds', 'grace_seconds', 60);
+  for v_p in select * from public.participants
+             where game_id = g.id and role = 'spieler' and state = 'aktiv'
+               and ((out_pending_since is not null and out_pending_since <= v_now - make_interval(secs => v_grace))
+                 or (restricted_zone_id is not null and not restricted_violated and restricted_since <= v_now - make_interval(secs => v_grace))) loop
+    select * into v_pos from public.positions where participant_id = v_p.id;
+    if v_pos.participant_id is not null then
+      perform public.check_player_zone(g, v_p, v_pos.geom, v_now);
+    end if;
+  end loop;
+  perform public.bump(g.id);
+end; $$;
+revoke execute on function public.tick_game(uuid) from public, anon, authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Blitzjagd: Start mit Bestätigung in der App, dann gleich die erste Abfrage.
+-- Nie zweimal hintereinander dieselbe Person (auch wenn nur noch eine frei ist).
+create or replace function public.speedhunt_start(p_game_id uuid, p_target uuid)
+returns uuid language plpgsql security definer set search_path = public as $$
+declare
+  v_me public.participants;
+  g public.games;
+  v_cfg jsonb;
+  v_now timestamptz;
+  v_t public.participants;
+  v_sh public.speedhunts;
+begin
+  v_me := public.require_participant(p_game_id, array['hunter', 'zentrale', 'gm']);
+  g := public.require_running(p_game_id);
+  v_cfg := g.config_json;
+  v_now := public.engine_now(p_game_id);
+  if not public.cfg_bool(v_cfg, 'speedhunt', 'enabled', true) then raise exception 'Blitzjagden sind ausgeschaltet.' using errcode = 'P0001'; end if;
+  if g.speedhunts_left <= 0 then raise exception 'Keine Blitzjagd mehr übrig.' using errcode = 'P0001'; end if;
+  if (select count(*) from public.speedhunts where game_id = p_game_id and status = 'laeuft' and not is_penalty)
+     >= public.cfg_int(v_cfg, 'speedhunt', 'max_parallel', 2) then
+    raise exception 'Schon % Blitzjagden gleichzeitig.', public.cfg_int(v_cfg, 'speedhunt', 'max_parallel', 2) using errcode = 'P0001';
+  end if;
+  select * into v_t from public.participants where id = p_target and game_id = p_game_id;
+  if v_t.id is null or v_t.role <> 'spieler' or v_t.state not in ('aktiv', 'ausserhalb') then
+    raise exception 'Dieses Ziel kann nicht gejagt werden.' using errcode = 'P0001';
+  end if;
+  if (public.running_speedhunt_on(p_target)).id is not null then raise exception 'Auf dieses Ziel läuft schon eine Blitzjagd.' using errcode = 'P0001'; end if;
+  if public.has_effect(p_target, 'regeneration', v_now) then raise exception 'Ziel ist durch einen Joker geschützt.' using errcode = 'P0001'; end if;
+  if g.last_speedhunt_target = p_target then
+    raise exception 'Nicht zweimal hintereinander dasselbe Ziel.' using errcode = 'P0001';
+  end if;
+  if public.cfg_int(v_cfg, 'speedhunt', 'max_per_player_per_day', 0) > 0
+     and (select count(*) from public.speedhunts where target_id = p_target and not is_penalty and started_at is not null)
+       >= public.cfg_int(v_cfg, 'speedhunt', 'max_per_player_per_day', 0) then
+    raise exception 'Dieses Ziel hatte schon genug Blitzjagden.' using errcode = 'P0001';
+  end if;
+  if public.cfg_int(v_cfg, 'speedhunt', 'min_minutes_after_silent_ping', 0) > 0
+     and public.cfg_text(v_cfg, 'speedhunt', 'early_start_policy', 'silent_zaehlt_als_abfrage') = 'verbieten'
+     and v_t.last_silent_ping_at > v_now - make_interval(mins => public.cfg_int(v_cfg, 'speedhunt', 'min_minutes_after_silent_ping', 0)) then
+    raise exception 'Erst % min nach dem letzten Ping möglich.', public.cfg_int(v_cfg, 'speedhunt', 'min_minutes_after_silent_ping', 0) using errcode = 'P0001';
+  end if;
+
+  update public.games set speedhunts_left = speedhunts_left - 1 where id = p_game_id;
+  v_sh := public.start_speedhunt_internal(g, p_target, v_me.id, false, v_now);
+  if v_sh.status = 'laeuft' and v_sh.queries_used < v_sh.queries_total then
+    perform public.speedhunt_query_internal(g, v_sh, v_now);
+  end if;
+  perform public.log_game_event(p_game_id, 'speedhunt_start', jsonb_build_object('target', p_target, 'by', v_me.id));
+  perform public.bump(p_game_id);
+  return v_sh.id;
+end; $$;
+
+-- ---------------------------------------------------------------------------
+-- Vergangene Spiele löschen: der Host löscht das ganze Spiel, alle anderen entfernen es aus ihrer Liste.
+create or replace function public.delete_game(p_game_id uuid)
+returns void language plpgsql security definer set search_path = public as $$
+declare
+  g public.games;
+begin
+  select * into g from public.games where id = p_game_id;
+  if g.id is null then raise exception 'Spiel nicht gefunden.' using errcode = 'P0001'; end if;
+  if g.status in ('vorsprung', 'laeuft', 'pausiert', 'finale') then
+    raise exception 'Ein laufendes Spiel kann nicht gelöscht werden.' using errcode = 'P0001';
+  end if;
+  if g.host_id = auth.uid() then
+    delete from public.games where id = p_game_id;
+  elsif exists (select 1 from public.participants where game_id = p_game_id and user_id = auth.uid()) then
+    delete from public.participants where game_id = p_game_id and user_id = auth.uid();
+  else
+    raise exception 'Nicht erlaubt.' using errcode = '42501';
+  end if;
+end; $$;
+revoke execute on function public.delete_game(uuid) from public, anon;
+grant execute on function public.delete_game(uuid) to authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Bestehende, noch nicht gestartete Spiele an die neuen Regeln anpassen.
+update public.games set config_json = jsonb_set(jsonb_set(jsonb_set(config_json,
+    '{ping,first_ping_delay_minutes}', '0'::jsonb, true),
+    '{exit,arrival_deadline_offset_minutes}', '0'::jsonb, true),
+    '{speedhunt,no_consecutive_same_target}', 'true'::jsonb, true)
+where status in ('entwurf', 'geplant', 'lobby');
+update public.games set config_json = jsonb_set(config_json, '{exit,usable_minutes_before_end}', '2'::jsonb, true)
+where status in ('entwurf', 'geplant', 'lobby') and not (config_json -> 'exit' ? 'usable_minutes_before_end');
+
+-- ---------------------------------------------------------------------------
+-- Verständliche Meldungen statt alter Entwickler-Hinweise.
+create or replace function public.remove_participant(p_participant_id uuid)
+returns void language plpgsql security definer set search_path = public as $$
+declare
+  v_p public.participants;
+  v_game public.games;
+begin
+  select * into v_p from public.participants where id = p_participant_id;
+  if v_p.id is null then return; end if;
+  select * into v_game from public.games where id = v_p.game_id;
+  if v_p.user_id <> auth.uid() and v_game.host_id <> auth.uid() then
+    raise exception 'Keine Berechtigung.' using errcode = '42501';
+  end if;
+  if v_p.user_id = v_game.host_id then
+    raise exception 'Der Host kann das Spiel nicht verlassen.' using errcode = 'P0001';
+  end if;
+  if v_game.status not in ('entwurf', 'geplant', 'lobby', 'beendet', 'archiviert') then
+    raise exception 'Das Spiel läuft. Verlassen geht nur über „Aufgeben“.' using errcode = 'P0001';
+  end if;
+  delete from public.participants where id = p_participant_id;
+  perform public.log_game_event(v_p.game_id, 'participant_left', jsonb_build_object('user_id', v_p.user_id));
+end; $$;
+
+create or replace function public.update_game_config(p_game_id uuid, p_config jsonb, p_changes jsonb default '[]'::jsonb)
+returns void language plpgsql security definer set search_path = public as $$
+declare
+  v_change jsonb;
+begin
+  if not public.is_game_host(p_game_id) then
+    raise exception 'Nur der Host kann die Regeln ändern.' using errcode = '42501';
+  end if;
+  if not exists (select 1 from public.games where id = p_game_id and status in ('entwurf', 'geplant', 'lobby')) then
+    raise exception 'Die Regeln lassen sich nach dem Start nicht mehr ändern.' using errcode = 'P0001';
+  end if;
+  update public.games
+  set config_json = p_config, timezone = coalesce(p_config #>> '{game,timezone}', timezone), updated_at = now()
+  where id = p_game_id;
+  for v_change in select * from jsonb_array_elements(coalesce(p_changes, '[]'::jsonb)) loop
+    insert into public.game_config_changes (game_id, changed_by, path, old_value, new_value)
+    values (p_game_id, auth.uid(), v_change ->> 'path', v_change -> 'old', v_change -> 'new');
+  end loop;
+  perform public.log_game_event(p_game_id, 'config_changed', jsonb_build_object('changes', jsonb_array_length(coalesce(p_changes, '[]'::jsonb))));
+end; $$;
+
+-- ===== 0023_pause_sicherheit_fang.sql =====
+
+-- 0023: Rückmeldungen aus dem zweiten Testspiel
+-- 1. Der Host kann das Spiel pausieren (die Zeit hält an) und während der Pause Einstellungen ändern.
+-- 2. Der Vorsprung startet erst, wenn alle Spieler und Hunter den Sicherheitshinweis bestätigt haben
+--    (der Host kann notfalls trotzdem starten).
+-- 3. Fang: lehnt der Spieler einen gemeldeten Fang ab, gilt er nicht.
+-- 4. Abgebrochenes Spiel: keiner hat gewonnen.
+-- 5. Wiederholung: der ganze Weg aller Personen (ab Spielstart, fein aufgelöst), nicht nur die Pings.
+-- 6. Eigene Spiel-Varianten speichern.
+
+alter table public.games add column if not exists pause_kind text;
+alter table public.participants add column if not exists safety_ok_at timestamptz;
+
+-- ---------------------------------------------------------------------------
+-- Fortsetzen nach einer Pause: alle Zeiten um die Pause verschieben.
+-- p_kind: 'notfall' (SOS), 'host' (Pause durch den Host), 'sicherheit' (Warten auf den Sicherheitshinweis).
+create or replace function public.resume_shift(p_game_id uuid, p_title text, p_body text)
+returns void language plpgsql security definer set search_path = public as $$
+declare
+  g public.games;
+  v_now timestamptz;
+  d interval;
+begin
+  select * into g from public.games where id = p_game_id for update;
+  if g.paused_at is null then return; end if;
+  v_now := public.engine_now(p_game_id);
+  d := v_now - g.paused_at;
+  update public.games set paused_at = null, pause_reason = null, pause_kind = null, last_tick_at = v_now,
+    -- Wartet das Spiel auf den Sicherheitshinweis, beginnt es erst jetzt richtig.
+    start_at = case when g.pause_kind = 'sicherheit' then start_at + d else start_at end,
+    hunt_start_at = case when status = 'vorsprung' then hunt_start_at + d else hunt_start_at end,
+    ends_at = ends_at + d,
+    deadline_at = deadline_at + d,
+    exit_reveal_at = exit_reveal_at + d,
+    next_day_at = next_day_at + d,
+    state_json = case when g.pause_kind = 'sicherheit' then state_json
+      else state_json || jsonb_build_object('paused_s', coalesce((state_json ->> 'paused_s')::int, 0) + extract(epoch from d)::int) end
+  where id = p_game_id;
+  update public.participants set next_ping_at = next_ping_at + d, ping_pending_until = ping_pending_until + d,
+    grace_until = grace_until + d, out_pending_since = out_pending_since + d, stationary_since = stationary_since + d,
+    speeding_since = speeding_since + d, transport_prompted_at = transport_prompted_at + d,
+    restricted_since = restricted_since + d
+  where game_id = p_game_id;
+  update public.speedhunts set deadline_at = deadline_at + d where game_id = p_game_id and status = 'laeuft';
+  update public.active_effects set ends_at = ends_at + d where game_id = p_game_id and ends_at > g.paused_at;
+  update public.live_windows set ends_at = ends_at + d where game_id = p_game_id and ends_at > g.paused_at;
+  update public.violations set auto_apply_at = auto_apply_at + d where game_id = p_game_id and status = 'offen';
+  update public.catches set expires_at = expires_at + d where game_id = p_game_id and expires_at > g.paused_at;
+  update public.games set state_json = jsonb_set(state_json, '{next_phase_at}', to_jsonb((state_json ->> 'next_phase_at')::timestamptz + d))
+    where id = p_game_id and (state_json ->> 'next_phase_at') is not null;
+  update public.zones set visible_from = visible_from + d where game_id = p_game_id and visible_from > g.paused_at and visible_from <> 'infinity';
+  perform public.notify(p_game_id, 'alle', null, 'resume', p_title, p_body, '{}', 'kritisch');
+  perform public.log_game_event(p_game_id, 'resumed', jsonb_build_object('seconds', extract(epoch from d)::int, 'kind', coalesce(g.pause_kind, 'notfall')));
+  perform public.bump(p_game_id);
+end; $$;
+revoke execute on function public.resume_shift(uuid, text, text) from public, anon, authenticated;
+
+-- Nach einem Notfall geht es nur weiter, wenn das Spiel wegen des Notfalls unterbrochen war
+-- (eine Pause des Hosts oder das Warten auf den Sicherheitshinweis bleibt bestehen).
+create or replace function public.resume_internal(p_game_id uuid)
+returns void language plpgsql security definer set search_path = public as $$
+begin
+  if exists (select 1 from public.games where id = p_game_id and pause_kind is not null) then return; end if;
+  perform public.resume_shift(p_game_id, 'Weiter geht''s!', 'Der Notfall ist beendet. Das Spiel läuft wieder, die unterbrochene Zeit wird angehängt.');
+end; $$;
+revoke execute on function public.resume_internal(uuid) from public, anon, authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Pause durch den Host
+create or replace function public.host_pause(p_game_id uuid, p_reason text default null)
+returns void language plpgsql security definer set search_path = public as $$
+declare g public.games;
+begin
+  if not public.is_game_host(p_game_id) then raise exception 'Nur wer das Spiel erstellt hat, kann pausieren.' using errcode = '42501'; end if;
+  perform public.tick_game(p_game_id);
+  select * into g from public.games where id = p_game_id for update;
+  if g.status not in ('vorsprung', 'laeuft', 'finale') then raise exception 'Das Spiel läuft nicht.' using errcode = 'P0001'; end if;
+  if g.paused_at is not null then raise exception 'Das Spiel ist schon unterbrochen.' using errcode = 'P0001'; end if;
+  update public.games set paused_at = public.engine_now(p_game_id), pause_kind = 'host',
+    pause_reason = coalesce(nullif(trim(p_reason), ''), 'Pause') where id = p_game_id;
+  perform public.notify(p_game_id, 'alle', null, 'pause', 'Spiel pausiert',
+    'Der Host hat das Spiel angehalten' || coalesce(': ' || nullif(trim(p_reason), ''), '') || '. Die Zeit steht still, bis es weitergeht.', '{}', 'kritisch');
+  perform public.log_game_event(p_game_id, 'paused', jsonb_build_object('reason', p_reason, 'kind', 'host'));
+  perform public.bump(p_game_id);
+end; $$;
+revoke execute on function public.host_pause(uuid, text) from public, anon;
+grant execute on function public.host_pause(uuid, text) to authenticated;
+
+create or replace function public.host_resume(p_game_id uuid)
+returns void language plpgsql security definer set search_path = public as $$
+declare g public.games;
+begin
+  if not public.is_game_host(p_game_id) then raise exception 'Nur wer das Spiel erstellt hat, kann fortsetzen.' using errcode = '42501'; end if;
+  select * into g from public.games where id = p_game_id;
+  if g.paused_at is null then return; end if;
+  if g.pause_kind is distinct from 'host' then raise exception 'Das Spiel ist nicht vom Host pausiert.' using errcode = 'P0001'; end if;
+  if exists (select 1 from public.emergencies where game_id = p_game_id and status = 'offen') then
+    raise exception 'Es läuft noch ein Notfall. Zuerst den Notfall beenden.' using errcode = 'P0001';
+  end if;
+  perform public.resume_shift(p_game_id, 'Weiter geht''s!', 'Der Host hat das Spiel fortgesetzt. Die Pause wird hinten angehängt.');
+end; $$;
+revoke execute on function public.host_resume(uuid) from public, anon;
+grant execute on function public.host_resume(uuid) to authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Sicherheitshinweis: jede Person bestätigt ihn. Vorher startet der Vorsprung nicht.
+create or replace function public.safety_missing(p_game_id uuid)
+returns int language sql stable security definer set search_path = public as $$
+  select count(*)::int from public.participants
+  where game_id = p_game_id and role in ('spieler', 'hunter', 'zentrale') and safety_ok_at is null;
+$$;
+revoke execute on function public.safety_missing(uuid) from public, anon, authenticated;
+
+create or replace function public.safety_confirm(p_game_id uuid)
+returns void language plpgsql security definer set search_path = public as $$
+declare
+  v_me public.participants;
+  g public.games;
+begin
+  v_me := public.require_participant(p_game_id);
+  update public.participants set safety_ok_at = coalesce(safety_ok_at, now()) where id = v_me.id;
+  select * into g from public.games where id = p_game_id;
+  if g.paused_at is not null and g.pause_kind = 'sicherheit' and public.safety_missing(p_game_id) = 0 then
+    perform public.resume_shift(p_game_id, 'Los geht''s!', 'Alle haben den Sicherheitshinweis bestätigt. Der Vorsprung läuft.');
+  end if;
+  perform public.bump(p_game_id);
+end; $$;
+revoke execute on function public.safety_confirm(uuid) from public, anon;
+grant execute on function public.safety_confirm(uuid) to authenticated;
+
+-- Notfalls startet der Host ohne die fehlenden Bestätigungen.
+create or replace function public.safety_force_start(p_game_id uuid)
+returns void language plpgsql security definer set search_path = public as $$
+declare g public.games;
+begin
+  if not public.is_game_host(p_game_id) then raise exception 'Nur wer das Spiel erstellt hat.' using errcode = '42501'; end if;
+  select * into g from public.games where id = p_game_id;
+  if g.paused_at is null or g.pause_kind is distinct from 'sicherheit' then return; end if;
+  perform public.log_game_event(p_game_id, 'safety_forced', jsonb_build_object('missing', public.safety_missing(p_game_id)));
+  perform public.resume_shift(p_game_id, 'Los geht''s!', 'Der Host hat das Spiel gestartet. Der Vorsprung läuft.');
+end; $$;
+revoke execute on function public.safety_force_start(uuid) from public, anon;
+grant execute on function public.safety_force_start(uuid) to authenticated;
+
+-- Start: fehlt noch eine Bestätigung, wartet das Spiel (die Zeit steht still).
+alter function public.start_game(uuid, boolean) rename to start_game_zeiten;
+revoke execute on function public.start_game_zeiten(uuid, boolean) from public, anon, authenticated;
+
+create or replace function public.start_game(p_game_id uuid, p_test boolean default false)
+returns jsonb language plpgsql security definer set search_path = public, extensions as $$
+declare
+  v_res jsonb;
+  v_missing int;
+begin
+  v_res := public.start_game_zeiten(p_game_id, p_test);
+  v_missing := public.safety_missing(p_game_id);
+  if v_missing > 0 then
+    update public.games set paused_at = public.engine_now(p_game_id), pause_kind = 'sicherheit',
+      pause_reason = 'Warten auf den Sicherheitshinweis' where id = p_game_id;
+    perform public.notify(p_game_id, 'alle', null, 'safety_wait', 'Bitte Sicherheitshinweis bestätigen',
+      'Der Vorsprung startet, sobald alle Spieler und Hunter den Hinweis gelesen und bestätigt haben.', '{}', 'kritisch');
+    perform public.bump(p_game_id);
+  end if;
+  return v_res || jsonb_build_object('waiting_for_safety', v_missing);
+end; $$;
+revoke execute on function public.start_game(uuid, boolean) from public, anon;
+grant execute on function public.start_game(uuid, boolean) to authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Regeln ändern: vor dem Start oder während einer Pause des Hosts (dann werden die Zeiten neu berechnet).
+create or replace function public.update_game_config(p_game_id uuid, p_config jsonb, p_changes jsonb default '[]'::jsonb)
+returns void language plpgsql security definer set search_path = public as $$
+declare
+  v_change jsonb;
+  g public.games;
+  v_total int;
+  v_head int;
+  v_reveal int;
+  v_paused int;
+  v_ends timestamptz;
+begin
+  if not public.is_game_host(p_game_id) then
+    raise exception 'Nur der Host kann die Regeln ändern.' using errcode = '42501';
+  end if;
+  select * into g from public.games where id = p_game_id for update;
+  if g.status in ('entwurf', 'geplant', 'lobby') then
+    update public.games
+    set config_json = p_config, timezone = coalesce(p_config #>> '{game,timezone}', timezone), updated_at = now()
+    where id = p_game_id;
+  elsif g.status in ('vorsprung', 'laeuft', 'finale') and g.paused_at is not null and g.pause_kind = 'host' then
+    v_total := public.cfg_int(p_config, 'game', 'duration_minutes', 180);
+    v_head := public.cfg_int(p_config, 'start', 'head_start_minutes', 0);
+    v_paused := coalesce((g.state_json ->> 'paused_s')::int, 0);
+    v_reveal := least(public.cfg_int(p_config, 'exit', 'reveal_minutes_before_end', 20), v_total - v_head);
+    v_ends := g.start_at + make_interval(mins => v_total, secs => v_paused);
+    if v_ends < g.paused_at + interval '5 minutes' then
+      raise exception 'Die Spielzeit ist zu kurz: es sind schon % min gespielt.',
+        floor(extract(epoch from (g.paused_at - g.start_at)) / 60 - v_paused / 60.0)::int using errcode = 'P0001';
+    end if;
+    if g.status = 'vorsprung' and g.start_at + make_interval(mins => v_head, secs => v_paused) < g.paused_at then
+      raise exception 'Der Vorsprung ist schon länger gelaufen.' using errcode = 'P0001';
+    end if;
+    update public.games set config_json = p_config, updated_at = now(),
+      ends_at = v_ends, deadline_at = v_ends,
+      hunt_start_at = case when status = 'vorsprung' then start_at + make_interval(mins => v_head, secs => v_paused) else hunt_start_at end,
+      exit_reveal_at = case when exit_revealed then exit_reveal_at
+        when public.cfg_bool(p_config, 'exit', 'enabled', true) then v_ends - make_interval(mins => v_reveal) end
+    where id = p_game_id;
+    perform public.notify(p_game_id, 'alle', null, 'config_changed', 'Regeln geändert',
+      'Der Host hat während der Pause die Einstellungen angepasst. Schau unter „Regeln“ nach.', '{}', 'hoch');
+  elsif g.status in ('vorsprung', 'laeuft', 'finale') then
+    raise exception 'Regeln lassen sich im laufenden Spiel nur während einer Pause ändern.' using errcode = 'P0001';
+  else
+    raise exception 'Die Regeln lassen sich nach dem Start nicht mehr ändern.' using errcode = 'P0001';
+  end if;
+  for v_change in select * from jsonb_array_elements(coalesce(p_changes, '[]'::jsonb)) loop
+    insert into public.game_config_changes (game_id, changed_by, path, old_value, new_value)
+    values (p_game_id, auth.uid(), v_change ->> 'path', v_change -> 'old', v_change -> 'new');
+  end loop;
+  perform public.log_game_event(p_game_id, 'config_changed', jsonb_build_object('changes', jsonb_array_length(coalesce(p_changes, '[]'::jsonb))));
+  perform public.bump(p_game_id);
+end; $$;
+
+-- ---------------------------------------------------------------------------
+-- Fang: lehnt der Spieler ab, gilt der Fang nicht. Der Hunter kann dann den Zahlencode verlangen.
+create or replace function public.catch_respond(p_catch_id uuid, p_accept boolean)
+returns void language plpgsql security definer set search_path = public as $$
+declare
+  v_c public.catches;
+  v_me public.participants;
+  g public.games;
+begin
+  select * into v_c from public.catches where id = p_catch_id;
+  if v_c.id is null then raise exception 'Fang nicht gefunden.' using errcode = 'P0001'; end if;
+  v_me := public.require_participant(v_c.game_id);
+  g := public.require_running(v_c.game_id, true);
+  if v_c.status <> 'wartet_auf_bestaetigung' then raise exception 'Schon entschieden.' using errcode = 'P0001'; end if;
+  if v_me.id <> v_c.runner_id then raise exception 'Nur die gefangene Person.' using errcode = '42501'; end if;
+  if p_accept then
+    perform public.apply_catch(g, v_c.id, public.engine_now(g.id));
+  else
+    update public.catches set status = 'abgelehnt', reason = 'Vom Spieler abgelehnt', expires_at = null where id = v_c.id;
+    perform public.notify(g.id, null, v_c.hunter_id, 'catch_rejected', 'Fang abgelehnt',
+      public.pname(v_c.runner_id) || ' sagt, es war kein Fang. Lass dir den Fang-Code zeigen und gib ihn ein.', '{}', 'hoch');
+  end if;
+  perform public.bump(g.id);
+end; $$;
+
+-- ---------------------------------------------------------------------------
+-- Spiel abgebrochen: keiner hat gewonnen, niemand verliert.
+alter function public.finish_game(public.games, timestamptz, text) rename to finish_game_basis;
+revoke execute on function public.finish_game_basis(public.games, timestamptz, text) from public, anon, authenticated;
+
+create or replace function public.finish_game(p_game public.games, p_now timestamptz, p_reason text)
+returns void language plpgsql security definer set search_path = public as $$
+declare v_sh public.speedhunts;
+begin
+  if p_reason is distinct from 'abgebrochen' then
+    perform public.finish_game_basis(p_game, p_now, p_reason);
+    return;
+  end if;
+  if p_game.status = 'beendet' then return; end if;
+  for v_sh in select * from public.speedhunts where game_id = p_game.id and status in ('laeuft', 'wartet_auf_freigabe', 'aufgeschoben') loop
+    perform public.end_speedhunt(p_game, v_sh, 'spielende', p_now);
+  end loop;
+  update public.live_windows set ends_at = p_now where game_id = p_game.id and (ends_at is null or ends_at > p_now);
+  update public.active_effects set ends_at = p_now where game_id = p_game.id and (ends_at is null or ends_at > p_now);
+  update public.games set status = 'beendet', ended_at = p_now, paused_at = null, pause_kind = null, result_json = jsonb_build_object(
+    'reason', 'abgebrochen', 'winners', '[]'::jsonb, 'mode', public.cfg_text(p_game.config_json, 'win', 'mode', 'alle_ueberlebenden'),
+    'scores', '{}'::jsonb,
+    'hours', round((extract(epoch from (p_now - coalesce(p_game.hunt_start_at, p_now))) / 3600.0)::numeric, 2),
+    'catches', (select count(*) from public.catches where game_id = p_game.id and status = 'gueltig'),
+    'pings', (select count(*) from public.pings where game_id = p_game.id),
+    'speedhunts', (select count(*) from public.speedhunts where game_id = p_game.id and started_at is not null)
+  ) where id = p_game.id;
+  perform public.notify(p_game.id, 'alle', null, 'game_end', 'Spiel abgebrochen', 'Keiner hat gewonnen.', jsonb_build_object('reason', 'abgebrochen'), 'hoch');
+  perform public.log_game_event(p_game.id, 'game_ended', jsonb_build_object('reason', 'abgebrochen'));
+end; $$;
+revoke execute on function public.finish_game(public.games, timestamptz, text) from public, anon, authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Wiederholung: der ganze Weg ab Spielstart, ein Punkt alle 10 s.
+create or replace function public.game_replay(p_game_id uuid)
+returns jsonb language plpgsql stable security definer set search_path = public, extensions as $$
+declare g public.games;
+begin
+  select * into g from public.games where id = p_game_id;
+  if not public.is_game_member(p_game_id) then raise exception 'Du bist nicht in diesem Spiel.' using errcode = '42501'; end if;
+  if g.status not in ('beendet', 'archiviert') then
+    raise exception 'Die Wiederholung gibt es erst nach Spielende.' using errcode = 'P0001';
+  end if;
+  return jsonb_build_object(
+    'start', coalesce(g.start_at, g.hunt_start_at), 'hunt_start', g.hunt_start_at, 'end', coalesce(g.ended_at, now() + g.clock_offset),
+    'tracks', (
+      select coalesce(jsonb_object_agg(pid, pts), '{}') from (
+        select participant_id pid, jsonb_agg(jsonb_build_array(b, round(lat::numeric, 6), round(lng::numeric, 6)) order by b) pts
+        from (
+          select distinct on (participant_id, floor(extract(epoch from at) / 10)) participant_id,
+                 (floor(extract(epoch from at) / 10) * 10)::bigint b, ST_Y(geom) lat, ST_X(geom) lng
+          from public.location_samples
+          where game_id = p_game_id and not is_mock and coalesce(accuracy_m, 0) <= 100
+          order by participant_id, floor(extract(epoch from at) / 10), accuracy_m nulls last, at desc
+        ) s group by participant_id
+      ) t
+    ),
+    'pings', (select coalesce(jsonb_agg(jsonb_build_object('participant_id', participant_id, 'at', at, 'lat', lat, 'lng', lng, 'source', source, 'is_fake', is_fake) order by at), '[]')
+              from public.pings where game_id = p_game_id and lat is not null),
+    'catches', (select coalesce(jsonb_agg(jsonb_build_object('runner_id', runner_id, 'hunter_id', hunter_id, 'at', at, 'lat', lat, 'lng', lng)), '[]')
+                from public.catches where game_id = p_game_id and status = 'gueltig'),
+    'events', (select coalesce(jsonb_agg(jsonb_build_object('at', at, 'type', type, 'payload', payload_json) order by at), '[]')
+               from public.game_events where game_id = p_game_id)
+  );
+end; $$;
+
+-- ---------------------------------------------------------------------------
+-- Spielstand: Art der Pause und wer den Sicherheitshinweis noch nicht bestätigt hat.
+alter function public.game_state(uuid) rename to game_state_basis;
+revoke execute on function public.game_state_basis(uuid) from public, anon, authenticated;
+
+create or replace function public.game_state(p_game_id uuid)
+returns jsonb language plpgsql stable security definer set search_path = public, extensions as $$
+declare
+  v jsonb;
+  g public.games;
+  me public.participants;
+begin
+  v := public.game_state_basis(p_game_id);
+  select * into g from public.games where id = p_game_id;
+  select * into me from public.participants where game_id = p_game_id and user_id = auth.uid();
+  v := jsonb_set(v, '{game,pause_kind}', coalesce(to_jsonb(case when g.paused_at is not null then coalesce(g.pause_kind, 'notfall') end), 'null'::jsonb));
+  v := jsonb_set(v, '{me,safety_ok}', to_jsonb(me.safety_ok_at is not null));
+  v := v || jsonb_build_object('safety_missing', (
+    select coalesce(jsonb_agg(p.id), '[]') from public.participants p
+    where p.game_id = p_game_id and p.role in ('spieler', 'hunter', 'zentrale') and p.safety_ok_at is null));
+  return v;
+end; $$;
+revoke execute on function public.game_state(uuid) from public, anon;
+grant execute on function public.game_state(uuid) to authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Eigene Spiel-Varianten (nur für die Person, die sie gespeichert hat).
+create table if not exists public.config_templates (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users (id) on delete cascade,
+  name text not null check (char_length(name) between 1 and 60),
+  config_json jsonb not null,
+  created_at timestamptz not null default now()
+);
+create index if not exists config_templates_user_idx on public.config_templates (user_id, created_at desc);
+alter table public.config_templates enable row level security;
+drop policy if exists "Varianten: eigene" on public.config_templates;
+create policy "Varianten: eigene" on public.config_templates for all to authenticated
+  using (user_id = auth.uid()) with check (user_id = auth.uid());
+grant select, insert, update, delete on public.config_templates to authenticated;
+
+-- ---------------------------------------------------------------------------
+-- "Nochmal spielen": die Karte eines früheren Spiels übernehmen (Spielfeld, Gefahrenzonen, Start- und Fluchtpunkte).
+-- Von der Engine erzeugte Stufen der automatischen Verkleinerung werden nicht kopiert, die entstehen beim Start neu.
+create or replace function public.copy_map(p_from uuid, p_to uuid)
+returns int language plpgsql security definer set search_path = public, extensions as $$
+declare
+  v_auto boolean;
+  n int;
+begin
+  if not public.is_game_host(p_to) then raise exception 'Nur der Host kann die Karte bearbeiten.' using errcode = '42501'; end if;
+  if not public.is_game_member(p_from) then raise exception 'Du warst in diesem Spiel nicht dabei.' using errcode = '42501'; end if;
+  if not exists (select 1 from public.games where id = p_to and status in ('entwurf', 'geplant', 'lobby')) then
+    raise exception 'Die Karte ist ab Spielstart gesperrt.' using errcode = 'P0001';
+  end if;
+  v_auto := public.cfg_text((select config_json from public.games where id = p_from), 'zone', 'shrink_mode', 'aus') = 'auto';
+  delete from public.zones where game_id = p_to;
+  insert into public.zones (game_id, kind, name, color, geom, radius_m, day_index, grows, ping_interval_override,
+    crossing_allowed, restricted_type)
+  select p_to, z.kind, z.name, z.color, z.geom, z.radius_m,
+    case when v_auto then null else z.day_index end, z.grows, z.ping_interval_override, z.crossing_allowed, z.restricted_type
+  from public.zones z
+  where z.game_id = p_from and z.kind in ('spielfeld', 'sperrzone', 'exit', 'treffpunkt')
+    and not (v_auto and z.kind = 'spielfeld' and coalesce(z.day_index, 1) > 1)
+  order by z.created_at;
+  get diagnostics n = row_count;
+  perform public.place_hunter_wait(p_to);
+  perform public.log_game_event(p_to, 'map_saved', jsonb_build_object('zones', n, 'copied_from', p_from));
+  perform public.bump(p_to);
+  return n;
+end; $$;
+revoke execute on function public.copy_map(uuid, uuid) from public, anon;
+grant execute on function public.copy_map(uuid, uuid) to authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Ping so genau wie möglich, nie verschoben: statt eines Mittelwerts (der einen Punkt ergeben kann, an dem
+-- niemand war) zählt der genaueste echte Messpunkt der letzten 20 Sekunden, bei Gleichstand der neueste.
+create or replace function public.best_position(p_participant_id uuid, p_now timestamptz,
+  out lat double precision, out lng double precision, out accuracy_m real, out age_s int)
+language plpgsql stable security definer set search_path = public, extensions as $$
+declare
+  v_at timestamptz;
+begin
+  select ST_Y(s.geom), ST_X(s.geom), s.accuracy_m, s.at
+    into lat, lng, accuracy_m, v_at
+  from public.location_samples s
+  where s.participant_id = p_participant_id and s.at > p_now - interval '20 seconds' and s.at <= p_now
+    and coalesce(s.accuracy_m, 0) < 100 and not s.is_mock
+  order by coalesce(s.accuracy_m, 50), s.at desc
+  limit 1;
+  if v_at is not null then
+    age_s := greatest(0, extract(epoch from (p_now - v_at))::int);
+    return;
+  end if;
+  select p.lat, p.lng, p.accuracy_m, greatest(0, extract(epoch from (p_now - p.at))::int)
+    into lat, lng, accuracy_m, age_s
+  from public.positions p where participant_id = p_participant_id;
+end; $$;
+revoke execute on function public.best_position(uuid, timestamptz) from public, anon, authenticated;
+
+-- ===== 0024_spieler_pings_naehe_radar.sql =====
+
+-- Runde 16:
+-- 1. Spieler sehen die Pings der anderen Spieler (gleiche Pings wie die Hunter, aber ohne Blitzjagd-Pings),
+--    damit sie sich besser auf der Karte verteilen können.
+-- 2. Neuer Joker "Nähe-Radar": zeigt eine eingestellte Zeit lang, ob ein Hunter näher als ein eingestellter Abstand ist (nicht wo).
+-- 3. Der Nähe-Alarm zweier Spieler wird ganz entfernt (Prüfung im Spieltakt, Funktion, Tabelle).
+
+-- ---------------------------------------------------------------------------
+-- Abstand je Joker (nur Nähe-Radar), beim Freischalten aus der Einstellung übernommen.
+alter table public.inventory_items add column if not exists distance_m int;
+
+-- grant_jokers: mit Abstand und Texten für den Nähe-Radar (zuletzt in 0016_ein_startpunkt_ohne_zentrale.sql)
+create or replace function public.grant_jokers(p_game public.games, p_now timestamptz)
+returns void language plpgsql security definer set search_path = public as $$
+declare
+  v_cfg jsonb := p_game.config_json;
+  v_types jsonb := coalesce(v_cfg -> 'joker' -> 'types', '[]');
+  v_done jsonb;
+  v_t jsonb;
+  v_p public.participants;
+  i int;
+begin
+  if not public.cfg_bool(v_cfg, 'joker', 'enabled', false) or jsonb_typeof(v_types) <> 'array' or jsonb_array_length(v_types) = 0 then return; end if;
+  if p_game.status not in ('laeuft', 'finale') or p_game.hunt_start_at is null then return; end if;
+  -- Sperrt die Zeile, damit zwei gleichzeitige Ticks einen Joker nicht doppelt vergeben.
+  select coalesce(state_json -> 'jokers_granted', '[]') into v_done from public.games where id = p_game.id for update;
+  for i in 0 .. jsonb_array_length(v_types) - 1 loop
+    v_t := v_types -> i;
+    continue when v_done @> jsonb_build_array(i);
+    continue when p_now < p_game.hunt_start_at + make_interval(mins => coalesce((v_t ->> 'after_minutes')::int, 0));
+    v_done := v_done || jsonb_build_array(i);
+    update public.games set state_json = state_json || jsonb_build_object('jokers_granted', v_done) where id = p_game.id;
+    for v_p in select * from public.participants where game_id = p_game.id and role = 'spieler' and state in ('aktiv', 'ausserhalb', 'notfall') loop
+      insert into public.inventory_items (game_id, participant_id, kind, type, minutes, distance_m, granted_day, granted_at, source)
+      values (p_game.id, v_p.id, 'joker', v_t ->> 'type', (v_t ->> 'minutes')::int,
+              case when v_t ->> 'type' = 'naehe_radar' then coalesce((v_t ->> 'distance_m')::int, 500) end,
+              greatest(p_game.current_day, 1), p_now, 'zeit');
+      perform public.notify(p_game.id, null, v_p.id, 'joker', 'Neuer Joker: ' || case v_t ->> 'type'
+          when 'regeneration' then 'Regeneration'
+          when 'hunter_erfragen' then 'Hunter-Standorte'
+          when 'naehe_radar' then 'Nähe-Radar'
+          when 'catch_free' then 'Schutzschild'
+          else replace(v_t ->> 'type', '_', ' ') end,
+        case v_t ->> 'type'
+          when 'regeneration' then 'Du wirst ' || coalesce(v_t ->> 'minutes', '?') || ' min nicht gepingt, und keine Blitzjagd auf dich ist möglich. Einsetzen unter Aktionen (nicht während einer Blitzjagd).'
+          when 'hunter_erfragen' then 'Zeigt dir beim Einsetzen einmalig, wo alle Hunter gerade sind (nicht live). Einsetzen unter Aktionen.'
+          when 'naehe_radar' then 'Zeigt dir ' || coalesce(v_t ->> 'minutes', '15') || ' min lang, ob ein Hunter näher als ' || coalesce(v_t ->> 'distance_m', '500') || ' m ist (nicht wo). Einsetzen unter Aktionen.'
+          when 'catch_free' then 'Du kannst ' || coalesce(v_t ->> 'minutes', '?') || ' min nicht gefangen werden. Einsetzen unter Aktionen.'
+          else '' end, '{}', 'hoch');
+    end loop;
+  end loop;
+end; $$;
+
+-- ---------------------------------------------------------------------------
+-- use_item: Nähe-Radar hier, alle anderen Joker wie bisher.
+alter function public.use_item(uuid, jsonb) rename to use_item_basis;
+revoke execute on function public.use_item_basis(uuid, jsonb) from public, anon, authenticated;
+
+create or replace function public.use_item(p_item_id uuid, p_payload jsonb default '{}'::jsonb)
+returns jsonb language plpgsql security definer set search_path = public, extensions as $$
+declare
+  v_i public.inventory_items;
+  v_me public.participants;
+  g public.games;
+  v_now timestamptz;
+  v_minutes int;
+  v_dist int;
+begin
+  select * into v_i from public.inventory_items where id = p_item_id;
+  if v_i.id is null then raise exception 'Gegenstand nicht gefunden.' using errcode = 'P0001'; end if;
+  if v_i.type <> 'naehe_radar' then return public.use_item_basis(p_item_id, p_payload); end if;
+  v_me := public.require_participant(v_i.game_id, array['spieler']);
+  if v_me.id <> v_i.participant_id then raise exception 'Nicht dein Gegenstand.' using errcode = '42501'; end if;
+  g := public.require_running(v_i.game_id);
+  v_now := public.engine_now(g.id);
+  if v_i.used_at is not null or v_i.expired then raise exception 'Schon benutzt oder verfallen.' using errcode = 'P0001'; end if;
+  if v_me.state not in ('aktiv', 'ausserhalb') then raise exception 'Du bist nicht mehr im Spiel.' using errcode = 'P0001'; end if;
+  v_minutes := coalesce(v_i.minutes, 15);
+  v_dist := coalesce(v_i.distance_m, 500);
+  insert into public.active_effects (game_id, participant_id, type, starts_at, ends_at, payload, source_item_id)
+  values (g.id, v_me.id, 'naehe_radar', v_now, v_now + make_interval(mins => v_minutes), jsonb_build_object('distance_m', v_dist), v_i.id);
+  perform public.notify(g.id, null, v_me.id, 'joker', 'Nähe-Radar aktiv',
+    v_minutes || ' min lang siehst du, ob ein Hunter näher als ' || v_dist || ' m ist.', '{}', 'normal');
+  update public.inventory_items set used_at = v_now where id = v_i.id;
+  perform public.log_game_event(g.id, 'item_used', jsonb_build_object('type', 'naehe_radar', 'participant', v_me.id));
+  perform public.bump(g.id);
+  return jsonb_build_object('type', 'naehe_radar');
+end; $$;
+revoke execute on function public.use_item(uuid, jsonb) from public, anon;
+grant execute on function public.use_item(uuid, jsonb) to authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Spielstand (zuletzt in 0023_pause_sicherheit_fang.sql):
+-- Spieler bekommen zusätzlich die Pings der anderen Spieler und den Stand ihres Nähe-Radars.
+create or replace function public.game_state(p_game_id uuid)
+returns jsonb language plpgsql stable security definer set search_path = public, extensions as $$
+declare
+  v jsonb;
+  g public.games;
+  me public.participants;
+  v_now timestamptz;
+  v_hist int;
+  v_radar public.active_effects;
+  v_my public.positions;
+  v_dist int;
+begin
+  v := public.game_state_basis(p_game_id);
+  select * into g from public.games where id = p_game_id;
+  select * into me from public.participants where game_id = p_game_id and user_id = auth.uid();
+  v_now := public.engine_now(g.id);
+  v := jsonb_set(v, '{game,pause_kind}', coalesce(to_jsonb(case when g.paused_at is not null then coalesce(g.pause_kind, 'notfall') end), 'null'::jsonb));
+  v := jsonb_set(v, '{me,safety_ok}', to_jsonb(me.safety_ok_at is not null));
+  v := v || jsonb_build_object('safety_missing', (
+    select coalesce(jsonb_agg(p.id), '[]') from public.participants p
+    where p.game_id = p_game_id and p.role in ('spieler', 'hunter', 'zentrale') and p.safety_ok_at is null));
+
+  if me.role = 'spieler' and g.status not in ('beendet', 'archiviert') then
+    v_hist := public.cfg_int(g.config_json, 'ping', 'history_per_player', 200);
+    -- Eigene Pings wie bisher, dazu die Pings der anderen Spieler, sobald die Hunter sie auch sehen.
+    -- Ohne Blitzjagd-Pings der anderen.
+    v := jsonb_set(v, '{pings}', (
+      select coalesce(jsonb_agg(jsonb_build_object('id', x.id, 'participant_id', x.participant_id, 'at', x.at, 'lat', x.lat, 'lng', x.lng,
+        'accuracy_m', x.accuracy_m, 'source', x.source, 'n', x.n, 'speedhunt_id', x.speedhunt_id, 'zone_kind', x.zone_kind, 'label', x.label,
+        'stale_seconds', x.stale_seconds, 'is_fake', case when x.participant_id = me.id then x.is_fake end, 'truth', null
+      ) order by x.at), '[]')
+      from (
+        select pg.*, row_number() over (partition by pg.participant_id order by pg.at desc) rn
+        from public.pings pg join public.participants p on p.id = pg.participant_id
+        where pg.game_id = g.id and (
+          pg.participant_id = me.id
+          or (p.role = 'spieler' and pg.visible_at <= v_now and pg.source <> 'speedhunt')
+        )
+      ) x where x.rn <= v_hist
+    ));
+
+    -- Joker mit Abstand (Nähe-Radar).
+    v := jsonb_set(v, '{me,inventory}', (
+      select coalesce(jsonb_agg(jsonb_build_object('id', i.id, 'kind', i.kind, 'type', i.type, 'minutes', i.minutes, 'distance_m', i.distance_m, 'source', i.source) order by i.granted_at), '[]')
+      from public.inventory_items i where i.participant_id = me.id and i.used_at is null and not i.expired));
+
+    -- Nähe-Radar: nur ja/nein, nie wo. Zählt Hunter mit einem Standort der letzten 10 min.
+    select * into v_radar from public.active_effects
+    where participant_id = me.id and type = 'naehe_radar' and starts_at <= v_now and ends_at > v_now
+    order by ends_at desc limit 1;
+    if v_radar.id is not null then
+      v_dist := coalesce((v_radar.payload ->> 'distance_m')::int, 500);
+      select * into v_my from public.positions where participant_id = me.id;
+      v := jsonb_set(v, '{me,radar}', jsonb_build_object(
+        'ends_at', v_radar.ends_at, 'distance_m', v_dist,
+        'near', case when v_my.participant_id is null then null else exists (
+          select 1 from public.positions hp join public.participants h on h.id = hp.participant_id
+          where h.game_id = g.id and h.role = 'hunter' and hp.at > v_now - interval '10 minutes'
+            and public.dist_m(hp.geom, v_my.geom) <= v_dist) end));
+    end if;
+  end if;
+  return v;
+end; $$;
+revoke execute on function public.game_state(uuid) from public, anon;
+grant execute on function public.game_state(uuid) to authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Nähe-Alarm zweier Spieler entfernt.
+-- tick_game_basis: wie zuletzt in 0017_ohne_strafen_sos_fluchtpunkt.sql (als tick_game, in 0022 umbenannt),
+-- nur ohne die Prüfung, ob zwei Spieler zu nahe sind.
+create or replace function public.tick_game_basis(p_game_id uuid)
+returns void language plpgsql security definer set search_path = public, extensions as $$
+declare
+  g public.games;
+  v_cfg jsonb;
+  v_now timestamptz;
+  v_delta int;
+  v_p public.participants;
+  v_e public.active_effects;
+  v_sh public.speedhunts;
+  v_h public.hideouts;
+  v_v public.violations;
+  v_c public.catches;
+  v_ch public.challenges;
+  v_pos record;
+  v_max int;
+  v_remaining int;
+  v_announce int;
+  v_times jsonb;
+  v_t jsonb;
+  v_target uuid;
+  v_leave int;
+  v_loss int;
+  v_runner_pos public.positions;
+  v_hunter_pos public.positions;
+begin
+  select * into g from public.games where id = p_game_id for update skip locked;
+  if g.id is null or g.status not in ('vorsprung', 'laeuft', 'finale') then return; end if;
+  v_now := now() + g.clock_offset;
+  if g.paused_at is not null then return; end if;
+  v_cfg := g.config_json;
+  v_delta := greatest(0, extract(epoch from (v_now - coalesce(g.last_tick_at, v_now)))::int);
+
+  -- Jagdbeginn
+  if g.status = 'vorsprung' and v_now >= g.hunt_start_at then
+    g := public.hunt_begin(g, v_now);
+  end if;
+  if g.status = 'vorsprung' then
+    update public.games set last_tick_at = v_now where id = g.id;
+    perform public.bump(g.id);
+    return;
+  end if;
+
+  -- 1. Tagesreset
+  while g.next_day_at is not null and g.next_day_at <= v_now loop
+    g := public.day_reset(g, v_now);
+  end loop;
+
+  -- Joker, sobald ihre Freischaltzeit erreicht ist
+  perform public.grant_jokers(g, v_now);
+
+  -- Spielfeld-Phasen alle X Minuten
+  if public.shrink_every_minutes(v_cfg) > 0 then
+    while (g.state_json ->> 'next_phase_at') is not null and (g.state_json ->> 'next_phase_at')::timestamptz <= v_now loop
+      g := public.phase_advance(g, v_now);
+    end loop;
+    g := public.phase_announce(g, v_now);
+  end if;
+
+  -- Ankündigung der Spielfeldänderung
+  v_announce := public.cfg_int(v_cfg, 'zone', 'shrink_announce_minutes', 180);
+  if public.shrink_every_minutes(v_cfg) = 0 and g.next_day_at is not null and g.next_day_at - make_interval(mins => v_announce) <= v_now
+     and coalesce((g.state_json ->> 'announced_day')::int, 0) < g.current_day + 1
+     and exists (select 1 from public.zones where game_id = g.id and kind = 'spielfeld' and day_index = g.current_day + 1) then
+    update public.games set state_json = state_json || jsonb_build_object('announced_day', g.current_day + 1), map_version = map_version + 1
+    where id = g.id returning * into g;
+    perform public.notify(g.id, 'alle', null, 'zone_announce', 'Neues Spielfeld ab ' || to_char(g.next_day_at at time zone g.timezone, 'HH24:MI'),
+      'Die neuen Grenzen sind auf der Karte gestrichelt.', '{}', 'hoch');
+  end if;
+
+  -- 3. Effekt-Enden
+  for v_e in select * from public.active_effects where game_id = g.id and ends_at is not null and ends_at <= v_now and not (payload ? 'done') loop
+    update public.active_effects set payload = payload || '{"done": true}' where id = v_e.id;
+    if v_e.type = 'hotel' then
+      perform public.create_ping(g, v_e.participant_id, 'hotel_end', (v_e.payload ->> 'lat')::double precision, (v_e.payload ->> 'lng')::double precision,
+        null, null, null, null, 'Hotel', 0, v_now);
+      perform public.notify(g.id, null, v_e.participant_id, 'hotel_end', 'Hotel vorbei: du wurdest erkannt!',
+        'Die Hunter kennen deinen Ort. Verlass ihn sofort.', '{}', 'kritisch');
+      perform public.notify(g.id, 'taskforce', null, 'hotel_end', 'Hotel-Ping: ' || public.pname(v_e.participant_id), '', '{}', 'hoch');
+    elsif v_e.type in ('regeneration', 'catch_free', 'leo') then
+      perform public.notify(g.id, null, v_e.participant_id, 'effect_end',
+        case v_e.type when 'regeneration' then 'Regeneration vorbei' when 'catch_free' then 'Schutzschild vorbei' else 'Schonzeit vorbei' end,
+        '', '{}', 'normal');
+    end if;
+  end loop;
+  -- Aufgeschobene Straf-Blitzjagds starten, sobald keine Regeneration mehr läuft.
+  for v_sh in select * from public.speedhunts where game_id = g.id and status = 'aufgeschoben' loop
+    if not public.has_effect(v_sh.target_id, 'regeneration', v_now) then
+      update public.speedhunts set status = 'beendet', ended_at = v_now, end_reason = 'neu_gestartet' where id = v_sh.id;
+      perform public.start_speedhunt_internal(g, v_sh.target_id, v_sh.triggered_by, true, v_now);
+    end if;
+  end loop;
+
+  -- 4. Pings
+  for v_p in select * from public.participants where game_id = g.id and role = 'spieler' and next_ping_at is not null and next_ping_at <= v_now loop
+    perform public.process_ping_due(g, v_p, v_now);
+  end loop;
+
+  -- 5. Speedhunt-Timeouts und Zufalls-Speedhunts
+  for v_sh in select * from public.speedhunts where game_id = g.id and status = 'laeuft' and deadline_at <= v_now loop
+    perform public.end_speedhunt(g, v_sh, 'zeit_abgelaufen', v_now);
+  end loop;
+  v_times := coalesce(g.state_json -> 'random_speedhunts', '[]');
+  if jsonb_array_length(v_times) > 0 then
+    for v_t in select * from jsonb_array_elements(v_times) loop
+      if (v_t #>> '{}')::timestamptz <= v_now and g.speedhunts_left > 0 then
+        select p.id into v_target from public.participants p
+        where p.game_id = g.id and p.role = 'spieler' and p.state = 'aktiv'
+          and not public.has_effect(p.id, 'regeneration', v_now) and not public.has_effect(p.id, 'hotel', v_now)
+          and (public.running_speedhunt_on(p.id)).id is null
+        order by random() limit 1;
+        if v_target is not null then
+          perform public.start_speedhunt_internal(g, v_target, null, false, v_now);
+          update public.games set speedhunts_left = speedhunts_left - 1 where id = g.id returning * into g;
+        end if;
+        v_times := (select coalesce(jsonb_agg(x), '[]') from jsonb_array_elements(v_times) x where x <> v_t);
+      end if;
+    end loop;
+    update public.games set state_json = state_json || jsonb_build_object('random_speedhunts', v_times) where id = g.id returning * into g;
+  end if;
+
+  -- Ausserhalb-Zeit
+  v_max := public.cfg_int(v_cfg, 'out_of_bounds', 'max_minutes', 120);
+  for v_p in select * from public.participants where game_id = g.id and role = 'spieler' and state = 'ausserhalb' loop
+    update public.participants set out_accum_s = out_accum_s + v_delta where id = v_p.id returning * into v_p;
+    if v_p.out_accum_s >= v_max * 60 then
+      perform public.close_live_windows(v_p.id, 'ausserhalb', v_now);
+      case public.cfg_text(v_cfg, 'out_of_bounds', 'on_timeout', 'catch')
+        when 'catch' then perform public.auto_catch(g, v_p.id, 'Zu lange ausserhalb', v_now);
+        when 'disqualify' then perform public.disqualify(g, v_p.id, 'Zu lange ausserhalb des Spielfelds', v_now);
+        else
+          update public.participants set out_accum_s = 0 where id = v_p.id;
+          perform public.create_violation(g, v_p.id, 'ausserhalb_limit', '{}', v_now);
+      end case;
+      select * into g from public.games where id = g.id;
+      exit when g.status = 'beendet';
+    end if;
+  end loop;
+  if g.status = 'beendet' then perform public.bump(g.id); return; end if;
+
+  -- Verschanzen-Zeit (7.8)
+  v_max := public.cfg_int(v_cfg, 'hideout', 'max_minutes', 120);
+  for v_h in select h.* from public.hideouts h join public.participants p on p.id = h.participant_id
+             where h.game_id = g.id and h.status = 'aktiv' and h.inside and p.state in ('aktiv', 'ausserhalb') loop
+    if public.has_effect(v_h.participant_id, 'hotel', v_now) then continue; end if;
+    update public.hideouts set accum_s = accum_s + v_delta where id = v_h.id returning * into v_h;
+    v_remaining := v_max * 60 - v_h.accum_s;
+    if v_remaining <= 0 then
+      update public.hideouts set status = 'abgelaufen', inside = false, left_at = v_now where id = v_h.id;
+      if public.cfg_text(v_cfg, 'hideout', 'on_timeout', 'catch') = 'catch' then
+        perform public.auto_catch(g, v_h.participant_id, 'Verschanzen über dem Limit', v_now);
+      else
+        perform public.create_violation(g, v_h.participant_id, 'verschanzen_limit', '{}', v_now);
+      end if;
+      select * into g from public.games where id = g.id;
+      exit when g.status = 'beendet';
+    elsif v_remaining <= 120 and v_h.warned < 3 then
+      update public.hideouts set warned = 3 where id = v_h.id;
+      perform public.notify(g.id, null, v_h.participant_id, 'hideout_warning', 'Noch 2 min verschanzt!',
+        'Dann musst du raus (' || public.cfg_int(v_cfg, 'hideout', 'min_leave_distance_m', 200) || ' m Abstand).', '{}', 'kritisch');
+    elsif v_remaining <= 600 and v_h.warned < 2 then
+      update public.hideouts set warned = 2 where id = v_h.id;
+      perform public.notify(g.id, null, v_h.participant_id, 'hideout_warning', 'Noch 10 min verschanzt',
+        'Dann musst du raus (' || public.cfg_int(v_cfg, 'hideout', 'min_leave_distance_m', 200) || ' m Abstand).', '{}', 'hoch');
+    elsif v_remaining <= 1800 and v_h.warned < 1 then
+      update public.hideouts set warned = 1 where id = v_h.id;
+      perform public.notify(g.id, null, v_h.participant_id, 'hideout_warning', 'Noch 30 min verschanzt', '', '{}', 'hoch');
+    end if;
+  end loop;
+  if g.status = 'beendet' then perform public.bump(g.id); return; end if;
+
+  -- Verstösse automatisch verhängen
+  for v_v in select * from public.violations where game_id = g.id and status = 'offen' and auto_apply_at is not null and auto_apply_at <= v_now loop
+    perform public.apply_penalty(g, v_v.id, v_v.proposed_penalty, v_now);
+    select * into g from public.games where id = g.id;
+    exit when g.status = 'beendet';
+  end loop;
+  if g.status = 'beendet' then perform public.bump(g.id); return; end if;
+
+  -- Fang-Bestätigungen und Beweise, die abgelaufen sind
+  for v_c in select * from public.catches where game_id = g.id and status in ('wartet_auf_bestaetigung', 'wartet_auf_beweis') and expires_at <= v_now loop
+    if v_c.status = 'wartet_auf_beweis' then
+      update public.catches set status = 'abgelehnt', reason = 'Kein Beweis innerhalb der Frist' where id = v_c.id;
+      perform public.notify(g.id, null, v_c.hunter_id, 'catch_rejected', 'Fang ungültig', 'Kein Foto/Video innerhalb von 2 min.', '{}', 'hoch');
+    elsif public.cfg_text(v_cfg, 'roles', 'gm_mode', 'auto') = 'mensch' then
+      perform public.notify(g.id, 'gm', null, 'catch_decide', 'Fang bestätigen?', public.pname(v_c.runner_id) || ' hat nicht reagiert.', jsonb_build_object('catch_id', v_c.id), 'hoch');
+      update public.catches set expires_at = null where id = v_c.id;
+    else
+      -- Automatisch: gültig, wenn der GPS-Abstand passt.
+      select * into v_runner_pos from public.positions where participant_id = v_c.runner_id;
+      select * into v_hunter_pos from public.positions where participant_id = v_c.hunter_id;
+      if v_runner_pos.participant_id is not null and v_hunter_pos.participant_id is not null
+         and public.dist_m(v_runner_pos.geom, v_hunter_pos.geom) <= public.cfg_int(v_cfg, 'catch', 'max_distance_m', 30) + coalesce(v_runner_pos.accuracy_m, 0) + coalesce(v_hunter_pos.accuracy_m, 0) then
+        perform public.apply_catch(g, v_c.id, v_now);
+      else
+        update public.catches set status = 'abgelehnt', reason = 'Keine Bestätigung, GPS-Abstand zu gross' where id = v_c.id;
+        perform public.notify(g.id, null, v_c.hunter_id, 'catch_rejected', 'Fang abgelehnt', 'Keine Bestätigung und GPS-Abstand zu gross.', '{}', 'hoch');
+      end if;
+      select * into g from public.games where id = g.id;
+      exit when g.status = 'beendet';
+    end if;
+  end loop;
+  if g.status = 'beendet' then perform public.bump(g.id); return; end if;
+
+  -- Challenges
+  for v_ch in select * from public.challenges where game_id = g.id and status in ('geplant', 'angekuendigt', 'laeuft') loop
+    if v_ch.status = 'geplant' and coalesce(v_ch.announce_at, v_ch.starts_at) <= v_now then
+      update public.challenges set status = 'angekuendigt' where id = v_ch.id;
+      perform public.notify(g.id, 'spieler', null, 'challenge_announce', 'Challenge: ' || v_ch.title,
+        'Start ' || to_char(v_ch.starts_at at time zone g.timezone, 'HH24:MI') || '. ' || left(v_ch.description, 200), jsonb_build_object('challenge_id', v_ch.id), 'hoch');
+      if v_ch.reveal_location_to_taskforce then
+        perform public.notify(g.id, 'taskforce', null, 'challenge_announce', 'Challenge der Spieler: ' || v_ch.title,
+          'Start ' || to_char(v_ch.starts_at at time zone g.timezone, 'HH24:MI'), jsonb_build_object('challenge_id', v_ch.id), 'normal');
+      end if;
+      v_ch.status := 'angekuendigt';
+    end if;
+    if v_ch.status = 'angekuendigt' and v_ch.starts_at <= v_now then
+      update public.challenges set status = 'laeuft' where id = v_ch.id;
+      perform public.notify(g.id, 'spieler', null, 'challenge_start', 'Challenge läuft: ' || v_ch.title, '', jsonb_build_object('challenge_id', v_ch.id), 'hoch');
+      v_ch.status := 'laeuft';
+    end if;
+    if v_ch.status = 'laeuft' and v_ch.ends_at <= v_now then
+      update public.challenges set status = 'beendet' where id = v_ch.id;
+      update public.challenge_entries set result = 'gescheitert', decided_at = v_now where challenge_id = v_ch.id and result = 'offen';
+      perform public.notify(g.id, 'spieler', null, 'challenge_end', 'Challenge beendet: ' || v_ch.title, '', jsonb_build_object('challenge_id', v_ch.id), 'normal');
+    end if;
+  end loop;
+
+  -- Signalverlust und Akku (7.18, 15)
+  v_loss := public.cfg_int(v_cfg, 'tracking', 'signal_loss_max_minutes', 15);
+  for v_p in select * from public.participants where game_id = g.id and role in ('spieler', 'hunter', 'zentrale') and state in ('aktiv', 'ausserhalb')
+             and last_seen_at is not null and last_seen_at < v_now - make_interval(mins => v_loss)
+             and (signal_warned_at is null or signal_warned_at < last_seen_at) loop
+    update public.participants set signal_warned_at = v_now where id = v_p.id;
+    perform public.notify(g.id, 'gm', null, 'signal_loss', 'Signalverlust: ' || public.pname(v_p.id),
+      'Seit ' || to_char(v_p.last_seen_at at time zone g.timezone, 'HH24:MI') || ' keine Daten.', '{}', 'hoch');
+  end loop;
+
+
+  -- Fluchtpunkt bekanntgeben (7.19)
+  if public.cfg_bool(v_cfg, 'exit', 'enabled', true) and not g.exit_revealed and g.exit_reveal_at is not null and g.exit_reveal_at <= v_now then
+    -- Erst jetzt zufällig einen Kandidaten wählen, bevorzugt im aktuellen Spielfeld. Nur die Spieler sehen ihn.
+    if g.exit_zone_id is null then
+      update public.games set exit_zone_id = (
+        select z.id from public.zones z where z.game_id = g.id and z.kind = 'exit'
+        order by case when ST_Covers(coalesce(public.spielfeld_day(g.id, public.field_phase(g.id, g.current_day)), z.geom), z.geom) then 0 else 1 end, random()
+        limit 1)
+      where id = g.id returning * into g;
+    end if;
+    update public.zones set visible_from = v_now, visible_to = 'spieler' where id = g.exit_zone_id;
+    update public.games set exit_revealed = true, status = 'finale', map_version = map_version + 1 where id = g.id returning * into g;
+    perform public.notify(g.id, 'spieler', null, 'exit_reveal', 'Fluchtpunkt bekannt: ' || coalesce(nullif((select name from public.zones where id = g.exit_zone_id), ''), 'siehe Karte'),
+      'Ankunft bis ' || to_char(g.deadline_at at time zone g.timezone, 'HH24:MI') || '. Ab jetzt dürft ihr auch zusammen sein.', '{}', 'kritisch');
+    perform public.notify(g.id, 'taskforce', null, 'exit_reveal', 'Die Spieler kennen jetzt den Fluchtpunkt',
+      'Ihr erfahrt ihn nicht. Ankunft bis ' || to_char(g.deadline_at at time zone g.timezone, 'HH24:MI') || '.', '{}', 'hoch');
+    -- Spieler, die schon im Radius stehen, gelten sofort als angekommen.
+    perform public.recheck_exit(g, v_now);
+  end if;
+
+  -- Spielende
+  if v_now >= g.ends_at and not coalesce((g.state_json ->> 'end_notified')::boolean, false) and public.cfg_bool(v_cfg, 'exit', 'enabled', true)
+     and g.deadline_at > g.ends_at then
+    update public.games set state_json = state_json || '{"end_notified": true}' where id = g.id returning * into g;
+    perform public.notify(g.id, 'alle', null, 'time_up', 'Spielzeit vorbei', 'Ankunft am Fluchtpunkt noch bis ' || to_char(g.deadline_at at time zone g.timezone, 'HH24:MI') || '.', '{}', 'hoch');
+  end if;
+  if v_now >= g.deadline_at then
+    perform public.finish_game(g, v_now, 'zeit_abgelaufen');
+  end if;
+
+  update public.games set last_tick_at = v_now where id = g.id;
+  perform public.bump(g.id);
+end; $$;
+revoke execute on function public.tick_game_basis(uuid) from public, anon, authenticated;
+
+drop function if exists public.check_proximity(public.games, timestamptz);
+drop table if exists public.proximity_pairs;
