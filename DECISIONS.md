@@ -201,3 +201,4 @@ Abweichungen von der Spezifikation und Annahmen, wo sie nichts festlegt.
 - Neuer Joker „Nähe-Radar“ 📡: beim Erstellen werden Abstand (50–500 m, Standard 500 m) und Dauer eingestellt. Solange er wirkt, sieht der Spieler nur, ob ein Hunter näher ist (nie wo). Kommt ein Hunter nah, klingelt das Handy laut wie bei einer Blitzjagd. Zählt Hunter mit Standort der letzten 10 min.
 - Joker „Richtung zum nächsten Hunter“ wird nicht gebaut (Marvin).
 - Der Nähe-Alarm (zwei Spieler zu nahe beieinander) ist ganz entfernt (Marvin): keine Warnung, kein Ping an die Hunter, keine Einstellung mehr. Migration 0024 nimmt die Prüfung aus dem Spieltakt und löscht Funktion und Tabelle. Frühere Einträge zum Nähe-Alarm gelten nicht mehr.
+- Nachtrag (0025): Mit dem Nähe-Alarm fällt auch „Ab jetzt dürft ihr auch zusammen sein“ in der Fluchtpunkt-Meldung und in den Hilfetexten weg. Hilfetexte sagen nicht mehr „ohne Pause“ (der Host kann pausieren, die Pause wird angehängt).

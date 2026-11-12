@@ -87,7 +87,7 @@ const RULES: Rule[] = [
   // Fluchtpunkt
   r('Fluchtpunkt bekannt: siehe Karte', 'Point de fuite connu : voir la carte', 'Escape point revealed: see map'),
   r('Fluchtpunkt bekannt: {N}', 'Point de fuite connu : $1', 'Escape point revealed: $1'),
-  r('Ankunft bis {H}. Ab jetzt dürft ihr auch zusammen sein.', 'Arrivée jusqu’à $1. Vous pouvez désormais être ensemble.', 'Arrive by $1. From now on you may be together.'),
+  r('Ankunft bis {H}.', 'Arrivée jusqu’à $1.', 'Arrive by $1.'),
   r('Die Spieler kennen jetzt den Fluchtpunkt', 'Les joueurs connaissent maintenant le point de fuite', 'The players now know the escape point'),
   r('Ihr erfahrt ihn nicht. Ankunft bis {H}.', 'Vous ne le saurez pas. Arrivée jusqu’à $1.', 'You won’t find out where it is. Arrival by $1.'),
   r('Geschafft!', 'Réussi !', 'Made it!'),
@@ -257,9 +257,9 @@ const RULES: Rule[] = [
   r('Zu lange in einer Gefahrenzone', 'Trop longtemps dans une zone dangereuse', 'Too long in a danger zone'),
 
   // Fluchtpunkt mit Freigabe, Spielzeit, Löschen (0022)
-  r('Er ist erst ab {H} offen. Seid zwischen {H} und {H} im Kreis. Ab jetzt dürft ihr auch zusammen sein.',
-    'Il n’est ouvert qu’à partir de $1. Soyez dans le cercle entre $2 et $3. Désormais, vous pouvez aussi être ensemble.',
-    'It only opens at $1. Be inside the circle between $2 and $3. From now on you may also be together.'),
+  r('Er ist erst ab {H} offen. Seid zwischen {H} und {H} im Kreis.',
+    'Il n’est ouvert qu’à partir de $1. Soyez dans le cercle entre $2 et $3.',
+    'It only opens at $1. Be inside the circle between $2 and $3.'),
   r('Ihr erfahrt ihn nicht. Er ist ab {H} bis zum Spielende offen.', 'Vous ne le saurez pas. Il est ouvert de $1 jusqu’à la fin de la partie.', 'You won’t find out where it is. It is open from $1 until the end of the game.'),
   r('Fluchtpunkt ist jetzt offen!', 'Le point de fuite est maintenant ouvert !', 'The escape point is now open!'),
   r('Seid bis {H} im Kreis, dann seid ihr gerettet.', 'Soyez dans le cercle jusqu’à $1 et vous êtes sauvés.', 'Be inside the circle until $1 and you are saved.'),
