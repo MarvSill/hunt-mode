@@ -194,3 +194,9 @@ Abweichungen von der Spezifikation und Annahmen, wo sie nichts festlegt.
 - In der Kopfzeile heisst es "Spielfeld-Stufe 1/4" statt "Phase 1/4": die Stufe der Verkleinerung des Spielfelds.
 - Push-Nachrichten (Alarm bei gesperrtem Bildschirm, auch wenn die App beendet ist) sind noch nicht gebaut: Android braucht ein Firebase-Projekt von Marvin, das iPhone das Apple Developer Program (99 USD/Jahr). Marvin hat am 2026-11-11 entschieden: vorerst nicht. Standort im Hintergrund gibt es in der Handy-App schon.
 - Pings nie verschoben: Der Server nimmt für einen Ping den genauesten echten Messpunkt der letzten 20 Sekunden (vorher Median von Breite und Länge einzeln über 30 s, was einen Punkt ergeben konnte, an dem niemand war). Auf dem iPhone misst die App immer mit "Best" und Aktivität "Fitness" (zu Fuss), nie mit "Navigation", damit iOS den Standort nicht auf Strassen zieht (Patch des Plugins in `patches/`, angewendet mit `patch-package` beim `npm install`). Ist der Standort ungenauer als 150 m, kommt ein grosser Hinweis, "Genauer Standort" einzuschalten.
+
+## Runde 16 (2026-11-12)
+- Spieler sehen die Pings der anderen Spieler, sobald die Hunter sie sehen. Ausgenommen: Blitzjagd-Pings und Nähe-Alarm-Pings der anderen. Zweck: sich besser auf der Karte verteilen.
+- Jeder Spieler wählt selbst: nur letzter / letzte 3 / alle / eigene Anzahl Pings, und ob die Pings der anderen Spieler sichtbar sind (nur auf dem eigenen Gerät).
+- Neuer Joker „Nähe-Radar“ 📡: beim Erstellen werden Abstand (Standard 500 m) und Dauer eingestellt. Solange er wirkt, sieht der Spieler nur, ob ein Hunter näher ist (nie wo). Kommt ein Hunter nah, vibriert das Handy. Zählt Hunter mit Standort der letzten 10 min.
+- Joker „Richtung zum nächsten Hunter“ wird nicht gebaut (Marvin).

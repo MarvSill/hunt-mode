@@ -9,7 +9,7 @@
 import type { GameConfig } from './config';
 import { t, lazy } from '../i18n';
 
-const JOKER_NAMES: Record<string, string> = lazy({ regeneration: 'Regeneration', hunter_erfragen: 'Hunter-Standorte' });
+const JOKER_NAMES: Record<string, string> = lazy({ regeneration: 'Regeneration', hunter_erfragen: 'Hunter-Standorte', naehe_radar: 'Nähe-Radar' });
 
 export interface TimeFix {
   path: string;

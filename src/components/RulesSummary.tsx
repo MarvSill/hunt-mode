@@ -5,13 +5,14 @@ import { t, lazy } from '../i18n';
 const JOKER_NAMES: Record<string, string> = lazy({
   regeneration: 'Regeneration',
   hunter_erfragen: 'Hunter-Standorte',
+  naehe_radar: 'Nähe-Radar',
 });
 
 /** Die Regeln in normalen Sätzen, für alle verständlich. */
 export function rulesInWords(c: GameConfig): [string, string][] {
   const out: [string, string][] = [];
   out.push(['⏱️', t('Das Spiel dauert {0} am Stück, ohne Pause, und endet pünktlich. Davon sind die ersten {1} Vorsprung der Spieler. Direkt danach kommt der erste Ping.', { 0: formatMinutes(c.game.duration_minutes), 1: formatMinutes(c.start.head_start_minutes) })]);
-  out.push(['📍', t('Alle {0} sehen die Hunter, wo die Spieler gerade sind. Bei jedem Ping und jeder Blitzjagd klingelt das Handy aller Spieler.', { 0: formatMinutes(c.ping.interval_minutes) })]);
+  out.push(['📍', t('Alle {0} sehen die Hunter, wo die Spieler gerade sind. Die Spieler sehen diese Pings auch (ausser bei Blitzjagden). Bei jedem Ping und jeder Blitzjagd klingelt das Handy aller Spieler.', { 0: formatMinutes(c.ping.interval_minutes) })]);
   if (c.speedhunt.enabled) {
     out.push(['⚡', t('Blitzjagd: Die Hunter dürfen {0}-mal im Spiel eine Blitzjagd starten, mit {1} Standort-Abfragen auf einen Spieler, ohne Zeitlimit.', { 0: c.speedhunt.quota_per_day[0] ?? 0, 1: c.speedhunt.queries })]);
   }

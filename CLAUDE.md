@@ -35,9 +35,10 @@ Live: https://marvsill.github.io/hunt-mode/ · Repo: github.com/MarvSill/hunt-mo
 - Fangen: Zahlencode eingeben oder Fang melden + Spieler bestätigt (Ablehnen = kein Fang). Kein QR-Code.
 - Begriffe: Hunter-Team, Blitzjagd, Ping, Fluchtpunkt, Nähe-Alarm. Blitzjagden starten nur die Hunter, ohne Zeitlimit.
 - Notfall geht immer an alle Hunter (und den Host); Nummern 117 / 144 / 112.
+- Spieler sehen die Pings der anderen Spieler wie die Hunter (ohne Blitzjagd- und Nähe-Alarm-Pings); jeder kann sie ausblenden.
 - Chat: Spieler schreiben den Huntern (alle Hunter lesen mit), Hunter einem oder allen Spielern, Hunter-Team unter sich. Spieler nie mit anderen Spielern.
 - Nur ein Spielfeld (kann kleiner werden) plus Gefahrenzonen; keine weiteren Gebiete. Kein Budget.
-- Joker nur für Spieler (Regeneration, Hunter-Standorte): nach einer eingestellten Spielzeit freigeschaltet, wirken erst beim Einsetzen.
+- Joker nur für Spieler (Regeneration, Hunter-Standorte, Nähe-Radar mit einstellbarem Abstand und Dauer): nach einer eingestellten Spielzeit freigeschaltet, wirken erst beim Einsetzen.
 - Bei jedem Ping und jeder Blitzjagd klingelt das Handy aller Spieler (Ton, Lautstärke, Vibration stellt jeder selbst ein).
 - Keine Strafen. SOS unterbricht das ganze Spiel und alarmiert alle. Fluchtpunkt: min. 4 Kandidaten, Wahl erst bei Bekanntgabe, nur Spieler sehen ihn.
 - Fortbewegung nur erlaubt/verboten (ÖV/Taxi/Auto, Velo/Trottinett), kein Live-Standort.

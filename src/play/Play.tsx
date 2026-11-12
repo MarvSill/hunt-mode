@@ -22,7 +22,7 @@ import NumberField from '../components/NumberField';
 import { SpeedhuntButtons, SpeedhuntDialog } from './SpeedhuntMap';
 import Loader from '../components/Loader';
 import SafetyNotice from './SafetyNotice';
-import { DeviceAlert, useOutsideVibration } from './Alerts';
+import { DeviceAlert, useOutsideVibration, useRadarAlarm } from './Alerts';
 
 /** Wie viele Pings je Spieler auf der Karte: 1 = nur der letzte, 0 = alle. Jeder wählt selbst (nur auf diesem Gerät). */
 function loadPingCount(): number {
@@ -133,6 +133,12 @@ export default function PlayPage() {
     setPingCountState(v);
     try { localStorage.setItem('hm-pings', String(v)); } catch { /* nur für diese Sitzung */ }
   };
+  // Spieler: Pings der anderen Spieler zeigen oder ausblenden (nur auf diesem Gerät).
+  const [othersHidden, setOthersHiddenState] = useState(() => { try { return localStorage.getItem('hm-pings-andere') === 'aus'; } catch { return false; } });
+  const setOthersHidden = (v: boolean) => {
+    setOthersHiddenState(v);
+    try { localStorage.setItem('hm-pings-andere', v ? 'aus' : 'an'); } catch { /* nur für diese Sitzung */ }
+  };
   const [blitzOpen, setBlitzOpen] = useState(false);
   const [pauseReason, setPauseReason] = useState('');
   const tracker = useTracker(id, tracking, kick);
@@ -146,6 +152,7 @@ export default function PlayPage() {
   const outside = !!s && role === 'spieler' && !s.game.paused && ['vorsprung', 'laeuft', 'finale'].includes(s.game.status)
     && (s.me.out_pending || s.me.state === 'ausserhalb' || s.me.in_restricted);
   useOutsideVibration(outside);
+  useRadarAlarm(role === 'spieler' ? s?.me.radar : undefined);
 
   // Karte neu laden, wenn sich Zonen ändern (Ankündigung, Exit, neue Sperrzone).
   useEffect(() => {
@@ -188,6 +195,7 @@ export default function PlayPage() {
     for (const p of [...s.pings].sort((a, b) => a.at.localeCompare(b.at))) {
       if (p.lat == null || p.lng == null) continue;
       if (role === 'spieler' && p.participant_id === s.me.id && p.source === 'proximity') continue;
+      if (role === 'spieler' && othersHidden && p.participant_id !== s.me.id) continue;
       byPlayer.set(p.participant_id, [...(byPlayer.get(p.participant_id) ?? []), p]);
     }
     for (const [pid, pings] of byPlayer) {
@@ -236,7 +244,7 @@ export default function PlayPage() {
       if (e.lat != null && e.lng != null) list.push({ id: `e${e.id}`, lat: e.lat, lng: e.lng, color: '#ff0000', kind: 'emergency', label: t('NOTFALL {0}', { 0: nameOf(s, e.participant_id) }), pulse: true });
     }
     return list;
-  }, [s, now, pos, role, tracker.last?.acc, pingCount]);
+  }, [s, now, pos, role, tracker.last?.acc, pingCount, othersHidden]);
 
   if (!s) {
     return (
@@ -374,6 +382,16 @@ export default function PlayPage() {
                       <option value="x">{t('Eigene Anzahl …')}</option>
                     </select>
                     {pingCustom && <NumberField label={t('Pings je Spieler')} value={pingCount || 5} min={1} max={200} onChange={setPingCount} />}
+                  </span>
+                )}
+                {role === 'spieler' && s.pings.some((p) => p.participant_id !== s.me.id && p.lat != null) && (
+                  <button type="button" className="map-chip" aria-pressed={!othersHidden} onClick={() => setOthersHidden(!othersHidden)}>
+                    👥 {othersHidden ? t('Andere Spieler: aus') : t('Andere Spieler: an')}
+                  </button>
+                )}
+                {role === 'spieler' && s.me.radar && (
+                  <span className={`map-chip${s.me.radar.near ? ' red pulse' : ''}`} role="status">
+                    📡 {s.me.radar.near ? t('Hunter näher als {0} m!', { 0: s.me.radar.distance_m }) : s.me.radar.near === false ? t('Kein Hunter näher als {0} m', { 0: s.me.radar.distance_m }) : t('Nähe-Radar')}
                   </span>
                 )}
               </MapView>

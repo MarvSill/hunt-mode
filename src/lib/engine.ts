@@ -5,7 +5,7 @@ import { lazy, locale } from '../i18n';
 
 // Spielstand aus game_state() (supabase/migrations/0006_spielstand.sql).
 export interface Effect { id: string; type: string; ends_at: string | null; payload: Record<string, unknown> }
-export interface Item { id: string; kind: 'joker' | 'bonus'; type: string; minutes: number | null; source: string | null }
+export interface Item { id: string; kind: 'joker' | 'bonus'; type: string; minutes: number | null; distance_m?: number | null; source: string | null }
 export interface Participant {
   id: string; name: string; username: string; role: Role; color: string | null; state: string;
   battery: number | null; last_seen_at: string | null; bounty: number;
@@ -54,6 +54,8 @@ export interface GameState {
     id: string; role: Role; state: string; bounty: number; next_ping_at: string | null;
     location_requested: boolean; hideout_prompt: boolean; transport_prompt: boolean; out_accum_s: number; out_pending: boolean;
     in_restricted: boolean; briefing_done: boolean; live: boolean; effects: Effect[]; inventory: Item[];
+    /** Nähe-Radar (Joker), solange er wirkt: ob ein Hunter näher als distance_m ist (null = eigener Standort fehlt). */
+    radar?: { ends_at: string; distance_m: number; near: boolean | null };
     hideout: { id: string; inside: boolean; accum_s: number; entered_at: string; max_s: number; lat: number; lng: number } | null;
     transit: { id: string; mode: string; line: string | null; started_at: string } | null;
     device_check: Record<string, unknown>;
@@ -194,19 +196,20 @@ export const PENALTY_LABELS: Record<string, string> = lazy({
 });
 
 export const ITEM_LABELS: Record<string, string> = lazy({
-  regeneration: 'Regeneration', hunter_erfragen: 'Hunter-Standorte', catch_free: 'Schutzschild', fake_ping: 'Fake-Ping',
+  regeneration: 'Regeneration', hunter_erfragen: 'Hunter-Standorte', naehe_radar: 'Nähe-Radar', catch_free: 'Schutzschild', fake_ping: 'Fake-Ping',
   hotel: 'Hotel', wahl: 'Joker nach Wahl',
 });
 
 /** Eigenes Zeichen für jeden Joker. */
 export const ITEM_ICONS: Record<string, string> = {
-  regeneration: '🔋', hunter_erfragen: '🔭', catch_free: '🛡️', fake_ping: '🎭', hotel: '🏨', wahl: '🎲',
+  regeneration: '🔋', hunter_erfragen: '🔭', naehe_radar: '📡', catch_free: '🛡️', fake_ping: '🎭', hotel: '🏨', wahl: '🎲',
 };
 
 /** Was ein Joker oder Bonus bewirkt, in einem Satz. */
 export const ITEM_HELP: Record<string, string> = lazy({
   regeneration: 'Du wirst eine Zeit lang nicht gepingt, und die Hunter können keine Blitzjagd auf dich starten. Fangen dürfen sie dich aber weiterhin. Nicht einsetzbar, solange eine Blitzjagd läuft.',
   hunter_erfragen: 'Beim Einsetzen siehst du einmalig, wo alle Hunter in diesem Moment sind (nicht live).',
+  naehe_radar: 'Eine Zeit lang siehst du, ob ein Hunter näher als der eingestellte Abstand ist. Wo er ist, siehst du nicht.',
   catch_free: 'Du kannst eine Zeit lang nicht gefangen werden.',
   fake_ping: 'Dein nächster Ping zeigt einen Ort, den du auf der Karte wählst.',
   hotel: 'Du bist an deinem jetzigen Ort eine Zeit lang geschützt.',

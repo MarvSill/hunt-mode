@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { vibrate } from '../lib/alarm';
-import { isNative, notifyAllowed, openAppSettings, ensureNotifyPermission } from '../lib/native';
+import { isNative, nativeNotify, notifyAllowed, openAppSettings, ensureNotifyPermission } from '../lib/native';
 import type { TrackerInfo } from '../lib/tracker';
 import { t } from '../i18n';
 
@@ -13,6 +13,19 @@ export function useOutsideVibration(active: boolean) {
     const i = setInterval(buzz, 2000);
     return () => clearInterval(i);
   }, [active]);
+}
+
+/** Nähe-Radar: kommt ein Hunter nah, vibriert das Handy (und meldet sich, wenn die App im Hintergrund ist). */
+export function useRadarAlarm(radar: { distance_m: number; near: boolean | null } | undefined) {
+  const was = useRef<boolean | null>(null);
+  const near = radar?.near ?? null;
+  useEffect(() => {
+    if (near && was.current !== true) {
+      vibrate([400, 150, 400, 150, 400]);
+      if (document.visibilityState !== 'visible') void nativeNotify(Math.floor(Date.now() / 1000) % 2147483647, t('Nähe-Radar'), t('Hunter näher als {0} m!', { 0: radar?.distance_m ?? 0 }));
+    }
+    was.current = near;
+  }, [near, radar?.distance_m]);
 }
 
 type Problem = 'gps_blockiert' | 'gps_fehlt' | 'gps_still' | 'ungenau' | 'benachrichtigung';
