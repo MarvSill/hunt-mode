@@ -155,3 +155,76 @@ begin
 end; $$;
 revoke execute on function public.game_state(uuid) from public, anon;
 grant execute on function public.game_state(uuid) to authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Nähe-Alarm zweier Spieler (zuletzt in 0017_ohne_strafen_sos_fluchtpunkt.sql):
+-- - aktiv sofort nach dem Vorsprung (keine Wartezeit mehr),
+-- - Meldungen mit dem Buchstaben des Spielers statt dem Namen,
+-- - Regeneration schützt hier nicht: gepingt wird trotzdem, und der Spieler wird darauf hingewiesen.
+create or replace function public.player_letter(p_id uuid)
+returns text language sql stable security definer set search_path = public as $$
+  select 'Spieler ' || coalesce(nullif(tag, ''), '?') from public.participants where id = p_id;
+$$;
+revoke execute on function public.player_letter(uuid) from public, anon, authenticated;
+
+create or replace function public.check_proximity(p_game public.games, p_now timestamptz)
+returns void language plpgsql security definer set search_path = public, extensions as $$
+declare
+  v_cfg jsonb := p_game.config_json;
+  v_dist int := public.cfg_int(v_cfg, 'proximity', 'distance_m', 150);
+  v_hyst int := public.cfg_int(v_cfg, 'proximity', 'hysteresis_m', 50);
+  v_wait int := public.cfg_int(v_cfg, 'proximity', 'warn_minutes', 2);
+  v_pair record;
+  v_state public.proximity_pairs;
+  v_id uuid;
+begin
+  if not public.cfg_bool(v_cfg, 'proximity', 'enabled', true) then return; end if;
+  -- Ab der Bekanntgabe des Fluchtpunkts dürfen die Spieler zusammen sein.
+  if p_game.exit_revealed then return; end if;
+  -- Aktiv, sobald der Vorsprung vorbei ist.
+  if p_game.hunt_start_at is null or p_now < p_game.hunt_start_at then return; end if;
+
+  for v_pair in
+    select a.id a_id, b.id b_id, pa.lat alat, pa.lng alng, pa.accuracy_m aacc, pb.lat blat, pb.lng blng, pb.accuracy_m bacc,
+           public.dist_m(pa.geom, pb.geom) d
+    from public.participants a
+    join public.participants b on b.game_id = a.game_id and b.id > a.id
+    join public.positions pa on pa.participant_id = a.id
+    join public.positions pb on pb.participant_id = b.id
+    where a.game_id = p_game.id and a.role = 'spieler' and b.role = 'spieler'
+      and a.state in ('aktiv', 'ausserhalb') and b.state in ('aktiv', 'ausserhalb')
+      and pa.at > p_now - interval '5 minutes' and pb.at > p_now - interval '5 minutes'
+  loop
+    select * into v_state from public.proximity_pairs where a = v_pair.a_id and b = v_pair.b_id;
+    if v_pair.d < v_dist then
+      if v_state.a is null or v_state.warned_at is null then
+        -- 1. Beide warnen und den Standort des anderen zeigen.
+        insert into public.proximity_pairs (game_id, a, b, alerted, warned_at) values (p_game.id, v_pair.a_id, v_pair.b_id, false, p_now)
+        on conflict (a, b) do update set warned_at = p_now, alerted = false;
+        perform public.notify(p_game.id, null, v_pair.a_id, 'proximity_self', 'Nähe-Alarm: ' || public.player_letter(v_pair.b_id) || ' ist in der Nähe',
+          'Ihr seid unter ' || v_dist || ' m. Entfernt euch innerhalb von ' || v_wait || ' min, sonst bekommen die Hunter euren Standort.',
+          jsonb_build_object('lat', v_pair.blat, 'lng', v_pair.blng, 'tag', (select coalesce(nullif(tag, ''), '?') from public.participants where id = v_pair.b_id), 'deadline', p_now + make_interval(mins => v_wait)), 'kritisch');
+        perform public.notify(p_game.id, null, v_pair.b_id, 'proximity_self', 'Nähe-Alarm: ' || public.player_letter(v_pair.a_id) || ' ist in der Nähe',
+          'Ihr seid unter ' || v_dist || ' m. Entfernt euch innerhalb von ' || v_wait || ' min, sonst bekommen die Hunter euren Standort.',
+          jsonb_build_object('lat', v_pair.alat, 'lng', v_pair.alng, 'tag', (select coalesce(nullif(tag, ''), '?') from public.participants where id = v_pair.a_id), 'deadline', p_now + make_interval(mins => v_wait)), 'kritisch');
+        foreach v_id in array array[v_pair.a_id, v_pair.b_id] loop
+          if public.has_effect(v_id, 'regeneration', p_now) then
+            perform public.notify(p_game.id, null, v_id, 'proximity_self', 'Regeneration schützt hier nicht',
+              'Beim Nähe-Alarm wirst du trotzdem gepingt, auch mit Regeneration.', '{}', 'kritisch');
+          end if;
+        end loop;
+      elsif not v_state.alerted and p_now >= v_state.warned_at + make_interval(mins => v_wait) then
+        -- 2. Nach Ablauf immer noch zu nahe: Ping beider an die Hunter (auch mit Regeneration).
+        update public.proximity_pairs set alerted = true, last_alert_at = p_now where a = v_pair.a_id and b = v_pair.b_id;
+        perform public.create_ping(p_game, v_pair.a_id, 'proximity', v_pair.alat, v_pair.alng, v_pair.aacc, null, null, null, null, 0, p_now);
+        perform public.create_ping(p_game, v_pair.b_id, 'proximity', v_pair.blat, v_pair.blng, v_pair.bacc, null, null, null, null, 0, p_now);
+        perform public.notify(p_game.id, 'taskforce', null, 'proximity', 'Nähe-Alarm',
+          public.player_letter(v_pair.a_id) || ' und ' || public.player_letter(v_pair.b_id) || ' sind zusammen (unter ' || v_dist || ' m). Ping auf der Karte.', '{}', 'hoch');
+        perform public.notify(p_game.id, null, v_pair.a_id, 'proximity_ping', 'Die Hunter haben euren Standort', 'Ihr wart zu lange zusammen.', '{}', 'hoch');
+        perform public.notify(p_game.id, null, v_pair.b_id, 'proximity_ping', 'Die Hunter haben euren Standort', 'Ihr wart zu lange zusammen.', '{}', 'hoch');
+      end if;
+    elsif v_pair.d > v_dist + v_hyst and v_state.a is not null and (v_state.warned_at is not null or v_state.alerted) then
+      update public.proximity_pairs set alerted = false, warned_at = null where a = v_pair.a_id and b = v_pair.b_id;
+    end if;
+  end loop;
+end; $$;

@@ -152,7 +152,7 @@ export default function QuickSettings({ config, onChange }: Props) {
                     onChange={(v) => setJokers(j.types.map((y, k) => (k === i ? { ...y, minutes: v } : y)))} />
                 )}
                 {x.type === 'naehe_radar' && (
-                  <Stepper label={t('Gilt als nah unter (m)')} value={x.distance_m ?? 500} min={50} max={5000} step={50}
+                  <Stepper label={t('Gilt als nah unter (m)')} value={x.distance_m ?? 500} min={50} max={500} step={50}
                     onChange={(v) => setJokers(j.types.map((y, k) => (k === i ? { ...y, distance_m: v } : y)))} />
                 )}
               </div>

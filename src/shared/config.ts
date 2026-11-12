@@ -43,7 +43,7 @@ const jokerTypeSchema = z.object({
   type: z.enum(JOKER_TYPES),
   minutes: z.number().int().min(0).max(1440).optional(),
   // Nur Nähe-Radar: ab welchem Abstand ein Hunter als "nah" gilt.
-  distance_m: z.number().int().min(50).max(5000).optional(),
+  distance_m: z.number().int().min(50).max(500).optional(),
   after_minutes: z.number().int().min(0).max(20160).default(0),
 });
 

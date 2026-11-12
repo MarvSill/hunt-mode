@@ -198,5 +198,6 @@ Abweichungen von der Spezifikation und Annahmen, wo sie nichts festlegt.
 ## Runde 16 (2026-11-12)
 - Spieler sehen die Pings der anderen Spieler, sobald die Hunter sie sehen. Ausgenommen: Blitzjagd-Pings und Nähe-Alarm-Pings der anderen. Zweck: sich besser auf der Karte verteilen.
 - Jeder Spieler wählt selbst: nur letzter / letzte 3 / alle / eigene Anzahl Pings, und ob die Pings der anderen Spieler sichtbar sind (nur auf dem eigenen Gerät).
-- Neuer Joker „Nähe-Radar“ 📡: beim Erstellen werden Abstand (Standard 500 m) und Dauer eingestellt. Solange er wirkt, sieht der Spieler nur, ob ein Hunter näher ist (nie wo). Kommt ein Hunter nah, vibriert das Handy. Zählt Hunter mit Standort der letzten 10 min.
+- Neuer Joker „Nähe-Radar“ 📡: beim Erstellen werden Abstand (50–500 m, Standard 500 m) und Dauer eingestellt. Solange er wirkt, sieht der Spieler nur, ob ein Hunter näher ist (nie wo). Kommt ein Hunter nah, klingelt das Handy laut wie bei einer Blitzjagd. Zählt Hunter mit Standort der letzten 10 min.
 - Joker „Richtung zum nächsten Hunter“ wird nicht gebaut (Marvin).
+- Nähe-Alarm zweier Spieler: aktiv sofort nach dem Vorsprung (keine Wartezeit). Meldungen an Spieler und Hunter mit Buchstaben („Spieler B“) statt Namen. Regeneration schützt beim Nähe-Alarm nicht: gepingt wird trotzdem, und wer Regeneration hat, wird darauf hingewiesen.

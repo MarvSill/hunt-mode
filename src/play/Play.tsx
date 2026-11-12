@@ -237,7 +237,7 @@ export default function PlayPage() {
     }
     for (const n of s.notifications.slice(0, 10)) {
       if (n.kind === 'proximity_self' && n.payload.lat != null && now - new Date(n.at).getTime() < 15 * 60000) {
-        list.push({ id: `px${n.id}`, lat: n.payload.lat as number, lng: n.payload.lng as number, color: '#d29922', kind: 'player', label: t('{0} (in der Nähe)', { 0: n.payload.name }) });
+        list.push({ id: `px${n.id}`, lat: n.payload.lat as number, lng: n.payload.lng as number, color: '#d29922', kind: 'player', label: n.payload.tag != null ? t('Spieler {0} (in der Nähe)', { 0: n.payload.tag }) : t('{0} (in der Nähe)', { 0: n.payload.name }), text: (n.payload.tag as string | undefined) });
       }
     }
     for (const e of s.emergencies) {
