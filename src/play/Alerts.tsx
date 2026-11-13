@@ -15,18 +15,36 @@ export function useOutsideVibration(active: boolean) {
   }, [active]);
 }
 
-/** Nähe-Radar: kommt ein Hunter nah, klingelt und vibriert das Handy laut (in der Handy-App auch als Benachrichtigung). */
-export function useRadarAlarm(radar: { distance_m: number; near: boolean | null } | undefined) {
+/**
+ * Nähe-Radar: Solange der Joker läuft, klingelt und vibriert das Handy laut, jedes Mal wenn ein Hunter nah kommt
+ * (in der Handy-App auch als Benachrichtigung). Bleibt er nah, kommt kein weiterer Alarm. Ist er wieder weg und kommt
+ * erneut ein Hunter nah, kommt wieder ein Alarm. Eine kurze GPS-Lücke (Zustand unbekannt) zählt nicht als "weg".
+ * Solange der Radar läuft, holt die App den Spielstand alle 5 s.
+ */
+export function useRadarAlarm(radar: { distance_m: number; near: boolean | null; ends_at: string } | undefined, reload: () => void) {
   const was = useRef<boolean | null>(null);
   const near = radar?.near ?? null;
+  const active = !!radar;
   useEffect(() => {
+    if (!active) {
+      was.current = null;
+      return;
+    }
+    if (near === null) return;
     if (near && was.current !== true) {
       // Lauter Alarm wie bei einer Blitzjagd (Ton, Lautstärke und Vibration aus den eigenen Alarm-Einstellungen).
       ring('blitzjagd');
       if (isNative) void nativeNotify(Math.floor(Date.now() / 1000) % 2147483647, t('Nähe-Radar'), t('Hunter näher als {0} m!', { 0: radar?.distance_m ?? 0 }));
     }
     was.current = near;
-  }, [near, radar?.distance_m]);
+  }, [active, near, radar?.distance_m]);
+  useEffect(() => {
+    if (!active) return;
+    const i = setInterval(() => {
+      if (document.visibilityState === 'visible' || isNative) reload();
+    }, 5000);
+    return () => clearInterval(i);
+  }, [active, reload]);
 }
 
 type Problem = 'gps_blockiert' | 'gps_fehlt' | 'gps_still' | 'ungenau' | 'benachrichtigung';

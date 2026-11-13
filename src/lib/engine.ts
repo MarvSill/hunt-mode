@@ -209,7 +209,7 @@ export const ITEM_ICONS: Record<string, string> = {
 export const ITEM_HELP: Record<string, string> = lazy({
   regeneration: 'Du wirst eine Zeit lang nicht gepingt, und die Hunter können keine Blitzjagd auf dich starten. Fangen dürfen sie dich aber weiterhin. Nicht einsetzbar, solange eine Blitzjagd läuft.',
   hunter_erfragen: 'Beim Einsetzen siehst du einmalig, wo alle Hunter in diesem Moment sind (nicht live).',
-  naehe_radar: 'Eine Zeit lang siehst du, ob ein Hunter näher als der eingestellte Abstand ist. Wo er ist, siehst du nicht.',
+  naehe_radar: 'Eine Zeit lang siehst du, ob ein Hunter näher als der eingestellte Abstand ist. Wo er ist, siehst du nicht. Jedes Mal, wenn ein Hunter nah kommt, klingelt es laut.',
   catch_free: 'Du kannst eine Zeit lang nicht gefangen werden.',
   fake_ping: 'Dein nächster Ping zeigt einen Ort, den du auf der Karte wählst.',
   hotel: 'Du bist an deinem jetzigen Ort eine Zeit lang geschützt.',
