@@ -253,6 +253,8 @@ const RULES: Rule[] = [
   r('Spieler schreiben nie mit anderen Spielern.', 'Les joueurs n’écrivent jamais avec d’autres joueurs.', 'Players never write to other players.'),
   r('Nur Spieler und Hunter schreiben hier.', 'Seuls les joueurs et les hunters écrivent ici.', 'Only players and hunters write here.'),
   r('Nicht in der Gruppe.', 'Pas dans le groupe.', 'Not in the group.'),
+  r('Das geht erst nach Spielende.', 'Ce n’est possible qu’après la fin de la partie.', 'This is only possible after the game.'),
+  r('Das Spiel ist älter als 30 Tage. Ohne "Für immer behalten" würde die Wiederholung sofort gelöscht.', 'La partie a plus de 30 jours. Sans « Garder pour toujours », le replay serait supprimé tout de suite.', 'The game is older than 30 days. Without "Keep forever" the replay would be deleted right away.'),
   r('Die Wiederholung gibt es erst nach Spielende.', 'Le replay n’est disponible qu’après la fin de la partie.', 'The replay is only available after the game.'),
   r('Zu lange in einer Gefahrenzone', 'Trop longtemps dans une zone dangereuse', 'Too long in a danger zone'),
 
