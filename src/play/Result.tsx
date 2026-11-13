@@ -133,6 +133,7 @@ export default function Result({ s, zones }: { s: GameState; zones: MapFeature[]
       <h2>{tr('Wiederholung')}</h2>
       <div className="muted small" style={{ marginTop: -6, marginBottom: 8 }}>{tr('Die Linien zeigen den genauen Weg jeder Person (aufgezeichnet, solange der Standort gesendet wurde). Die Kästchen sind die Pings.')}</div>
       {err && <div className="notice error">{err}</div>}
+      {replay && <KeepCard gameId={s.game.id} replay={replay} onChange={(keep) => setReplay({ ...replay, keep_forever: keep })} />}
       {replay && (
         <>
           <MapView zones={zones} markers={markers} lines={lines} fitKey="replay" height="50dvh" />
@@ -165,6 +166,36 @@ export default function Result({ s, zones }: { s: GameState; zones: MapFeature[]
           </details>
         </>
       )}
+    </div>
+  );
+}
+
+/** Wiederholung behalten: sonst werden die Wege 30 Tage nach Spielende gelöscht. Jeder Teilnehmende kann es für dieses Spiel umschalten. */
+function KeepCard({ gameId, replay, onChange }: { gameId: string; replay: Replay; onChange: (keep: boolean) => void }) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const keep = !!replay.keep_forever;
+  const endedAt = replay.ended_at ? new Date(replay.ended_at).getTime() : null;
+  const purgeAt = endedAt ? endedAt + 30 * 86400000 : null;
+  const old = purgeAt !== null && Date.now() > purgeAt;
+  const gone = !keep && old;
+  const toggle = async () => {
+    setBusy(true);
+    setErr(null);
+    try {
+      onChange(await api.keepGame(gameId, !keep));
+    } catch (e) {
+      setErr(errorText(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className={`notice stack ${keep ? 'success' : ''}`}>
+      <strong>{keep ? `⭐ ${tr('Dieses Spiel wird für immer behalten')}` : gone ? tr('Die Wege wurden 30 Tage nach Spielende gelöscht') : tr('Die Wege werden am {0} gelöscht', { 0: new Date(purgeAt ?? Date.now()).toLocaleDateString() })}</strong>
+      <span className="small">{keep ? tr('Die Wiederholung bleibt erhalten, bis das Spiel gelöscht wird.') : tr('Nach 30 Tagen werden die aufgezeichneten Wege gelöscht, damit der Speicher reicht. Bei besonders guten Spielen: für immer behalten.')}</span>
+      {!old && <button type="button" className={keep ? 'small' : 'small primary'} style={{ alignSelf: 'flex-start' }} disabled={busy} onClick={toggle}>{keep ? tr('Nicht mehr behalten') : `⭐ ${tr('Für immer behalten')}`}</button>}
+      {err && <span className="small red">{err}</span>}
     </div>
   );
 }

@@ -38,7 +38,7 @@ const SLIDES: { art: string; title: string; lead: string; points: [string, strin
     title: 'Fangen und gewinnen',
     lead: 'Gefangen ist, wessen Fang-Code ein Hunter eingibt oder wer den gemeldeten Fang bestätigt. Wer frei bleibt, gewinnt.',
     points: [
-      ['📷', 'Fangen', 'Der Spieler zeigt seinen Code, der Hunter scannt ihn mit der App.'],
+      ['🔢', 'Fangen', 'Der Spieler zeigt seinen Zahlencode, der Hunter tippt ihn ein. Oder der Hunter meldet den Fang, und der Spieler bestätigt.'],
       ['🏁', 'Fluchtpunkt', 'Am Schluss müssen die Spieler oft noch zu einem Ziel.'],
       ['🏆', 'Sieg', 'Spieler gewinnen, wenn sie frei ankommen. Hunter, wenn alle gefangen sind.'],
     ],

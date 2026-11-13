@@ -152,7 +152,7 @@ export default function PlayPage() {
   const outside = !!s && role === 'spieler' && !s.game.paused && ['vorsprung', 'laeuft', 'finale'].includes(s.game.status)
     && (s.me.out_pending || s.me.state === 'ausserhalb' || s.me.in_restricted);
   useOutsideVibration(outside);
-  useRadarAlarm(role === 'spieler' ? s?.me.radar : undefined);
+  useRadarAlarm(role === 'spieler' ? s?.me.radar : undefined, reload);
 
   // Karte neu laden, wenn sich Zonen ändern (Ankündigung, Exit, neue Sperrzone).
   useEffect(() => {

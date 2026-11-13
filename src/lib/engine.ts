@@ -154,6 +154,7 @@ export const api = {
   endGame: (g: string) => rpc('gm_end_game', { p_game_id: g }),
   send: (g: string, channel: string, body: string) => rpc('send_message', { p_game_id: g, p_channel: channel, p_body: body }),
   replay: (g: string) => rpc<Replay>('game_replay', { p_game_id: g }),
+  keepGame: (g: string, keep: boolean) => rpc<boolean>('set_keep_game', { p_game_id: g, p_keep: keep }),
   pause: (g: string, reason: string) => rpc('host_pause', { p_game_id: g, p_reason: reason }),
   resume: (g: string) => rpc('host_resume', { p_game_id: g }),
   safetyConfirm: (g: string) => rpc('safety_confirm', { p_game_id: g }),
@@ -168,6 +169,9 @@ export interface Replay {
   pings: { participant_id: string; at: string; lat: number; lng: number; source: string; is_fake: boolean }[];
   catches: { runner_id: string; hunter_id: string; at: string; lat: number | null; lng: number | null }[];
   events: { at: string; type: string; payload: Record<string, unknown> }[];
+  /** Für immer behalten (sonst werden die Wege 30 Tage nach Spielende gelöscht). */
+  keep_forever?: boolean;
+  ended_at?: string | null;
 }
 
 // Beweisfoto hochladen: Pfad <game>/<user>/<datei> (Storage-Policy in 0003).
@@ -209,7 +213,7 @@ export const ITEM_ICONS: Record<string, string> = {
 export const ITEM_HELP: Record<string, string> = lazy({
   regeneration: 'Du wirst eine Zeit lang nicht gepingt, und die Hunter können keine Blitzjagd auf dich starten. Fangen dürfen sie dich aber weiterhin. Nicht einsetzbar, solange eine Blitzjagd läuft.',
   hunter_erfragen: 'Beim Einsetzen siehst du einmalig, wo alle Hunter in diesem Moment sind (nicht live).',
-  naehe_radar: 'Eine Zeit lang siehst du, ob ein Hunter näher als der eingestellte Abstand ist. Wo er ist, siehst du nicht.',
+  naehe_radar: 'Eine Zeit lang siehst du, ob ein Hunter näher als der eingestellte Abstand ist. Wo er ist, siehst du nicht. Jedes Mal, wenn ein Hunter nah kommt, klingelt es laut.',
   catch_free: 'Du kannst eine Zeit lang nicht gefangen werden.',
   fake_ping: 'Dein nächster Ping zeigt einen Ort, den du auf der Karte wählst.',
   hotel: 'Du bist an deinem jetzigen Ort eine Zeit lang geschützt.',
