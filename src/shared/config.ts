@@ -244,7 +244,6 @@ export const gameConfigSchema = z.object({
     .describe('Sicherheit'),
   tracking: z
     .object({
-      sample_interval_seconds: int(15, 5, 120, 'GPS-Intervall (s)'),
       signal_loss_max_minutes: int(15, 1, 120, 'Signalverlust-Meldung nach (min)'),
     })
     .default({})
@@ -256,12 +255,6 @@ export const gameConfigSchema = z.object({
     })
     .default({})
     .describe('Zuschauer'),
-  privacy: z
-    .object({
-      retention_days: int(30, 1, 365, 'Standortdaten löschen nach (Tage)'),
-    })
-    .default({})
-    .describe('Datenschutz'),
   account: z
     .object({
       require_verified_email: bool(true, 'Bestätigte E-Mail Pflicht'),
