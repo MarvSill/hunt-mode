@@ -45,6 +45,8 @@ interface Props {
   fullTop?: ReactNode;
   /** Meldet, ob die Karte gerade im Vollbild ist. */
   onFullscreen?: (on: boolean) => void;
+  /** Eigene Ebenen und Knöpfe auf der Karte (z. B. Zeichnen der Hunter). styleVer ändert sich bei jedem neuen Kartenstil. */
+  overlay?: (map: maplibregl.Map, styleVer: number) => ReactNode;
 }
 
 const POINT_ICON: Record<string, string> = { treffpunkt: '📍', exit: '🏁' };
@@ -212,7 +214,9 @@ class Buttons implements maplibregl.IControl {
   }
 }
 
-export default function MapView({ zones, markers, lines, onClick, fitKey, height = '60dvh', showDay, children, fullTop, onFullscreen }: Props) {
+export default function MapView({ zones, markers, lines, onClick, fitKey, height = '60dvh', showDay, children, fullTop, onFullscreen, overlay }: Props) {
+  const [mapObj, setMapObj] = useState<maplibregl.Map | null>(null);
+  const [styleVer, setStyleVer] = useState(0);
   const settings = useMapSettings();
   const [full, setFull] = useState(false);
   const fullRef = useRef(false);
@@ -335,6 +339,7 @@ export default function MapView({ zones, markers, lines, onClick, fitKey, height
     m.on('style.load', () => {
       addOverlays(m, resolveStyle(settingsRef.current.style).dark, settingsRef.current.tilt);
       ready.current = true;
+      setStyleVer((v) => v + 1);
       drawZones();
       drawMarkers();
       if (!centered.current && fit(false)) {
@@ -343,6 +348,7 @@ export default function MapView({ zones, markers, lines, onClick, fitKey, height
       }
     });
     map.current = m;
+    setMapObj(m);
     const ro = new ResizeObserver(() => {
       m.resize();
       if (pendingFit.current && el.current && el.current.clientWidth > 0) {
@@ -355,6 +361,7 @@ export default function MapView({ zones, markers, lines, onClick, fitKey, height
       ro.disconnect();
       m.remove();
       map.current = null;
+      setMapObj(null);
       ready.current = false;
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -427,6 +434,7 @@ export default function MapView({ zones, markers, lines, onClick, fitKey, height
       <div ref={el} className="map" style={{ height }} />
       {full && fullTop ? <div className="map-overlay-top">{fullTop}</div> : <div className="map-overlay-tl"><MapStylePicker /></div>}
       {children && <div className="map-overlay-bl">{children}</div>}
+      {overlay && mapObj && styleVer > 0 && overlay(mapObj, styleVer)}
     </div>
   );
 }
