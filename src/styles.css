@@ -516,8 +516,7 @@ body.kb-open .tabbar, body.kb-open .running-bar { display: none; }
 /* Offener Chat im Spiel: ganzer Bildschirm, Eingabe unten bzw. direkt über der Tastatur */
 .chat-screen { position: fixed; left: 0; right: 0; z-index: 1600; display: flex; flex-direction: column; background: var(--bg); animation: hm-tab-in .2s ease-out; }
 .chat-head { display: flex; align-items: center; gap: 10px; padding: calc(env(safe-area-inset-top) + 8px) 12px 8px 6px; background: rgba(15,20,28,.97); border-bottom: 1px solid var(--border); }
-.chat-screen.kb .chat-head { padding-top: 8px; }
-.chat-back { width: 40px; height: 40px; min-height: 0; padding: 0; border: none; background: none; color: var(--text); font-size: 34px; line-height: 1; }
+.chat-back { width: 48px; height: 48px; min-height: 0; padding: 0; margin: -4px 0 -4px -4px; border: none; background: none; color: var(--text); font-size: 36px; line-height: 1; flex-shrink: 0; }
 .chat-head .chat-avatar { width: 38px; height: 38px; font-size: 16px; }
 .chat-sub { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .chat-msgs { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
