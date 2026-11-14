@@ -218,3 +218,7 @@ Abweichungen von der Spezifikation und Annahmen, wo sie nichts festlegt.
 - Nachtrag Runde 17 (Marvin): Standardsprache = Sprache des Handys, sonst Englisch (nicht mehr Deutsch). Kein Sprachkanal in der App.
 - Spielansicht neu: Leiste Karte · Aktionen · Chat · Mehr. Aktionen der Spieler nur Joker und Fang-Code (plus Nähe-Radar, wenn aktiv). Wichtiges (Fang bestätigen, ausserhalb, Gefahrenzone, Blitzjagd auf dich, Verschanzen-Frage, Fluchtpunkt, „Ich bin am Fluchtpunkt“) erscheint nur, wenn es gilt, direkt bei der Karte (auch im Vollbild). Mehr: Meldungen, Status, Verschanzen melden, Aufgeben, Alarm, Spiel steuern (Host), Spielregeln.
 - Selbsterklärend: lange Erklärungen hinter ⓘ, kurze Knopf-Texte mit Zeichen. Hinweise beim ersten Spiel je Rolle direkt auf der Karte (einmalig). Helfer beim Erstellen geht jeden Bereich durch und öffnet sich beim ersten Mal von selbst, ebenso in der Lobby (Karte, Einladen, Rollen, Bereit, Start). Keine Übungsrunde, keine verkürzte Erstellung (Marvin).
+
+## Runde 18 (2026-11-14)
+- Helfer und Hinweise: kleine Karte ganz unten am Bildschirm (nicht mehr in der Mitte). Zeigt sie auf etwas weit unten (z. B. die Leiste), rückt sie nach oben.
+- Hunter zeichnen auf der Karte: Stift am Kartenrand öffnet die Werkzeuge Punkt, Strich, Kreis, Fläche, Farbe, Text, Verschieben, Löschen, Alles löschen. Alle Hunter sehen es sofort und jeder kann alles ändern; Spieler und Zuschauer nie (Tabelle hunter_drawings, Migration 0028).

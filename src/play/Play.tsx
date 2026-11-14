@@ -24,6 +24,7 @@ import { SpeedhuntButtons, SpeedhuntDialog } from './SpeedhuntMap';
 import Loader from '../components/Loader';
 import Swipe from '../components/Swipe';
 import SafetyNotice from './SafetyNotice';
+import HunterDraw from './HunterDraw';
 import Guide, { type GuideStep } from '../components/Guide';
 import { DeviceAlert, useOutsideVibration, useRadarAlarm } from './Alerts';
 
@@ -458,6 +459,7 @@ export default function PlayPage() {
                   {!fullMap && <PlayerAlerts s={s} now={now} act={act} />}
                   <div className="map-box" data-guide="map">
                     <MapView zones={zones} markers={markers} fitKey={g.id} height="58dvh" showDay={g.phase ?? g.current_day} onFullscreen={setFullMap}
+                      overlay={role === 'hunter' && !ended ? (m, v) => <HunterDraw map={m} styleVer={v} gameId={g.id} /> : undefined}
                       fullTop={fullMap ? (
                         <div className="stack" style={{ gap: 6 }}>
                           <div className="map-info">{info}{canSos && <button type="button" className="sos small" onClick={() => setSosAsk(true)}>{t('SOS')}</button>}</div>

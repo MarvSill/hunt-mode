@@ -10,20 +10,25 @@ export interface GuideStep { target?: string; title: string; text: string }
 export default function Guide({ steps, onClose }: { steps: GuideStep[]; onClose: () => void }) {
   const list = steps.filter((s) => !s.target || document.querySelector(`[data-guide="${s.target}"]`));
   const [i, setI] = useState(0);
+  // Liegt das gezeigte Element weit unten (z. B. die Leiste), rückt die Karte nach oben, damit sie es nicht verdeckt.
+  const [top, setTop] = useState(false);
   const step = list[Math.min(i, list.length - 1)];
 
   useEffect(() => {
-    if (!step?.target) return;
+    if (!step?.target) { setTop(false); return; }
     const el = document.querySelector(`[data-guide="${step.target}"]`);
     if (!el) return;
     el.classList.add('guide-focus');
     el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    return () => el.classList.remove('guide-focus');
+    const check = () => setTop(el.getBoundingClientRect().bottom > window.innerHeight - 190);
+    check();
+    const tm = setTimeout(check, 500);
+    return () => { clearTimeout(tm); el.classList.remove('guide-focus'); };
   }, [step]);
 
   if (!step) return null;
   return (
-    <div className="guide-card card stack" role="dialog" aria-label={t('Helfer')}>
+    <div className={`guide-card card stack${top ? ' top' : ''}`} role="dialog" aria-label={t('Helfer')}>
       <div className="row">
         <span className="muted small spacer">{t('Helfer · Schritt {0} von {1}', { 0: i + 1, 1: list.length })}</span>
         <button type="button" className="ghost small" onClick={onClose} aria-label={t('Helfer schliessen')}>✕</button>
