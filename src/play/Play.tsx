@@ -324,7 +324,7 @@ export default function PlayPage() {
     if (sosAsk) return setSosAsk(false);
     if (sheet) return setSheet(null);
     if (blitzOpen) return setBlitzOpen(false);
-    if (tab === 'chat' && chatOpen && role === 'hunter') return setChatOpen(null);
+    if (tab === 'chat' && chatOpen) return setChatOpen(null);
     if (tab !== 'karte') return openTab('karte');
     navigate('/');
   };
@@ -579,7 +579,7 @@ export default function PlayPage() {
             )}
           </div>
 
-          {tab === 'chat' && <div className="tab-panel"><Chat s={s} open={chatOpen} onOpen={setChatOpen} onLeave={() => openTab('karte')} /></div>}
+          {tab === 'chat' && <div className="tab-panel"><Chat s={s} open={chatOpen} onOpen={setChatOpen} /></div>}
 
         </>
       )}
