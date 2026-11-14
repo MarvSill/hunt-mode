@@ -57,6 +57,8 @@ const thin = (pts: number[][], n = 400) => {
 };
 
 type PointerEv = maplibregl.MapMouseEvent | maplibregl.MapTouchEvent;
+type Action = { t: 'add'; rows: Drawing[] } | { t: 'del'; rows: Drawing[] } | { t: 'upd'; id: string; before: Partial<Drawing>; after: Partial<Drawing> };
+const FIELDS = 'id,kind,geom,radius_m,color,label';
 const fingers = (e: PointerEv) => ('touches' in e.originalEvent ? (e.originalEvent as TouchEvent).touches.length : 1);
 
 export default function HunterDraw({ map, styleVer, gameId }: { map: maplibregl.Map; styleVer: number; gameId: string }) {
@@ -70,6 +72,11 @@ export default function HunterDraw({ map, styleVer, gameId }: { map: maplibregl.
   const [label, setLabel] = useState('');
   const [err, setErr] = useState<string | null>(null);
   const labels = useRef<maplibregl.Marker[]>([]);
+  // Zurück / Vor: eigene Schritte (Hinzufügen, Löschen, Ändern), solange der Stift offen ist.
+  const past = useRef<Action[]>([]);
+  const future = useRef<Action[]>([]);
+  const [, setHist] = useState(0);
+  const bump = () => setHist((n) => n + 1);
   const st = useRef({ open, tool, color, items, moving });
   st.current = { open, tool, color, items, moving };
 
@@ -127,24 +134,72 @@ export default function HunterDraw({ map, styleVer, gameId }: { map: maplibregl.
     return () => { map.dragPan.enable(); };
   }, [open, tool, moving, map]);
 
-  async function insert(row: { kind: Kind; geom: Drawing['geom'] }) {
-    setErr(null);
-    const { error } = await db().from('hunter_drawings').insert({ game_id: gameId, color: st.current.color, ...row });
-    if (error) setErr(errorText(error));
+  function record(a: Action) {
+    past.current = [...past.current.slice(-49), a];
+    future.current = [];
+    bump();
   }
-  async function update(id: string, patch: Partial<Drawing>) {
+  // Grundbausteine (ohne Verlauf), auch für Zurück / Vor.
+  async function doInsert(rows: (Partial<Drawing> & { kind: Kind; geom: Drawing['geom'] })[]): Promise<Drawing[]> {
+    setErr(null);
+    const { data, error } = await db().from('hunter_drawings').insert(rows.map((r) => ({ game_id: gameId, ...r }))).select(FIELDS);
+    if (error) { setErr(errorText(error)); return []; }
+    const added = (data ?? []) as Drawing[];
+    setItems((list) => [...list.filter((d) => !added.some((a) => a.id === d.id)), ...added]);
+    return added;
+  }
+  async function doUpdate(id: string, patch: Partial<Drawing>) {
     setErr(null);
     setItems((list) => list.map((d) => (d.id === id ? { ...d, ...patch } : d)));
     const { error } = await db().from('hunter_drawings').update(patch).eq('id', id);
     if (error) setErr(errorText(error));
   }
-  async function remove(ids: string[]) {
+  async function doDelete(ids: string[]) {
     if (!ids.length) return;
     setErr(null);
     setItems((list) => list.filter((d) => !ids.includes(d.id)));
     setMenu(null);
     const { error } = await db().from('hunter_drawings').delete().in('id', ids);
     if (error) setErr(errorText(error));
+  }
+  // Mit Verlauf
+  async function insert(row: { kind: Kind; geom: Drawing['geom'] }) {
+    const added = await doInsert([{ color: st.current.color, ...row }]);
+    if (added.length) record({ t: 'add', rows: added });
+  }
+  async function update(id: string, patch: Partial<Drawing>, before?: Partial<Drawing>) {
+    const cur = st.current.items.find((d) => d.id === id);
+    const prev = before ?? (cur ? Object.fromEntries(Object.keys(patch).map((k) => [k, cur[k as keyof Drawing]])) as Partial<Drawing> : {});
+    record({ t: 'upd', id, before: prev, after: patch });
+    await doUpdate(id, patch);
+  }
+  async function remove(ids: string[], rowsBefore?: Drawing[]) {
+    if (!ids.length) return;
+    const rows = rowsBefore ?? st.current.items.filter((d) => ids.includes(d.id));
+    record({ t: 'del', rows });
+    await doDelete(ids);
+  }
+  const strip = (d: Drawing) => ({ id: d.id, kind: d.kind, geom: d.geom, radius_m: d.radius_m, color: d.color, label: d.label });
+  async function apply(a: Action, back: boolean) {
+    if (a.t === 'add') { if (back) await doDelete(a.rows.map((d) => d.id)); else await doInsert(a.rows.map(strip)); }
+    else if (a.t === 'del') { if (back) await doInsert(a.rows.map(strip)); else await doDelete(a.rows.map((d) => d.id)); }
+    else await doUpdate(a.id, back ? a.before : a.after);
+  }
+  async function undo() {
+    const a = past.current[past.current.length - 1];
+    if (!a) return;
+    past.current = past.current.slice(0, -1);
+    future.current = [...future.current, a];
+    bump();
+    await apply(a, true);
+  }
+  async function redo() {
+    const a = future.current[future.current.length - 1];
+    if (!a) return;
+    future.current = future.current.slice(0, -1);
+    past.current = [...past.current, a];
+    bump();
+    await apply(a, false);
   }
 
   // Finger auf der Karte.
@@ -155,6 +210,7 @@ export default function HunterDraw({ map, styleVer, gameId }: { map: maplibregl.
     let holdTimer: ReturnType<typeof setTimeout> | null = null;
     let hold: { id: string; start: number[]; orig: Drawing['geom'] } | null = null;
     let erased = new Set<string>();
+    let erasedRows: Drawing[] = [];
     const clearHold = () => { if (holdTimer) clearTimeout(holdTimer); holdTimer = null; };
 
     const hitAt = (px: maplibregl.Point, r = 14) => {
@@ -166,6 +222,7 @@ export default function HunterDraw({ map, styleVer, gameId }: { map: maplibregl.
       const ids = hitAt(px, 16).filter((id) => !erased.has(id));
       if (!ids.length) return;
       ids.forEach((id) => erased.add(id));
+      erasedRows = [...erasedRows, ...st.current.items.filter((d) => ids.includes(d.id))];
       tapFeedback();
       setItems((list) => list.filter((d) => !erased.has(d.id)));
     };
@@ -179,7 +236,7 @@ export default function HunterDraw({ map, styleVer, gameId }: { map: maplibregl.
       down = { p, px: e.point, moved: false, hit: null };
       lastPx = e.point;
       if (s.tool === 'frei' || s.tool === 'form') { stroke = [p]; setDraft([p]); return; }
-      if (s.tool === 'radier') { erased = new Set(); eraseAt(e.point); return; }
+      if (s.tool === 'radier') { erased = new Set(); erasedRows = []; eraseAt(e.point); return; }
       if (s.tool) return;
       // Kein Werkzeug: auf eine Zeichnung? Kurz halten = verschieben, kurz antippen = Menü.
       const hit = hitAt(e.point)[0] ?? null;
@@ -226,7 +283,7 @@ export default function HunterDraw({ map, styleVer, gameId }: { map: maplibregl.
       const s = st.current;
       if (hold) {
         const d = s.items.find((x) => x.id === hold!.id);
-        if (d) void update(d.id, { geom: d.geom });
+        if (d) void update(d.id, { geom: d.geom }, { geom: hold.orig });
         hold = null;
         setMoving(null);
         down = null;
@@ -240,7 +297,7 @@ export default function HunterDraw({ map, styleVer, gameId }: { map: maplibregl.
         void insert({ kind: 'flaeche', geom: { type: 'Polygon', coordinates: [[...pts, pts[0]]] } });
       }
       if (s.tool === 'punkt' && !down.moved) void insert({ kind: 'punkt', geom: { type: 'Point', coordinates: p } });
-      if (s.tool === 'radier' && erased.size) void remove([...erased]);
+      if (s.tool === 'radier' && erased.size) void remove([...erased], erasedRows);
       if (!s.tool && !down.moved) {
         // Kurz antippen: Menü der Zeichnung (oder Menü schliessen).
         if (down.hit) {
@@ -275,7 +332,7 @@ export default function HunterDraw({ map, styleVer, gameId }: { map: maplibregl.
   return (
     <>
       <button type="button" className={`draw-pen${open ? ' on' : ''}`} aria-pressed={open} aria-label={open ? t('Zeichnen beenden') : t('Zeichnen')}
-        onClick={() => { setOpen(!open); setTool(null); setMenu(null); setMoving(null); }}>
+        onClick={() => { setOpen(!open); setTool(null); setMenu(null); setMoving(null); past.current = []; future.current = []; bump(); }}>
         {open ? '✓' : '✏️'}
       </button>
 
@@ -292,7 +349,11 @@ export default function HunterDraw({ map, styleVer, gameId }: { map: maplibregl.
               {COLORS.map((c) => <button key={c} type="button" className={`draw-color${color === c ? ' on' : ''}`} style={{ background: c }} aria-label={t('Farbe')} onClick={() => setColor(c)} />)}
             </div>
           )}
-          <div className="tiny muted">{hint}</div>
+          <div className="row" style={{ gap: 6, alignItems: 'center', flexWrap: 'nowrap' }}>
+            <button type="button" className="draw-step" disabled={!past.current.length} aria-label={t('Zurück')} onClick={() => void undo()}>↩️</button>
+            <button type="button" className="draw-step" disabled={!future.current.length} aria-label={t('Vor')} onClick={() => void redo()}>↪️</button>
+            <div className="tiny muted" style={{ flex: 1, minWidth: 0 }}>{hint}</div>
+          </div>
           {tool === 'radier' && items.length > 0 && (
             <button type="button" className="small ghost" onClick={() => { if (window.confirm(t('Alle Zeichnungen für alle Hunter löschen?'))) void remove(items.map((d) => d.id)); }}>🗑️ {t('Alles löschen')} ({items.length})</button>
           )}

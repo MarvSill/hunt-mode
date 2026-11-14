@@ -1360,4 +1360,5 @@ export const fr: Record<string, string> = {
   "Werkzeug wählen. Zeichnung halten und ziehen = verschieben, antippen = ändern.": "Choisis un outil. Maintenir un dessin et glisser = déplacer, toucher = modifier.",
   "Form": "Forme",
   "Radieren": "Gommer",
+  "Vor": "R\u00e9tablir",
 };

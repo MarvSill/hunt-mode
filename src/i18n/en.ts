@@ -1360,4 +1360,5 @@ export const en: Record<string, string> = {
   "Werkzeug wählen. Zeichnung halten und ziehen = verschieben, antippen = ändern.": "Pick a tool. Hold a drawing and drag = move, tap = edit.",
   "Form": "Shape",
   "Radieren": "Erase",
+  "Vor": "Redo",
 };
