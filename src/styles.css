@@ -203,9 +203,22 @@ button.danger, .button.danger { background: #b4232a; border-color: #b4232a; colo
 .sub { border-top: 1px solid var(--border); padding-top: 10px; }
 .sub:first-of-type { border-top: none; padding-top: 0; }
 .dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
-.chat { overflow-y: auto; display: flex; flex-direction: column; gap: 6px; min-height: 120px; }
-.bubble { background: var(--surface-2); border-radius: 12px; padding: 8px 10px; max-width: 85%; align-self: flex-start; overflow-wrap: anywhere; }
-.bubble.mine { align-self: flex-end; background: #23344a; }
+.chat { overflow-y: auto; display: flex; flex-direction: column; gap: 3px; min-height: 120px; padding: 4px 2px; }
+/* Sprechblasen wie bei WhatsApp */
+.bubble { position: relative; background: var(--surface-2); border-radius: 16px 16px 16px 16px; padding: 7px 10px 6px; max-width: 80%; align-self: flex-start; overflow-wrap: anywhere; font-size: 15px; line-height: 1.35; }
+.bubble.first { margin-top: 6px; border-top-left-radius: 4px; }
+.bubble.mine { align-self: flex-end; background: #1f5f3f; }
+.bubble.mine.first { border-top-left-radius: 16px; border-top-right-radius: 4px; }
+.bubble-from { font-size: 12px; font-weight: 800; color: #ff8a80; margin-bottom: 1px; }
+.bubble-tag { font-size: 11px; font-weight: 700; color: var(--muted); margin-bottom: 2px; }
+.bubble-text { white-space: pre-wrap; }
+.bubble-time { float: right; font-size: 11px; color: rgba(255,255,255,.55); margin: 6px 0 -2px 10px; }
+/* Eingabe unten */
+.composer { display: flex; align-items: flex-end; gap: 8px; padding: 8px 10px; flex-wrap: wrap; }
+.composer textarea { flex: 1; min-width: 0; resize: none; border-radius: 22px; padding: 10px 16px; font-size: 16px; line-height: 1.3; min-height: 44px; max-height: 120px; background: var(--surface-2); border: 1px solid var(--border); color: var(--text); }
+.composer-send { width: 44px; height: 44px; min-height: 0; padding: 0; border-radius: 50%; background: #2ea043; border-color: #2ea043; color: #fff; font-size: 18px; flex-shrink: 0; }
+.composer-send:disabled { opacity: .45; }
+.composer-err { width: 100%; color: var(--red); font-size: 13px; }
 textarea { width: 100%; background: var(--surface-2); color: var(--text); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; font: inherit; }
 details summary { cursor: pointer; font-weight: 600; }
 .hm-marker { background: none; border: none; }
@@ -499,3 +512,16 @@ body:has(.running-bar) .app { padding-bottom: calc(env(safe-area-inset-bottom) +
 .notes-box { max-height: 42dvh; overflow-y: auto; overscroll-behavior: contain; }
 /* Tastatur offen: die Leiste unten verschwindet, damit Eingabefeld und Senden sichtbar bleiben */
 body.kb-open .tabbar, body.kb-open .running-bar { display: none; }
+
+/* Offener Chat im Spiel: ganzer Bildschirm, Eingabe unten bzw. direkt über der Tastatur */
+.chat-screen { position: fixed; left: 0; right: 0; z-index: 1600; display: flex; flex-direction: column; background: var(--bg); animation: hm-tab-in .2s ease-out; }
+.chat-head { display: flex; align-items: center; gap: 10px; padding: calc(env(safe-area-inset-top) + 8px) 12px 8px 6px; background: rgba(15,20,28,.97); border-bottom: 1px solid var(--border); }
+.chat-screen.kb .chat-head { padding-top: 8px; }
+.chat-back { width: 40px; height: 40px; min-height: 0; padding: 0; border: none; background: none; color: var(--text); font-size: 34px; line-height: 1; }
+.chat-head .chat-avatar { width: 38px; height: 38px; font-size: 16px; }
+.chat-sub { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chat-msgs { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+.chat-msgs-inner { min-height: 100%; display: flex; flex-direction: column; justify-content: flex-end; gap: 3px; padding: 10px 12px; max-width: 760px; margin: 0 auto; }
+.chat-empty { margin: auto; color: var(--muted); font-size: 14px; text-align: center; padding: 20px; }
+.chat-screen .composer { background: rgba(15,20,28,.97); border-top: 1px solid var(--border); padding-bottom: calc(env(safe-area-inset-bottom) + 8px); }
+.chat-screen.kb .composer { padding-bottom: 8px; }
