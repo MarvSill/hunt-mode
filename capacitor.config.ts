@@ -8,6 +8,8 @@ const config: CapacitorConfig = {
   appId: 'ch.huntmode.app',
   appName: 'Hunt Mode',
   webDir: 'dist',
+  // Hintergrund hinter der App (sichtbar beim Laden und hinter den Leisten), wie --bg in styles.css.
+  backgroundColor: '#0a0d13',
   android: {
     // Sonst stoppt Android die Standort-Updates nach 5 Minuten im Hintergrund.
     useLegacyBridge: true,
@@ -18,6 +20,8 @@ const config: CapacitorConfig = {
     // Anfragen an den Server über die native Verbindung: Android bremst die WebView im Hintergrund.
     CapacitorHttp: { enabled: true },
     LocalNotifications: { iconColor: '#3fb950' },
+    // Android: helle Symbole in Status- und Navigationsleiste (die App ist dunkel).
+    SystemBars: { style: 'DARK' },
   },
 };
 
