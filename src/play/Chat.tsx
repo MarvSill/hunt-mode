@@ -242,12 +242,13 @@ function saveRead(game: string, v: Record<string, number>) {
 
 /**
  * Chats wie bei WhatsApp: alle Chats untereinander (letzte Nachricht, Zeit, ungelesen). Antippen öffnet den Chat über
- * den ganzen Bildschirm, "‹" führt zurück. Spieler haben nur einen Chat (mit den Huntern): der öffnet sich direkt.
+ * den ganzen Bildschirm, "‹" führt zurück zur Liste. Auch Spieler (nur ein Chat, mit den Huntern) sehen zuerst die Liste.
  */
-export default function Chat({ s, open: openProp, onOpen, onLeave }: { s: GameState; open?: string | null; onOpen?: (id: string | null) => void; onLeave?: () => void }) {
+export default function Chat({ s, open: openProp, onOpen }: { s: GameState; open?: string | null; onOpen?: (id: string | null) => void }) {
   const chans = channelsFor(s).filter((c) => c.id !== '*');
   const [openState, setOpenState] = useState<string | null>(null);
-  const open = chans.length === 1 ? chans[0].id : openProp !== undefined ? openProp : openState;
+  // Alle sehen zuerst die Liste (auch Spieler mit nur einem Chat); Antippen öffnet den Chat.
+  const open = openProp !== undefined ? openProp : openState;
   const setOpen = (id: string | null) => (onOpen ? onOpen(id) : setOpenState(id));
   const [last, setLast] = useState<Msg[]>([]);
   const [read, setRead] = useState<Record<string, number>>(() => loadRead(s.game.id));
@@ -262,10 +263,13 @@ export default function Chat({ s, open: openProp, onOpen, onLeave }: { s: GameSt
   }, [s.game.id]);
 
   const cur = chans.find((c) => c.id === open) ?? null;
+  // Was in der Liste zählt: bei Huntern nur der eigene Kanal des Chats (sonst stünde "An alle Spieler" bei jedem
+  // Spieler-Chat), bei Spielern auch die Nachrichten der Hunter an alle.
+  const inList = (c: ChatThread, m: Msg) => (s.me.role === 'spieler' ? !!c.read?.includes(m.channel) : m.channel === c.id);
   // Beim Öffnen und solange offen: alles in diesem Chat als gelesen merken.
   useEffect(() => {
     if (!cur) return;
-    const top = last.filter((m) => m.channel === cur.id).reduce((a, m) => Math.max(a, m.id), 0);
+    const top = last.filter((m) => inList(cur, m)).reduce((a, m) => Math.max(a, m.id), 0);
     if (top > (read[cur.id] ?? 0)) {
       const next = { ...read, [cur.id]: top };
       setRead(next);
@@ -280,7 +284,7 @@ export default function Chat({ s, open: openProp, onOpen, onLeave }: { s: GameSt
   if (!cur) {
     const rows = chans.map((c) => {
       // In der Liste zählt nur der eigene Kanal des Chats (sonst stünde "An alle Spieler" bei jedem Spieler-Chat).
-      const msgs = last.filter((m) => m.channel === c.id);
+      const msgs = last.filter((m) => inList(c, m));
       const newest = msgs[0];
       const unread = msgs.filter((m) => m.id > (read[c.id] ?? 0) && m.sender_id !== me).length;
       return { c, newest, unread };
@@ -309,5 +313,5 @@ export default function Chat({ s, open: openProp, onOpen, onLeave }: { s: GameSt
     : cur.id === 'taskforce' ? t('Nur das Hunter-Team liest mit')
     : cur.id === 'spieler' ? t('Alle Spieler lesen mit')
     : t('Dieser Spieler und alle Hunter lesen mit');
-  return <ChatScreen key={cur.id} s={s} chan={cur} hint={hint} avatar={avatarOf(cur)} onBack={() => (chans.length > 1 ? setOpen(null) : onLeave?.())} />;
+  return <ChatScreen key={cur.id} s={s} chan={cur} hint={hint} avatar={avatarOf(cur)} onBack={() => setOpen(null)} />;
 }
