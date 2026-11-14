@@ -7,6 +7,7 @@ const PATHS: Record<string, string> = {
   map: 'M9 4 3 6.5v13.5l6-2.5 6 2.5 6-2.5V4l-6 2.5L9 4M9 4v13.5M15 6.5V20',
   bolt: 'M13 2 4 14h7l-1 8 9-12h-7l1-8',
   bell: 'M6 9a6 6 0 1 1 12 0c0 6 2.5 8 2.5 8h-17S6 15 6 9M10 20a2 2 0 0 0 4 0',
+  more: 'M5 11v2M12 11v2M19 11v2',
   chat: 'M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-5.1A8 8 0 1 1 21 12',
   plus: 'M12 5v14M5 12h14',
   chevron: 'm9 6 6 6-6 6',

@@ -9,20 +9,36 @@ import { t } from '../i18n';
  */
 export function SpeedhuntButtons({ s, act, onOpen }: Pick<PanelProps, 's' | 'act'> & { onOpen: () => void }) {
   const g = s.game;
+  // Jede Abfrage wie den Start einmal mit "Ja" bestätigen, damit kein Ping aus Versehen verbraucht wird.
+  const [ask, setAsk] = useState<string | null>(null);
   if (!g.config.speedhunt.enabled) return null;
   const live = ['laeuft', 'finale'].includes(g.status) && !g.paused;
   const running = s.speedhunts.filter((x) => x.status === 'laeuft');
+  const asked = running.find((x) => x.id === ask);
   return (
     <>
       {running.map((sh) => {
         const left = sh.queries_total - sh.queries_used;
         return (
-          <button key={sh.id} type="button" className="map-chip blitz" disabled={!live || left <= 0}
-            onClick={() => void act(() => api.speedhuntQuery(sh.id), t('Standort abgefragt.'))}>
+          <button key={sh.id} type="button" className="map-chip blitz" disabled={!live || left <= 0} onClick={() => setAsk(sh.id)}>
             ⚡ {t('Nächster Ping: {0} ({1} übrig)', { 0: nameTag(s, sh.target_id), 1: left })}
           </button>
         );
       })}
+      {asked && (
+        <div className="overlay" role="dialog" aria-label={t('Nächsten Ping abfragen?')} onClick={() => setAsk(null)}>
+          <div className="card stack" style={{ maxWidth: 440, width: '100%', background: 'var(--surface)' }} onClick={(e) => e.stopPropagation()}>
+            <strong style={{ fontSize: 20 }}>⚡ {t('Nächsten Ping von {0} abfragen?', { 0: nameTag(s, asked.target_id) })}</strong>
+            <span className="small">{t('Danach bleiben noch {0} Abfragen.', { 0: Math.max(0, asked.queries_total - asked.queries_used - 1) })}</span>
+            <button type="button" className="danger block big" onClick={() => {
+              const id = asked.id;
+              setAsk(null);
+              void act(() => api.speedhuntQuery(id), t('Standort abgefragt.'));
+            }}>{t('Ja, Ping abfragen')}</button>
+            <button type="button" className="ghost block" onClick={() => setAsk(null)}>{t('Abbrechen')}</button>
+          </div>
+        </div>
+      )}
       <button type="button" className="map-chip blitz" disabled={!live || g.speedhunts_left <= 0} onClick={onOpen}>
         ⚡ {t('Blitzjagd')} ({g.speedhunts_left})
       </button>

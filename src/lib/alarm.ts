@@ -45,7 +45,8 @@ function audio(): AudioContext {
     const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     ctx = new Ctx();
   }
-  if (ctx.state === 'suspended') void ctx.resume();
+  // iOS setzt den Ton nach dem Hintergrund oder einem Anruf auf "interrupted": dann wieder einschalten.
+  if (ctx.state !== 'running') void ctx.resume().catch(() => undefined);
   return ctx;
 }
 

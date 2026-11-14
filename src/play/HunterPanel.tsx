@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { api, clock, countdown, SOURCE_LABELS, STATE_LABELS, TRANSPORT_LABELS, uploadProof } from '../lib/engine';
 import { Confirm, nameOf, nameTag, Section, type PanelProps } from './common';
 import { t } from '../i18n';
+import Info from '../components/Info';
 
 export default function HunterPanel({ s, now, act, pos }: PanelProps) {
   const g = s.game;
@@ -69,7 +70,7 @@ export default function HunterPanel({ s, now, act, pos }: PanelProps) {
         <button className="primary big" disabled={!live} onClick={() => setCodeOpen(true)}>🔢 {t('Code eingeben')}</button>
         <button className="primary big" disabled={!live} onClick={() => setClaimOpen(true)}>🤚 {t('Fang melden')}</button>
       </div>
-      <div className="muted small">{t('Zwei Wege, jeder geht für sich: den Fang-Code des Spielers eingeben, oder den Fang melden und der Spieler bestätigt.')}</div>
+      <div className="muted small">{t('Fangen')} <Info title={t('Fangen')} text={t('Zwei Wege, jeder geht für sich: den Fang-Code des Spielers eingeben, oder den Fang melden und der Spieler bestätigt.')} /></div>
       {myRejected.map((c) => <div key={c.id} className="notice error">{t('{0} hat den Fang abgelehnt. Lass dir den Fang-Code zeigen.', { 0: nameOf(s, c.runner_id) })}</div>)}
 
       {myProof.map((c) => (
@@ -86,7 +87,7 @@ export default function HunterPanel({ s, now, act, pos }: PanelProps) {
 
       {cfg.speedhunt.enabled && (
         <div className="card small">
-          ⚡ {t('Blitzjagden startest du direkt auf der Karte (Knopf unten links). Noch {0} im Spiel.', { 0: g.speedhunts_left })}
+          ⚡ {t('Blitzjagd: Knopf bei der Karte · noch {0}', { 0: g.speedhunts_left })}
           {running.map((sh) => <div key={sh.id} className="muted">{t('Läuft: {0} · {1}/{2} Abfragen', { 0: nameTag(s, sh.target_id), 1: sh.queries_used, 2: sh.queries_total })}</div>)}
         </div>
       )}

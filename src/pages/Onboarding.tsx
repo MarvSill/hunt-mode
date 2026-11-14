@@ -3,6 +3,7 @@ import { useAuth } from '../lib/auth';
 import { db, errorText } from '../lib/supabase';
 import { defaultConfig } from '../shared/config';
 import { t } from '../i18n';
+import LanguagePicker from '../components/LanguagePicker';
 
 export const CONSENT_VERSION = '2026-10';
 const USERNAME_RE = /^[a-z0-9_.]{3,20}$/;
@@ -69,6 +70,7 @@ export default function OnboardingPage() {
         <h1>{t('Dein Profil')}</h1>
         <p>{t('Nur einmal ausfüllen, dann kann es losgehen.')}</p>
       </div>
+      <div style={{ marginBottom: 12 }}><LanguagePicker userId={session?.user.id} /></div>
       <form className="stack" onSubmit={submit}>
         <label className="field">
           {t('Benutzername (zum Finden und Einladen)')}
@@ -76,7 +78,7 @@ export default function OnboardingPage() {
             required
             value={username}
             onChange={(e) => setUsername(e.target.value)}
-            placeholder={t('z. B. marvin_92')}
+            placeholder={t('z. B. fuchs_92')}
             autoCapitalize="none"
             autoCorrect="off"
           />
@@ -119,7 +121,7 @@ export default function OnboardingPage() {
         <label className="check box">
           <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
           <span>
-            {t('Ich akzeptiere die Nutzungsbedingungen und den')} <a href={`${import.meta.env.BASE_URL}datenschutz`} target="_blank" rel="noreferrer">{t('Datenschutz')}</a>{t('. Mein Standort wird nur während laufender Spiele erfasst und nach Spielende automatisch gelöscht. Teilnahme auf eigenes Risiko; Gesetze und Verkehrsregeln gelten immer.')}
+            {t('Ich akzeptiere die Nutzungsbedingungen und den')} <a href={`${import.meta.env.BASE_URL}datenschutz`} target="_blank" rel="noreferrer">{t('Datenschutz')}</a>{t('. Mein Standort wird nur während laufender Spiele erfasst und 30 Tage nach Spielende automatisch gelöscht, ausser ein Spiel wird für immer behalten. Teilnahme auf eigenes Risiko; Gesetze und Verkehrsregeln gelten immer.')}
           </span>
         </label>
 

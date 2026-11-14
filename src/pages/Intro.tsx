@@ -20,7 +20,7 @@ const SLIDES: { art: string; title: string; lead: string; points: [string, strin
     points: [
       ['🟢', 'Spieler', 'verstecken sich im Spielfeld und wollen bis zum Schluss frei bleiben.'],
       ['🔴', 'Hunter', 'jagen die Spieler als Team und versuchen sie zu fangen.'],
-      ['🗺️', 'Spielfeld', 'Ein Gebiet auf der Karte. Wer es verlässt, bekommt einen Alarm und wird nach kurzer Zeit für die Hunter live sichtbar.'],
+      ['🗺️', 'Spielfeld', 'Ein Gebiet auf der Karte. Wer es verlässt, bekommt einen Alarm und ist sofort für die Hunter live sichtbar.'],
     ],
   },
   {

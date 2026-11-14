@@ -114,16 +114,11 @@ export default function QuickSettings({ config, onChange }: Props) {
         <Toggle label={t('Fluchtpunkt am Schluss (Spieler müssen hin)')} value={config.exit.enabled} onChange={(v) => set('exit', 'enabled', v)} />
         {config.exit.enabled && (
           <>
-            <Duration label={t('Fluchtpunkt bekannt ab (vor Schluss)')} value={config.exit.reveal_minutes_before_end} min={0} max={lim('exit.reveal_minutes_before_end', 1440)}
-              onChange={(v) => {
-                const next = structuredClone(config);
-                next.exit.reveal_minutes_before_end = v;
-                next.exit.usable_minutes_before_end = Math.min(next.exit.usable_minutes_before_end, v);
-                onChange(next);
-              }} />
-            <Duration label={t('Fluchtpunkt nutzbar ab (vor Schluss)')} value={config.exit.usable_minutes_before_end} min={0} max={config.exit.reveal_minutes_before_end}
-              onChange={(v) => set('exit', 'usable_minutes_before_end', v)} />
-            <div className="muted small">{t('Beispiel: bekannt {0} vor Schluss, nutzbar {1} vor Schluss. Die Spieler sehen den Fluchtpunkt dann schon, gerettet ist aber nur, wer zwischen der Freigabe und dem Spielende im Kreis ist.', { 0: formatMinutes(config.exit.reveal_minutes_before_end), 1: formatMinutes(config.exit.usable_minutes_before_end) })}</div>
+            <Duration label={t('Fluchtpunkt bekannt ab (vor Ende der Spielzeit)')} value={config.exit.reveal_minutes_before_end} min={0} max={lim('exit.reveal_minutes_before_end', 1440)}
+              onChange={(v) => set('exit', 'reveal_minutes_before_end', v)} />
+            <Duration label={t('Danach höchstens (bis alle da sind)')} value={config.exit.arrival_deadline_offset_minutes} min={5} max={240}
+              onChange={(v) => set('exit', 'arrival_deadline_offset_minutes', v)} />
+            <div className="muted small">{t('Der Fluchtpunkt öffnet, wenn die Spielzeit abgelaufen ist. Dann geht das Spiel weiter, bis alle Spieler gefangen oder angekommen sind, höchstens {0}. Wer dann nicht im Kreis war, hat verloren.', { 0: formatMinutes(config.exit.arrival_deadline_offset_minutes) })}</div>
           </>
         )}
       </Box>
@@ -180,7 +175,7 @@ function Box({ title, icon, summary, info, children }: {
   title: string; icon: string; summary: string; info?: { title: string; text: string }; children: ReactNode;
 }) {
   return (
-    <details className="acc" data-guide={`q-${title}`}>
+    <details className="acc" data-guide={`q-${icon}`}>
       <summary>
         <span className="ico" aria-hidden="true">{icon}</span>
         <span className="spacer">

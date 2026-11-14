@@ -234,18 +234,24 @@ export function spreadPoints(field: Area, n: number, avoid: Position[] = [], blo
 }
 
 /** Liegt ein Fluchtpunkt richtig: in der kleinsten Zone und nicht in einer Gefahrenzone? */
-export function exitPlaceOk(pt: Position, inner: Area, blocked: Area | null): boolean {
-  return pointInside(pt, inner) && !blockedAt(pt, blocked);
+export function exitPlaceOk(pt: Position, inner: Area, blocked: Area | null, radiusM = 0): boolean {
+  if (!pointInside(pt, inner) || blockedAt(pt, blocked)) return false;
+  // Der ganze Ankunftskreis muss in der innersten Zone liegen (nicht nur die Mitte).
+  if (radiusM <= 0) return true;
+  return [0, 45, 90, 135, 180, 225, 270, 315].every((b) => {
+    const q = destination(pt, radiusM, b, { units: 'meters' }).geometry.coordinates;
+    return pointInside(q, inner) && !blockedAt(q, blocked);
+  });
 }
 
 /**
  * Nächster erlaubter Ort für einen Fluchtpunkt: in `inner`, nicht in `blocked`, mit etwas Abstand zum Rand
  * und möglichst nicht direkt neben einem anderen Fluchtpunkt (`others`). null, wenn es keinen gibt.
  */
-export function nearestExitPlace(pt: Position, inner: Area, blocked: Area | null, others: Position[] = []): Position | null {
+export function nearestExitPlace(pt: Position, inner: Area, blocked: Area | null, others: Position[] = [], radiusM = 0): Position | null {
   const [w, s, e, n] = bbox(inner);
   const steps = 60;
-  const ok = (p: Position) => exitPlaceOk(p, inner, blocked);
+  const ok = (p: Position) => exitPlaceOk(p, inner, blocked, radiusM);
   // Mit 15 m Abstand zum Rand und zu Gefahrenzonen, damit der Punkt sicher drin liegt.
   const roomy = (p: Position) => ok(p) && [0, 90, 180, 270].every((b) => ok(destination(p, 15, b, { units: 'meters' }).geometry.coordinates));
   let best: Position | null = null;

@@ -27,10 +27,21 @@ import { getPreset } from '../shared/presets';
 import { distributeRoles, lobbyIssues } from '../shared/roles';
 import { validateConfig } from '../shared/validation';
 import Loader from '../components/Loader';
-import { t } from '../i18n';
+import { t, lazy } from '../i18n';
+import Guide, { type GuideStep } from '../components/Guide';
 
 const ASSIGNABLE: Role[] = ['offen', 'spieler', 'hunter', 'zuschauer'];
 const WISHABLE: Role[] = ['spieler', 'hunter', 'zuschauer'];
+
+/** Helfer in der Lobby: die letzten Schritte bis zum Start. */
+const LOBBY_GUIDE: GuideStep[] = lazy([
+  { title: 'Fast geschafft!', text: 'Noch ein paar Schritte, dann kann es losgehen. Ich zeige sie dir der Reihe nach.' },
+  { target: 'todo-0', title: 'Karte', text: 'Zeichne das Spielfeld und setze den Startpunkt (und die Fluchtpunkte). Die Karte führt dich Schritt für Schritt.' },
+  { target: 'todo-1', title: 'Freunde einladen', text: 'Teile den Code oder den Link. Wer ihn öffnet, ist im Spiel.' },
+  { target: 'todo-2', title: 'Rollen', text: 'Lege fest, wer Spieler und wer Hunter ist, oder tippe auf "Zufällig". Wähle auch deine eigene Rolle.' },
+  { target: 'todo-3', title: 'Alle bereit', text: 'Jeder bestätigt in seiner App, dass er die Regeln gelesen hat.' },
+  { target: 'start', title: 'Start', text: 'Sind alle Haken grün, startest du hier. Der Vorsprung beginnt, sobald alle den Sicherheitshinweis bestätigt haben.' },
+]);
 
 export default function GamePage() {
   const { id } = useParams<{ id: string }>();
@@ -41,6 +52,9 @@ export default function GamePage() {
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  // Helfer in der Lobby (Host): beim ersten Mal von selbst, sonst über "?".
+  const [guide, setGuide] = useState(() => { try { return !localStorage.getItem('hm-guide-lobby'); } catch { return false; } });
+  const closeGuide = () => { setGuide(false); try { localStorage.setItem('hm-guide-lobby', '1'); } catch { /* egal */ } };
   const [starting, setStarting] = useState(false);
   const [hasField, setHasField] = useState<boolean | null>(null);
 
@@ -185,7 +199,9 @@ export default function GamePage() {
         <Link to="/" className="button ghost back" aria-label={t('Zurück')}><Icon name="back" /></Link>
         <h1>{game.name}</h1>
         <span className="badge">{STATUS_LABELS[game.status] ?? game.status}</span>
+        {inLobby && isHost && <button type="button" className="ghost icon-btn" aria-label={t('Helfer')} onClick={() => setGuide(true)}><Icon name="help" /></button>}
       </div>
+      {inLobby && isHost && guide && <Guide steps={LOBBY_GUIDE} onClose={closeGuide} />}
 
       {!inLobby && (
         <Link to={`/spiel/${game.id}/live`} className="button primary block big" style={{ marginBottom: 12 }}>
@@ -213,8 +229,8 @@ export default function GamePage() {
       {inLobby && isHost && hasField !== false && (
         <div className="card">
           <div className="row" style={{ marginBottom: 4 }}><strong className="spacer">{t('Bereit zum Start?')}</strong><span className="muted small">{todos.filter((t) => t.done).length}/{todos.length}</span></div>
-          {todos.map((t) => (
-            <div key={t.title} className={`todo${t.done ? ' done' : ''}`}>
+          {todos.map((t, i) => (
+            <div key={t.title} className={`todo${t.done ? ' done' : ''}`} data-guide={`todo-${i}`}>
               <span className="tick"><Icon name="check" size={16} /></span>
               <div className="spacer"><div>{t.title}</div><div className="muted small">{t.text}</div></div>
               {t.action}
@@ -319,7 +335,7 @@ export default function GamePage() {
         <>
           <IssueList issues={checks.issues} compact />
           <div className="sticky-cta">
-            <button className="primary block big" disabled={!checks.canStart || starting} onClick={() => startGame(false)}>
+            <button className="primary block big" data-guide="start" disabled={!checks.canStart || starting} onClick={() => startGame(false)}>
               {starting ? t('Starte …') : t('Spiel starten')}
             </button>
             <button className="ghost block small" style={{ marginTop: 6 }} disabled={starting} onClick={() => startGame(true)}>

@@ -13,7 +13,7 @@ const ZONE_HELP_DE: Record<string, { title: string; text: string }> = {
   },
   exit: {
     title: 'Fluchtpunkt',
-    text: 'Am Schluss müssen die Spieler zum Fluchtpunkt, um zu gewinnen. Du setzt mindestens 4 mögliche Fluchtpunkte, alle in der innersten Zone (dem Spielfeld der letzten Phase), damit sie am Ende erreichbar sind. Erst kurz vor Schluss (zur eingestellten Zeit) wählt die App zufällig einen davon und verrät ihn nur den Spielern, allen denselben. Die Hunter erfahren ihn nie. Nutzbar ist er aber erst ab der eingestellten Freigabe kurz vor Schluss: gerettet ist, wer zwischen Freigabe und Spielende im gestrichelten Kreis ist. Setze zuerst die Verkleinerung (Schritt "Kleiner werden"), damit klar ist, wie klein die innerste Zone wird.',
+    text: 'Am Schluss müssen die Spieler zum Fluchtpunkt, um zu gewinnen. Du setzt mindestens 4 mögliche Fluchtpunkte, alle in der innersten Zone (dem Spielfeld der letzten Phase), damit sie am Ende erreichbar sind. Kurz vor Ende der Spielzeit (zur eingestellten Zeit) wählt die App zufällig einen davon und verrät ihn nur den Spielern, allen denselben. Die Hunter erfahren ihn nie. Er öffnet, wenn die Spielzeit abgelaufen ist: gerettet ist, wer frei in den gestrichelten Kreis kommt. Das Spiel geht weiter, bis alle gefangen oder angekommen sind, höchstens die eingestellte Zeit. Wer dann nicht angekommen ist, hat verloren. Setze zuerst die Verkleinerung (Schritt "Kleiner werden"), damit klar ist, wie klein die innerste Zone wird.',
   },
   sperrzone: {
     title: 'Gefahrenzone (Sperrzone)',
@@ -56,9 +56,9 @@ export const QUICK_HELP: Record<string, string> = {
   'Blitzjagden im ganzen Spiel': 'So oft dürfen die Hunter im ganzen Spiel eine Blitzjagd starten.',
   'Standort-Abfragen pro Blitzjagd': 'So oft dürfen die Hunter während einer Blitzjagd den Standort des gejagten Spielers abfragen. Nach der letzten Abfrage ist die Blitzjagd vorbei.',
   'Wie wird gefangen?': 'Es gibt immer beide Wege, jeder kann ohne den anderen benutzt werden.\nZahlencode: der Spieler zeigt seinen 6-stelligen Fang-Code, der Hunter tippt ihn ein. Dann gilt der Fang sofort.\nFang melden: der Hunter tippt auf den gefangenen Spieler, der Spieler bestätigt oder lehnt ab. Lehnt er ab, gilt der Fang nicht.',
-  'Fluchtpunkt am Schluss (Spieler müssen hin)': 'Kurz vor Schluss wählt die App zufällig einen von mindestens 4 möglichen Fluchtpunkten, die du auf der Karte setzt. Nur die Spieler erfahren ihn, alle denselben; die Hunter nie. Nur wer frei dort ankommt, gewinnt. Ist das aus, gewinnt jeder Spieler, der bis zum Ende frei bleibt.',
-  'Fluchtpunkt bekannt ab (vor Schluss)': 'So viele Minuten vor Spielende erfahren die Spieler, welcher Fluchtpunkt es ist. Nutzen können sie ihn aber erst ab der Freigabe.',
-  'Fluchtpunkt nutzbar ab (vor Schluss)': 'Erst so viele Minuten vor Spielende ist der Fluchtpunkt offen. Gerettet ist, wer zwischen der Freigabe und dem Spielende im Kreis ist. Wer früher dort steht, zählt erst ab der Freigabe. So kann niemand gleich nach der Bekanntgabe flüchten.',
+  'Fluchtpunkt am Schluss (Spieler müssen hin)': 'Kurz vor Schluss wählt die App zufällig einen von mindestens 4 möglichen Fluchtpunkten, die du auf der Karte setzt. Nur die Spieler erfahren ihn, alle denselben; die Hunter nie. Er öffnet mit dem Ende der Spielzeit. Nur wer frei dort ankommt, gewinnt. Ist das aus, endet das Spiel mit der Spielzeit, und jeder Spieler, der noch frei ist, gewinnt.',
+  'Fluchtpunkt bekannt ab (vor Ende der Spielzeit)': 'So viele Minuten vor Ende der Spielzeit erfahren die Spieler, welcher Fluchtpunkt es ist. Offen ist er erst, wenn die Spielzeit abgelaufen ist.',
+  'Danach höchstens (bis alle da sind)': 'Nach der Spielzeit läuft das Spiel weiter, bis alle Spieler gefangen oder am Fluchtpunkt sind. Damit es nicht endlos dauert, ist nach dieser Zeit Schluss: wer dann nicht angekommen ist, hat verloren.',
   'Joker im Spiel': 'Joker sind Hilfen für die Spieler. Du legst fest, welche es gibt und wann sie freigeschaltet werden. Wirken tun sie erst, wenn der Spieler sie selbst einsetzt.',
   'Freigeschaltet nach (ab Jagdbeginn)': 'Nach so viel Zeit ab Jagdbeginn (Ende des Vorsprungs) bekommt jeder Spieler diesen Joker. Er kann ihn danach jederzeit einsetzen.',
   'Wirkt so lange': 'So lange wirkt der Joker, nachdem der Spieler ihn eingesetzt hat.',

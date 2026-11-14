@@ -184,7 +184,7 @@ details.section > div { padding: 0 16px 16px; display: flex; flex-direction: col
 .leaflet-container { font: inherit; }
 .leaflet-tooltip { font-size: 13px; }
 .overlay { position: fixed; inset: 0; z-index: 2000; background: rgba(0, 0, 0, 0.75); display: flex; align-items: center; justify-content: center; padding: 16px; }
-.toasts { position: fixed; top: calc(env(safe-area-inset-top) + 8px); left: 8px; right: 8px; z-index: 1500; display: flex; flex-direction: column; gap: 6px; pointer-events: none; max-width: 640px; margin: 0 auto; }
+.toasts { position: fixed; top: calc(env(safe-area-inset-top) + 8px); left: 8px; right: 8px; z-index: 2100; display: flex; flex-direction: column; gap: 6px; pointer-events: none; max-width: 640px; margin: 0 auto; }
 .toast { pointer-events: auto; background: var(--surface-2); border: 1px solid var(--border); border-left: 6px solid var(--blue); border-radius: 10px; padding: 10px 12px; box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5); }
 .toast.hoch { border-left-color: var(--yellow); }
 .toast.kritisch { border-left-color: var(--red); background: #3a1517; }
@@ -368,7 +368,7 @@ details.acc > .body { padding: 4px 16px 16px; display: flex; flex-direction: col
 .tabbar button.active svg { color: var(--red); }
 .tabbar .pip { position: absolute; top: 6px; left: calc(50% + 8px); width: 9px; height: 9px; border-radius: 50%; background: var(--red); }
 .app.play { padding-bottom: calc(env(safe-area-inset-bottom) + var(--nav-h) + 16px); }
-.play .map-box .map { height: calc(100dvh - 230px - env(safe-area-inset-top) - env(safe-area-inset-bottom)) !important; min-height: 320px; }
+.play .map-box .map { height: calc(100dvh - 280px - env(safe-area-inset-top) - env(safe-area-inset-bottom)) !important; min-height: 320px; }
 .play .map-box .map-fullscreen .map { height: 100% !important; min-height: 0; }
 .toast { box-shadow: 0 10px 30px rgba(0,0,0,.6); }
 .toast .more { float: right; font-size: 12px; color: var(--muted); }
@@ -438,3 +438,34 @@ button.map-chip[aria-pressed="false"] { opacity: .75; }
 .date-row { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 8px; }
 .date-row input, input[type=date], input[type=time], input[type=datetime-local] { width: 100%; min-width: 0; max-width: 100%; box-sizing: border-box; -webkit-appearance: none; appearance: none; }
 input::-webkit-date-and-time-value { text-align: left; }
+
+/* Runde 17: Karte im Spiel. Kleine Karte: Infos über und unter der Karte; grosse Karte: Infos auf der Karte. */
+.map-wrap { isolation: isolate; }
+.map-info { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; align-items: center; }
+.map-under { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; align-items: center; }
+.map-overlay-top { position: absolute; top: calc(env(safe-area-inset-top) + 10px); left: calc(env(safe-area-inset-left) + 10px); right: 56px; z-index: 1000; }
+.map-overlay-top .map-info { margin-bottom: 0; }
+.map-overlay-top .notice { margin: 0; }
+.map-chip.me.spieler { background: #1f6feb; color: #fff; border-color: #1f6feb; }
+.map-chip.me.hunter { background: #f85149; color: #fff; border-color: #f85149; }
+.map-chip.green { background: #2ea043; color: #fff; border-color: #2ea043; }
+.map-chip.big { font-size: 15px; padding: 10px 14px; }
+.sos.small { min-height: 34px; padding: 0 12px; font-size: 13px; border-radius: 999px; }
+.overlay.sheet { align-items: flex-end; padding: 0; }
+.sheet-card { width: 100%; max-width: 600px; max-height: 85dvh; overflow: auto; background: var(--surface); border-radius: 18px 18px 0 0; padding-bottom: calc(env(safe-area-inset-bottom) + 16px); }
+.swipe-row { display: flex; gap: 12px; align-items: center; padding: 12px 0; background: var(--surface); }
+.running-bar { position: fixed; left: 8px; right: 8px; bottom: calc(env(safe-area-inset-bottom) + var(--nav-h) + 8px); z-index: 1100; display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 14px; background: #c81e28; color: #fff; text-decoration: none; font-weight: 600; box-shadow: 0 8px 24px rgba(0,0,0,.45); max-width: 640px; margin: 0 auto; }
+.running-bar .pulse-dot { width: 10px; height: 10px; border-radius: 50%; background: #fff; animation: hm-pulse 1.2s infinite; flex-shrink: 0; }
+body:has(.running-bar) .app { padding-bottom: calc(env(safe-area-inset-bottom) + var(--nav-h) + 90px); }
+.chat-list { padding: 0; overflow: hidden; }
+.chat-row { display: flex; width: 100%; gap: 12px; align-items: center; padding: 12px 14px; background: none; border: none; border-bottom: 1px solid var(--border); border-radius: 0; text-align: left; color: inherit; min-height: 64px; }
+.chat-row:last-child { border-bottom: none; }
+.chat-avatar { width: 42px; height: 42px; border-radius: 50%; background: var(--surface-2); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 17px; flex-shrink: 0; }
+.chat-name { display: block; font-weight: 700; }
+.chat-last { display: block; color: var(--muted); font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chat-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
+.chat-unread { background: #2ea043; color: #fff; border-radius: 999px; min-width: 22px; height: 22px; line-height: 22px; text-align: center; font-size: 12px; font-weight: 700; padding: 0 6px; }
+.section-h { font-size: 17px; margin: 4px 2px 8px; }
+.alerts:empty { display: none; }
+.alerts { margin-bottom: 8px; }
+.alerts .notice { margin: 0; }

@@ -3,6 +3,7 @@ import { api } from '../lib/engine';
 import { db, errorText } from '../lib/supabase';
 import type { GameState } from '../lib/engine';
 import { t, locale } from '../i18n';
+import Info from '../components/Info';
 
 interface Msg { id: number; channel: string; sender_id: string | null; sender_name: string | null; body: string; at: string }
 
@@ -121,32 +122,95 @@ export function MessageList({ filter, value, channel, onSend, height = '50dvh', 
   );
 }
 
+/** Gelesen-Stand je Chat (nur auf diesem Gerät): höchste gelesene Nachrichten-Nummer. */
+function readKey(game: string) { return `hm-chat-read-${game}`; }
+function loadRead(game: string): Record<string, number> {
+  try { return JSON.parse(localStorage.getItem(readKey(game)) ?? '{}') as Record<string, number>; } catch { return {}; }
+}
+function saveRead(game: string, v: Record<string, number>) {
+  try { localStorage.setItem(readKey(game), JSON.stringify(v)); } catch { /* nur für diese Sitzung */ }
+}
+
+/**
+ * Chats wie bei WhatsApp: alle Chats untereinander (letzte Nachricht, Zeit, ungelesen). Antippen öffnet den Chat,
+ * "‹" führt zurück zur Liste. Spieler haben nur einen Chat (mit den Huntern) und sehen ihn direkt.
+ */
 export default function Chat({ s }: { s: GameState }) {
-  const chans = channelsFor(s);
-  const [ch, setCh] = useState(chans[0]?.id ?? '');
-  const cur = chans.find((c) => c.id === ch) ?? chans[0];
-  if (!cur) return <div className="card muted">{t('Im Chat schreiben nur Spieler und Hunter. Wichtige Meldungen findest du unter „Meldungen“.')}</div>;
+  const chans = channelsFor(s).filter((c) => c.id !== '*');
+  const [open, setOpen] = useState<string | null>(chans.length === 1 ? chans[0].id : null);
+  const [last, setLast] = useState<Msg[]>([]);
+  const [read, setRead] = useState<Record<string, number>>(() => loadRead(s.game.id));
+  const [me, setMe] = useState<string | null>(null);
+
+  useEffect(() => {
+    void db().auth.getUser().then(({ data }) => setMe(data.user?.id ?? null));
+  }, []);
+
+  // Für die Liste: die letzten Nachrichten aller Chats (RLS zeigt nur, was man lesen darf).
+  useEffect(() => {
+    const load = () => void db().from('messages').select('id,channel,sender_id,sender_name,body,at').eq('game_id', s.game.id)
+      .order('id', { ascending: false }).limit(400).then(({ data }) => setLast((data ?? []) as Msg[]));
+    load();
+    const i = setInterval(load, 5000);
+    return () => clearInterval(i);
+  }, [s.game.id]);
+
+  const cur = chans.find((c) => c.id === open) ?? null;
+  // Beim Öffnen und solange offen: alles in diesem Chat als gelesen merken.
+  useEffect(() => {
+    if (!cur) return;
+    const top = last.filter((m) => m.channel === cur.id).reduce((a, m) => Math.max(a, m.id), 0);
+    if (top > (read[cur.id] ?? 0)) {
+      const next = { ...read, [cur.id]: top };
+      setRead(next);
+      saveRead(s.game.id, next);
+    }
+  }, [cur, last]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (!chans.length) return <div className="card muted">{t('Im Chat schreiben nur Spieler und Hunter. Wichtige Meldungen findest du unter „Meldungen“.')}</div>;
+
+  if (!cur) {
+    const rows = chans.map((c) => {
+      // In der Liste zählt nur der eigene Kanal des Chats (sonst stünde "An alle Spieler" bei jedem Spieler-Chat).
+      const msgs = last.filter((m) => m.channel === c.id);
+      const newest = msgs[0];
+      const unread = msgs.filter((m) => m.id > (read[c.id] ?? 0) && m.sender_id !== me).length;
+      return { c, newest, unread };
+    }).sort((a, b) => (b.newest?.id ?? 0) - (a.newest?.id ?? 0));
+    return (
+      <div className="card chat-list">
+        {rows.map(({ c, newest, unread }) => (
+          <button key={c.id} type="button" className="chat-row" onClick={() => setOpen(c.id)}>
+            <span className="chat-avatar" aria-hidden="true">{c.id === 'taskforce' ? '🎯' : c.id === 'spieler' ? '📣' : (s.participants.find((p) => `sp:${p.id}` === c.id)?.tag ?? '💬')}</span>
+            <span className="spacer" style={{ minWidth: 0, textAlign: 'left' }}>
+              <span className="chat-name">{c.label}</span>
+              <span className="chat-last">{newest ? `${newest.sender_id === me ? t('Du') : newest.sender_name ?? '?'}: ${newest.body}` : t('Noch keine Nachrichten.')}</span>
+            </span>
+            <span className="chat-meta">
+              {newest && <span className="tiny muted">{new Date(newest.at).toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' })}</span>}
+              {unread > 0 && <span className="chat-unread">{unread}</span>}
+            </span>
+          </button>
+        ))}
+      </div>
+    );
+  }
+
   const hint = s.me.role === 'spieler'
     ? t('Hier schreibst du mit den Huntern. Alle Hunter lesen mit, ihre Antworten erscheinen hier. Mit anderen Spielern kannst du nicht schreiben.')
-    : cur.id === '*' ? t('Hier siehst du alle Nachrichten, auch die der Spieler. Tippe eine Nachricht an, um im passenden Chat zu antworten.')
     : cur.id === 'taskforce' ? t('Nur das Hunter-Team liest mit.')
     : cur.id === 'spieler' ? t('Alle Spieler lesen diese Nachricht.')
     : t('Dieser Spieler und alle Hunter lesen mit. Seine Antworten erscheinen hier.');
-  const labelOf = cur.id === '*'
-    ? (c: string) => chans.find((x) => x.id === c)?.label ?? c
-    : (c: string) => (c === 'spieler' && cur.id !== 'spieler' ? t('An alle Spieler') : null);
+  const labelOf = (c: string) => (c === 'spieler' && cur.id !== 'spieler' ? t('An alle Spieler') : null);
   return (
     <div className="stack">
-      {chans.length > 1 && (
-        <select aria-label={t('Kanal')} value={cur.id} onChange={(e) => setCh(e.target.value)}>
-          {chans.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
-        </select>
-      )}
-      <div className="muted small">{hint}</div>
+      <div className="row" style={{ alignItems: 'center' }}>
+        {chans.length > 1 && <button type="button" className="ghost" aria-label={t('Zurück zu den Chats')} onClick={() => setOpen(null)}>‹ {t('Chats')}</button>}
+        <strong className="spacer">💬 {cur.label} <Info title={cur.label} text={hint} /></strong>
+      </div>
       <MessageList filter={{ column: 'game_id', value: s.game.id }} channel={cur.read}
         onSend={cur.write ? (b) => api.send(s.game.id, cur.id, b) : null}
-        labelOf={labelOf}
-        onPick={cur.id === '*' ? (c) => { if (chans.some((x) => x.id === c && x.write)) setCh(c); } : undefined} />
+        labelOf={labelOf} />
     </div>
   );
 }

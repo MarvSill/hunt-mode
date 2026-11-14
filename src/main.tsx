@@ -5,6 +5,7 @@ import App from './App';
 import { AuthProvider } from './lib/auth';
 import { useLang } from './i18n';
 import { ensureNotifyPermission, isNative, setupNotifyChannel } from './lib/native';
+import { installTapFeedback } from './lib/haptics';
 
 // Echte App: Benachrichtigungen erlauben (auch nötig für die Standort-Meldung auf Android 13+).
 if (isNative) {
@@ -14,6 +15,7 @@ if (isNative) {
     ?.setAttribute('content', 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover');
 }
 if (isNative) void setupNotifyChannel().then(() => ensureNotifyPermission());
+installTapFeedback();
 import './styles.css';
 
 // Bei einem Sprachwechsel wird die App neu aufgebaut, damit alle Texte die neue Sprache haben.

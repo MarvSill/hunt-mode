@@ -28,8 +28,13 @@ function detect(): Lang {
   } catch {
     // ohne Speicher: Sprache des Geräts
   }
-  const nav = (typeof navigator !== 'undefined' ? navigator.language : 'de').slice(0, 2).toLowerCase();
-  return nav === 'fr' ? 'fr' : nav === 'en' ? 'en' : 'de';
+  // Sprache des Handys; ist es keine der drei, dann Englisch.
+  const langs = typeof navigator !== 'undefined' ? [...(navigator.languages ?? []), navigator.language] : [];
+  for (const l of langs) {
+    const k = (l || '').slice(0, 2).toLowerCase();
+    if (k === 'de' || k === 'fr' || k === 'en') return k;
+  }
+  return 'en';
 }
 
 let current: Lang = detect();
@@ -40,14 +45,26 @@ export function getLang(): Lang {
   return current;
 }
 
+/** Hat die Person auf diesem Gerät schon selbst eine Sprache gewählt? (Sonst beim ersten Öffnen fragen.) */
+export function langChosen(): boolean {
+  try {
+    return !!localStorage.getItem(KEY);
+  } catch {
+    return true;
+  }
+}
+
 export function setLang(lang: Lang) {
-  if (lang === current) return;
-  current = lang;
   try {
     localStorage.setItem(KEY, lang);
   } catch {
     // nur für diese Sitzung
   }
+  if (lang === current) {
+    for (const l of listeners) l();
+    return;
+  }
+  current = lang;
   if (typeof document !== 'undefined') document.documentElement.lang = lang;
   for (const l of listeners) l();
 }
