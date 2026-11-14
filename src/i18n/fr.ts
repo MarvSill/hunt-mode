@@ -1377,4 +1377,5 @@ export const fr: Record<string, string> = {
   "Zuschauer erlauben, die mit Verzögerung mitschauen. Für den Anfang kannst du alles so lassen.": "Autoriser des spectateurs qui regardent avec un délai. Pour commencer, tu peux tout laisser ainsi.",
   "Gefangen ist, wer den gemeldeten Fang bestätigt. Wer frei bleibt, gewinnt.": "Est capturé celui qui confirme la capture signalée. Celui qui reste libre gagne.",
   "Der Hunter meldet den Fang, beim Spieler erscheint sofort die Frage, und er bestätigt.": "Le hunter signale la capture, la question apparaît aussitôt chez le joueur, et il confirme.",
+  "frei in {0}": "libre dans {0}",
 };

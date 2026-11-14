@@ -134,7 +134,7 @@ export function JokerBox({ s, now, act, running }: Pick<PanelProps, 's' | 'now' 
             <div className="joker-icon" aria-hidden="true">{ITEM_ICONS[j.type] ?? '🃏'}</div>
             <div className="joker-name">{ITEM_LABELS[j.type] ?? j.type}{j.minutes ? ` · ${formatMinutes(j.minutes)}` : ''}{j.type === 'naehe_radar' ? ` · ${j.distance_m ?? 500} m` : ''}</div>
             <div className="muted tiny">🔒 {huntStart != null
-              ? t('frei ab {0}', { 0: clock(new Date(huntStart + j.after_minutes * 60000).toISOString(), g.timezone) })
+              ? t('frei in {0}', { 0: countdown(new Date(huntStart + j.after_minutes * 60000).toISOString(), now) })
               : t('frei {0} nach Jagdbeginn', { 0: formatMinutes(j.after_minutes) })}</div>
           </div>
         ))}
