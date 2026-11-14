@@ -16,7 +16,7 @@ export function rulesInWords(c: GameConfig): [string, string][] {
   if (c.speedhunt.enabled) {
     out.push(['⚡', t('Blitzjagd: Die Hunter dürfen {0}-mal im Spiel eine Blitzjagd starten, mit {1} Standort-Abfragen auf einen Spieler, ohne Zeitlimit.', { 0: c.speedhunt.quota_per_day[0] ?? 0, 1: c.speedhunt.queries })]);
   }
-  out.push(['🤚', t('Gefangen ist, wer erwischt wird: der Hunter gibt den Fang-Code des Spielers ein, oder er meldet den Fang und der Spieler bestätigt. Lehnt der Spieler ab, gilt der Fang nicht.')]);
+  out.push(['🤚', t('Gefangen ist, wer erwischt wird: der Hunter meldet den Fang in der App, und der Spieler bestätigt. Lehnt der Spieler ab, gilt der Fang nicht.')]);
   out.push(['🗺️', t('Wer das Spielfeld verlässt, wird sofort live für die Hunter, und das Handy schlägt Alarm, bis er zurück ist. Nach {0} draussen {1}.', { 0: formatMinutes(c.out_of_bounds.max_minutes), 1: t('gilt man als gefangen') })]);
   out.push(['⚠️', t('Gefahrenzonen (Autobahn, Gleise, grosse Gewässer) nie betreten. Sonst: Alarm, {0} Sekunden Zeit, dann live; ab dem 3. Mal sofort live. Sonst passt jeder selbst auf sich auf.', { 0: c.out_of_bounds.grace_seconds })]);
   if (c.exit.enabled) out.push(['🏁', t('{0} vor Ende der Spielzeit erfahren nur die Spieler den Fluchtpunkt (zufällig gewählt). Er öffnet, wenn die Spielzeit abgelaufen ist. Gerettet ist, wer frei in den Kreis kommt. Das Spiel endet, wenn alle gefangen oder angekommen sind, spätestens {1} nach der Spielzeit.', { 0: formatMinutes(c.exit.reveal_minutes_before_end), 1: formatMinutes(c.exit.arrival_deadline_offset_minutes) })]);
@@ -28,7 +28,6 @@ export function rulesInWords(c: GameConfig): [string, string][] {
   const moves = [c.transport.motorized_allowed && t('ÖV, Taxi und Auto'), c.transport.bikes_allowed && t('Velo und Trottinett')].filter(Boolean);
   out.push(['🚌', moves.length ? t('Erlaubt sind zu Fuss sowie {0}.', { 0: moves.join(t(' und ')) }) : t('Nur zu Fuss: keine Fahrzeuge, kein ÖV.')]);
   out.push(['🚨', t('Notfall (SOS): Das Spiel wird unterbrochen, und alle werden alarmiert und helfen. Danach geht es weiter, die Zeit wird angehängt.')]);
-  if (c.hideout.enabled) out.push(['🏠', t('Verschanzen: höchstens {0} am selben Ort.', { 0: formatMinutes(c.hideout.max_minutes) })]);
   return out;
 }
 

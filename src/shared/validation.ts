@@ -64,9 +64,6 @@ export function validateConfig(input: GameConfig, ctx: ValidationContext = {}): 
     add('warning', 'joker_empty', t('Joker sind aktiv, aber es ist kein Joker eingestellt.'), 'joker.types');
   }
 
-  if (config.hideout.enabled && config.hideout.max_minutes >= duration) {
-    add('warning', 'hideout_unlimited', t('Verschanzen ist praktisch unbegrenzt.'), 'hideout.max_minutes');
-  }
 
   if (config.out_of_bounds.max_minutes >= duration) {
     add('warning', 'out_of_bounds_unlimited', t('Ausserhalb-Limit ist länger als das Spiel.'), 'out_of_bounds.max_minutes');

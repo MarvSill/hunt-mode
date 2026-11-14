@@ -73,7 +73,7 @@ const WORDS: Record<string, string> = {
   oev: 'ÖV',
   faehre: 'Fähre',
   naechste: 'nächste',
-  qr: 'Zahlencode',
+  qr: 'Knopf',
   touch: 'Berühren',
   confirm: '+ bestätigen',
   nfc: 'NFC',

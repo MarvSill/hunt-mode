@@ -32,7 +32,8 @@ Live: https://marvsill.github.io/hunt-mode/ · Repo: github.com/MarvSill/hunt-mo
 - Ein Startpunkt für alle: Spieler laufen los, Hunter warten dort bis Ende Vorsprung. Pings sind immer genau.
 - Das Spiel läuft am Stück: keine Spieltage, keine jagdfreien Zeiten. Pausieren kann nur der Host (die Zeit hält an, Regeln ändern nur in der Pause).
 - Der Vorsprung startet erst, wenn alle Spieler und Hunter den Sicherheitshinweis bestätigt haben.
-- Fangen: Zahlencode eingeben oder Fang melden + Spieler bestätigt (Ablehnen = kein Fang). Kein QR-Code.
+- Fangen nur über „Fang melden“: beim Spieler erscheint sofort ein Fenster, er bestätigt (Ablehnen = kein Fang, ohne Antwort entscheidet der GPS-Abstand). Kein Fang-Code, kein QR-Code.
+- Kein Verschanzen (Regel ganz entfernt).
 - Begriffe: Hunter-Team, Blitzjagd, Ping, Fluchtpunkt, Nähe-Radar. Blitzjagden starten nur die Hunter, ohne Zeitlimit.
 - Notfall geht immer an alle Hunter (und den Host); Nummern 117 / 144 / 112.
 - Spieler sehen die Pings der anderen Spieler wie die Hunter (ohne Blitzjagd-Pings); jeder kann sie ausblenden.

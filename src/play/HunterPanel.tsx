@@ -2,15 +2,11 @@ import { useState } from 'react';
 import { api, clock, countdown, SOURCE_LABELS, STATE_LABELS, TRANSPORT_LABELS, uploadProof } from '../lib/engine';
 import { Confirm, nameOf, nameTag, Section, type PanelProps } from './common';
 import { t } from '../i18n';
-import Info from '../components/Info';
 
 export default function HunterPanel({ s, now, act, pos }: PanelProps) {
   const g = s.game;
   const cfg = g.config;
-  const [codeOpen, setCodeOpen] = useState(false);
-  const [code, setCode] = useState('');
   const [claimOpen, setClaimOpen] = useState(false);
-  const [result, setResult] = useState<string | null>(null);
   const players = s.participants.filter((p) => p.role === 'spieler');
   const free = players.filter((p) => ['aktiv', 'ausserhalb', 'notfall'].includes(p.state));
   const running = s.speedhunts.filter((x) => x.status === 'laeuft');
@@ -20,38 +16,13 @@ export default function HunterPanel({ s, now, act, pos }: PanelProps) {
 
   const myRejected = s.catches.filter((c) => c.hunter_id === s.me.id && c.status === 'abgelehnt' && now - new Date(c.at).getTime() < 10 * 60000);
 
-  function sendCode() {
-    const c = code.replace(/\D/g, '');
-    if (c.length !== 6) return;
-    setCodeOpen(false);
-    setCode('');
-    void act(async () => {
-      const r = await api.catchByCode(g.id, c, pos?.lat, pos?.lng);
-      setResult(r.status === 'gueltig' ? t('{0} gefangen!', { 0: r.runner }) : t('{0}: Beweis nötig', { 0: r.runner }));
-      return r;
-    });
-  }
-
   return (
     <div className="stack">
-      {codeOpen && (
-        <div className="overlay" role="dialog" aria-label={t('Fang-Code eingeben')} onClick={() => setCodeOpen(false)}>
-          <form className="card stack" style={{ maxWidth: 400, width: '100%', background: 'var(--surface)' }} onClick={(e) => e.stopPropagation()}
-            onSubmit={(e) => { e.preventDefault(); sendCode(); }}>
-            <strong style={{ fontSize: 20 }}>🔢 {t('Fang-Code eingeben')}</strong>
-            <span className="small muted">{t('Der Spieler zeigt dir unter „Aktionen“ seinen 6-stelligen Code. Gib ihn hier ein, dann gilt der Fang sofort.')}</span>
-            <input autoFocus inputMode="numeric" autoComplete="one-time-code" maxLength={7} placeholder="123 456" aria-label={t('Fang-Code')}
-              value={code} onChange={(e) => setCode(e.target.value.replace(/[^\d ]/g, ''))} style={{ fontSize: 32, textAlign: 'center', letterSpacing: 6 }} />
-            <button type="submit" className="primary block big" disabled={code.replace(/\D/g, '').length !== 6}>{t('Fang bestätigen')}</button>
-            <button type="button" className="ghost block" onClick={() => setCodeOpen(false)}>{t('Abbrechen')}</button>
-          </form>
-        </div>
-      )}
       {claimOpen && (
         <div className="overlay" role="dialog" aria-label={t('Fang melden')} onClick={() => setClaimOpen(false)}>
           <div className="card stack" style={{ maxWidth: 400, width: '100%', background: 'var(--surface)' }} onClick={(e) => e.stopPropagation()}>
             <strong style={{ fontSize: 20 }}>🤚 {t('Wen hast du gefangen?')}</strong>
-            <span className="small muted">{t('Der Spieler bekommt eine Meldung und bestätigt oder lehnt ab. Lehnt er ab, gilt der Fang nicht; dann lass dir den Fang-Code zeigen.')}</span>
+            <span className="small muted">{t('Beim Spieler erscheint sofort die Frage. Bestätigt er, ist er gefangen. Lehnt er ab, gilt der Fang nicht.')}</span>
             {free.filter((p) => p.state !== 'notfall').map((p) => (
               <button key={p.id} type="button" className="block" onClick={() => {
                 setClaimOpen(false);
@@ -64,14 +35,9 @@ export default function HunterPanel({ s, now, act, pos }: PanelProps) {
         </div>
       )}
       {g.status === 'vorsprung' && <div className="notice">{t('Vorsprung der Spieler. Die Jagd beginnt in')} {countdown(g.hunt_start_at, now)}{t('. Wartet am Startpunkt.')}</div>}
-      {result && <div className="notice success">{result}</div>}
 
-      <div className="grid2">
-        <button className="primary big" disabled={!live} onClick={() => setCodeOpen(true)}>🔢 {t('Code eingeben')}</button>
-        <button className="primary big" disabled={!live} onClick={() => setClaimOpen(true)}>🤚 {t('Fang melden')}</button>
-      </div>
-      <div className="muted small">{t('Fangen')} <Info title={t('Fangen')} text={t('Zwei Wege, jeder geht für sich: den Fang-Code des Spielers eingeben, oder den Fang melden und der Spieler bestätigt.')} /></div>
-      {myRejected.map((c) => <div key={c.id} className="notice error">{t('{0} hat den Fang abgelehnt. Lass dir den Fang-Code zeigen.', { 0: nameOf(s, c.runner_id) })}</div>)}
+      <button className="primary block big" disabled={!live} onClick={() => setClaimOpen(true)}>🤚 {t('Fang melden')}</button>
+      {myRejected.map((c) => <div key={c.id} className="notice error">{t('{0} hat den Fang abgelehnt.', { 0: nameOf(s, c.runner_id) })}</div>)}
 
       {myProof.map((c) => (
         <div key={c.id} className="notice stack">

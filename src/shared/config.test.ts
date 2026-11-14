@@ -142,10 +142,10 @@ describe('Validierung', () => {
     expect('penalty' in c).toBe(false);
   });
 
-  it('Fangen geht immer mit Zahlencode und mit Bestätigung (sonst nichts)', () => {
+  it('Fangen geht nur mit Fang melden und Bestätigung', () => {
     const c = mergeConfig(defaultConfig(), { catch: { method: ['qr', 'handcuffs'] } });
     const v = validateConfig(c, { hasMinors: true });
-    expect(v.config.catch.method).toEqual(['qr', 'touch_confirm']);
+    expect(v.config.catch.method).toEqual(['touch_confirm']);
     expect(v.canStart).toBe(true);
   });
 

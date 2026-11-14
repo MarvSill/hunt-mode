@@ -13,6 +13,8 @@ const HIDDEN = new Set([
   'joker.types',
   // Ohne Strafen und ohne Live bei Fahrten: diese Werte setzt die App selbst.
   'speedhunt.vehicle_live_seconds', 'out_of_bounds.on_timeout', 'hideout.on_timeout', 'hideout.lockout_after_first_entry_minutes',
+  // Verschanzen gibt es nicht mehr.
+  'hideout.enabled', 'hideout.max_minutes', 'hideout.min_leave_distance_m', 'hideout.detection', 'hideout.stationary_radius_m', 'hideout.stationary_minutes',
   'transport.checkin_required', 'transport.live_during',
   // Fest geregelt: sofort ein Ping nach dem Vorsprung, pünktliches Ende, nie zweimal dasselbe Ziel,
   // Anzahl sichtbarer Pings wählt jeder auf der Karte.

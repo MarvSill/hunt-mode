@@ -147,7 +147,7 @@ export const gameConfigSchema = z.object({
     .describe('Blitzjagd'),
   catch: z
     .object({
-      method: z.array(z.enum(CATCH_METHODS)).min(1).default(['qr']).describe('Fangmethode'),
+      method: z.array(z.enum(CATCH_METHODS)).min(1).default(['touch_confirm']).describe('Fangmethode'),
       max_distance_m: int(30, 5, 200, 'GPS-Plausibilität (m)'),
       confirm_seconds: int(60, 10, 300, 'Bestätigungsfrist (s)'),
       require_media: bool(false, 'Foto/Video-Beweis'),
@@ -169,7 +169,8 @@ export const gameConfigSchema = z.object({
     .describe('Ausserhalb des Spielfelds'),
   hideout: z
     .object({
-      enabled: bool(true, 'Verschanzen-Regel aktiv'),
+      // Verschanzen gibt es nicht mehr (Runde 20); die Werte bleiben nur, damit alte Spiele lesbar sind.
+      enabled: bool(false, 'Verschanzen-Regel aktiv'),
       max_minutes: int(30, 5, 720, 'Limit (min)'),
       min_leave_distance_m: int(150, 0, 2000, 'Mindestabstand beim Verlassen (m)'),
       lockout_after_first_entry_minutes: int(0, 0, 2880, 'Ort gesperrt nach (min, 0 = aus)'),
@@ -287,6 +288,7 @@ export function normalizeConfig(c: GameConfig): GameConfig {
   // Keine Strafen und kein Live-Standort bei Fahrten: die Folge ist immer "gefangen".
   c.speedhunt.vehicle_live_seconds = 0;
   c.out_of_bounds.on_timeout = 'catch';
+  c.hideout.enabled = false;
   c.hideout.on_timeout = 'catch';
   c.hideout.lockout_after_first_entry_minutes = 0;
   c.transport.checkin_required = false;
@@ -301,8 +303,8 @@ export function normalizeConfig(c: GameConfig): GameConfig {
   c.speedhunt.no_consecutive_same_target = true;
   // Spielzeit gilt alles inklusive: der Vorsprung ist ein Teil davon.
   c.start.head_start_minutes = Math.min(c.start.head_start_minutes, Math.max(0, c.game.duration_minutes - 5));
-  // Fangen geht immer auf beide Arten: Zahlencode eingeben oder Fang melden und der Spieler bestätigt.
-  c.catch.method = ['qr', 'touch_confirm'];
+  // Fangen nur über "Fang melden": der Spieler bestätigt oder lehnt ab.
+  c.catch.method = ['touch_confirm'];
   return c;
 }
 

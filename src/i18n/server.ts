@@ -317,7 +317,7 @@ const RULES: Rule[] = [
   r('Der Vorsprung ist schon länger gelaufen.', 'L’avance a déjà duré plus longtemps.', 'The head start has already run longer.'),
   r('Regeln lassen sich im laufenden Spiel nur während einer Pause ändern.', 'Pendant la partie, les règles ne peuvent être modifiées que pendant une pause.', 'During the game, rules can only be changed during a pause.'),
   r('Fang nicht gefunden.', 'Capture introuvable.', 'Catch not found.'),
-  r('{N} sagt, es war kein Fang. Lass dir den Fang-Code zeigen und gib ihn ein.', '$1 dit que ce n’était pas une capture. Demande-lui son code de capture et saisis-le.', '$1 says it was not a catch. Ask for the catch code and enter it.'),
+  r('{N} sagt, es war kein Fang.', '$1 dit que ce n’était pas une capture.', '$1 says it was not a catch.'),
   r('Spiel abgebrochen', 'Partie interrompue', 'Game cancelled'),
   r('Keiner hat gewonnen.', 'Personne n’a gagné.', 'Nobody won.'),
   r('Du warst in diesem Spiel nicht dabei.', 'Tu ne participais pas à cette partie.', 'You were not part of this game.'),

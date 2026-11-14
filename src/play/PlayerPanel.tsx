@@ -1,16 +1,14 @@
-import { useState } from 'react';
 import { api, clock, countdown, ITEM_HELP, ITEM_ICONS, ITEM_LABELS } from '../lib/engine';
 import { formatMinutes } from '../shared/format';
-import CatchCode from './CatchCode';
 import { Confirm, nameOf, Section, type PanelProps } from './common';
 import { t } from '../i18n';
 
 /**
  * Spieler-Bereich, aufgeteilt (Runde 17):
  * - PlayerAlerts: was gerade wichtig ist, direkt bei der Karte (Fang bestätigen, ausserhalb, Gefahrenzone, Blitzjagd,
- *   Verschanzen-Frage, Fluchtpunkt). Erscheint nur, wenn es gerade gilt.
- * - PlayerPanel ("Aktionen"): nur Joker und Fang-Code.
- * - PlayerMore ("Mehr"): Status, Verschanzen melden, Aufgeben.
+ *   Fluchtpunkt). Erscheint nur, wenn es gerade gilt.
+ * - PlayerPanel ("Aktionen"): Joker (und Nähe-Radar, wenn aktiv).
+ * - PlayerMore ("Mehr"): Status, Aufgeben.
  */
 export function PlayerAlerts({ s, now, act, compact = false }: Pick<PanelProps, 's' | 'now' | 'act'> & { compact?: boolean }) {
   const cfg = s.game.config;
@@ -30,17 +28,6 @@ export function PlayerAlerts({ s, now, act, compact = false }: Pick<PanelProps, 
   })() : null;
   return (
     <div className="stack alerts">
-      <CatchAsk s={s} act={act} />
-      {me.hideout_prompt && (
-        <div className="notice stack">
-          <strong>{t('Bist du verschanzt?')}</strong>
-          {!compact && <span className="small">{t('Du bist schon länger am selben Ort. In Wohnungen, Häusern oder anderen nicht öffentlichen Orten zählt die Zeit (max.')} {formatMinutes(cfg.hideout.max_minutes)}).</span>}
-          <div className="row">
-            <button className="primary" onClick={() => act(() => api.hideout(g.id, true))}>{t('Ja, ich bin drinnen')}</button>
-            <button onClick={() => act(() => api.hideout(g.id, false))}>{t('Nein, draussen')}</button>
-          </div>
-        </div>
-      )}
       {me.state === 'ausserhalb' && !compact && (
         <div className="notice error pulse stack" role="alert">
           <strong style={{ fontSize: 20 }}>{t('Zurück ins Spielfeld!')}</strong>
@@ -67,12 +54,11 @@ export function PlayerAlerts({ s, now, act, compact = false }: Pick<PanelProps, 
   );
 }
 
-/** "Aktionen" der Spieler: nur Joker und Fang-Code. */
+/** "Aktionen" der Spieler: Joker (und Nähe-Radar, wenn aktiv). */
 export default function PlayerPanel({ s, now, act }: PanelProps) {
   const cfg = s.game.config;
   const me = s.me;
   const g = s.game;
-  const [showCode, setShowCode] = useState(false);
   const active = ['aktiv', 'ausserhalb'].includes(me.state);
   const running = ['laeuft', 'finale'].includes(g.status) && !g.paused;
 
@@ -91,8 +77,6 @@ export default function PlayerPanel({ s, now, act }: PanelProps) {
 
   return (
     <div className="stack">
-      {showCode && <CatchCode gameId={g.id} onClose={() => setShowCode(false)} />}
-      <button className="primary block big" onClick={() => setShowCode(true)}>🔢 {t('Fang-Code zeigen')}</button>
       {me.radar && <RadarCard radar={me.radar} now={now} />}
       {cfg.joker.enabled && <JokerBox s={s} now={now} act={act} running={running} />}
       {cfg.joker.enabled && s.me.inventory.length === 0 && <div className="muted small">{t('Noch keine Joker frei.')}</div>}
@@ -100,30 +84,20 @@ export default function PlayerPanel({ s, now, act }: PanelProps) {
   );
 }
 
-/** "Mehr" der Spieler: Status, Verschanzen melden, Aufgeben. */
+/** "Mehr" der Spieler: Status (Joker-Wirkungen, live) und Aufgeben. */
 export function PlayerMore({ s, act }: Pick<PanelProps, 's' | 'act'>) {
-  const cfg = s.game.config;
   const me = s.me;
   const g = s.game;
-  const running = ['laeuft', 'finale'].includes(g.status) && !g.paused;
   const active = ['aktiv', 'ausserhalb'].includes(me.state);
   const effects = me.effects.filter((e) => e.type !== 'fake_ping' && e.type !== 'hunter_snapshot' && e.type !== 'leo' && e.type !== 'naehe_radar');
   return (
     <Section title={`📊 ${t('Status')}`}>
       <div className="grid2">
-        {me.hideout && (
-          <div><div className="muted small">{t('Verschanzt')} {me.hideout.inside ? t('(drinnen)') : t('(draussen)')}</div>
-            <div className="big-num">{formatMinutes(Math.floor((me.hideout.max_s - me.hideout.accum_s) / 60))} {t('übrig')}</div></div>
-        )}
         {me.live && <div><div className="muted small">{t('Sichtbarkeit')}</div><div className="big-num red">{t('LIVE')}</div></div>}
       </div>
       {effects.map((e) => (
         <div key={e.id} className="badge green">{ITEM_LABELS[e.type] ?? e.type} {t('bis')} {clock(e.ends_at)}</div>
       ))}
-      {active && cfg.hideout.enabled && cfg.hideout.detection !== 'automatisch' && !me.hideout?.inside && running && (
-        <button className="small" onClick={() => act(() => api.hideout(g.id, true), t('Verschanzen gemeldet.'))}>🏠 {t('Ich bin verschanzt (Haus/Wohnung)')}</button>
-      )}
-      {active && me.hideout?.inside && <button className="small" onClick={() => act(() => api.hideout(g.id, false))}>🚶 {t('Ich bin wieder draussen')}</button>}
       {active && <Confirm className="ghost block" label={`🏳️ ${t('Aufgeben')}`} confirm={t('Wirklich aufgeben?')} onYes={() => act(() => api.giveUp(g.id))} />}
     </Section>
   );
@@ -182,17 +156,18 @@ function RadarCard({ radar, now }: { radar: NonNullable<PanelProps['s']['me']['r
   );
 }
 
-/** Ein Hunter meldet einen Fang: Ja / Nein. Erscheint im Aktionen-Bereich und auf der grossen Karte. */
+/** Ein Hunter meldet einen Fang: Fenster mitten auf dem Bildschirm (über allem, auch über Chat und grosser Karte). */
 export function CatchAsk({ s, act }: Pick<PanelProps, 's' | 'act'>) {
-  const pendingCatch = s.catches.find((c) => c.runner_id === s.me.id && c.status === 'wartet_auf_bestaetigung');
+  const pendingCatch = s.me.role === 'spieler' ? s.catches.find((c) => c.runner_id === s.me.id && c.status === 'wartet_auf_bestaetigung') : undefined;
   if (!pendingCatch) return null;
   return (
-    <div className="notice error stack" role="alert">
-      <strong>{nameOf(s, pendingCatch.hunter_id)} {t('meldet, dass du gefangen wurdest.')}</strong>
-      <span className="small">{t('Antwort bis')} {clock(pendingCatch.expires_at)}{t('. Lehnst du ab, gilt der Fang nicht. Ohne Antwort entscheidet der GPS-Abstand.')}</span>
-      <div className="row">
-        <button className="primary" onClick={() => act(() => api.catchRespond(pendingCatch.id, true))}>{t('Ja, gefangen')}</button>
-        <button onClick={() => act(() => api.catchRespond(pendingCatch.id, false))}>{t('Nein, stimmt nicht')}</button>
+    <div className="overlay catch-ask" role="alertdialog" aria-modal="true" aria-label={t('Wurdest du gefangen?')}>
+      <div className="card stack" style={{ maxWidth: 420, width: '100%', background: 'var(--surface)', textAlign: 'center' }}>
+        <div style={{ fontSize: 52 }} aria-hidden="true">🤚</div>
+        <strong style={{ fontSize: 22 }}>{t('{0} meldet: Du bist gefangen.', { 0: nameOf(s, pendingCatch.hunter_id) })}</strong>
+        <span className="small muted">{t('Stimmt das? Antwort bis {0}. Ohne Antwort entscheidet der GPS-Abstand.', { 0: clock(pendingCatch.expires_at) })}</span>
+        <button className="danger block big" onClick={() => act(() => api.catchRespond(pendingCatch.id, true))}>{t('Ja, gefangen')}</button>
+        <button className="block big" onClick={() => act(() => api.catchRespond(pendingCatch.id, false))}>{t('Nein, stimmt nicht')}</button>
       </div>
     </div>
   );

@@ -232,3 +232,8 @@ Abweichungen von der Spezifikation und Annahmen, wo sie nichts festlegt.
 - Nachtrag: Chat im Spiel neu wie WhatsApp: offener Chat über den ganzen Bildschirm (Kopf mit Zurück, Nachrichten unten, Eingabefeld mit rundem Senden-Knopf unten bzw. direkt über der Tastatur), Sprechblasen mit Absender-Buchstabe und Uhrzeit.
 - Nachtrag: Zeichnen neu: Stift öffnet die Leiste ohne gewähltes Werkzeug (Karte bewegt sich). Werkzeuge an/aus durch erneutes Antippen: Zeichnen (Strich), Form (umfahren = Fläche), Punkt, Radiergummi (über Zeichnungen fahren). Ohne Werkzeug: Zeichnung halten und ziehen = verschieben, antippen = Farbe/Text/Löschen. Kreis-Werkzeug entfernt (alte Kreise bleiben sichtbar).
 - Nachtrag: Zeichnen mit Zurück (↩️) und Vor (↪️) für die eigenen Schritte, solange der Stift offen ist. Chat: Senden lässt die Tastatur offen.
+
+## Runde 20 (2026-11-14)
+- Fang-Code ganz entfernt (App und Server, Migration 0031). Fangen nur noch über „Fang melden“; beim Spieler erscheint sofort ein Fenster mitten auf dem Bildschirm (über allem) mit „Ja, gefangen“ / „Nein, stimmt nicht“.
+- Verschanzen ganz entfernt: keine Frage, keine Zeitzählung, keine Selbstmeldung, keine Einstellung (Migration 0031 schaltet es in allen Spielen aus, check_hideout tut nichts mehr, hideout_report gelöscht).
+- Unter der Karte: „letzter Ping“ (gelber Punkt) und „GPS ±“ entfernt.
