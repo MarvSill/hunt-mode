@@ -40,14 +40,26 @@ export function getLang(): Lang {
   return current;
 }
 
+/** Hat die Person auf diesem Gerät schon selbst eine Sprache gewählt? (Sonst beim ersten Öffnen fragen.) */
+export function langChosen(): boolean {
+  try {
+    return !!localStorage.getItem(KEY);
+  } catch {
+    return true;
+  }
+}
+
 export function setLang(lang: Lang) {
-  if (lang === current) return;
-  current = lang;
   try {
     localStorage.setItem(KEY, lang);
   } catch {
     // nur für diese Sitzung
   }
+  if (lang === current) {
+    for (const l of listeners) l();
+    return;
+  }
+  current = lang;
   if (typeof document !== 'undefined') document.documentElement.lang = lang;
   for (const l of listeners) l();
 }

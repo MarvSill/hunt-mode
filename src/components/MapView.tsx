@@ -5,7 +5,7 @@
 import maplibregl, { type GeoJSONSource, type StyleSpecification } from 'maplibre-gl';
 import { pinElement, PIN_TIP_OFFSET } from '../lib/pin';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { bbox, circle, pointOnFeature } from '@turf/turf';
 import { ZONE_INFO, type MapFeature } from '../lib/engine';
 import { restrictedInfo } from '../lib/geo';
@@ -41,6 +41,10 @@ interface Props {
   showDay?: number;
   /** Eigene Knöpfe unten links auf der Karte (bleiben auch im Vollbild sichtbar). */
   children?: ReactNode;
+  /** Nur im Vollbild: Anzeige oben auf der Karte (z. B. Zeit, nächster Ping, eigener Buchstabe). */
+  fullTop?: ReactNode;
+  /** Meldet, ob die Karte gerade im Vollbild ist. */
+  onFullscreen?: (on: boolean) => void;
 }
 
 const POINT_ICON: Record<string, string> = { treffpunkt: '📍', exit: '🏁' };
@@ -176,12 +180,13 @@ function addOverlays(m: maplibregl.Map, dark: boolean, tilt: boolean) {
   m.addLayer({ id: 'hm-lines', type: 'line', source: 'hm-lines', paint: { 'line-color': ['get', 'color'], 'line-width': 3, 'line-opacity': 0.75 } });
 }
 
-/** Eigene Knöpfe: Vollbild, auf das Spielfeld, eigener Standort, 3D an/aus, Kartenstil wechseln. */
+/** Eigene Knöpfe: Vollbild, auf das Spielfeld, immer nach Norden. 3D geht mit zwei Fingern (Häuser erscheinen dann von selbst). */
 class Buttons implements maplibregl.IControl {
   private box?: HTMLDivElement;
   northBtn?: HTMLButtonElement;
-  constructor(private opts: { wrap: () => HTMLElement | null; fit: () => void; tilt: () => boolean; north: () => boolean }) {}
-  onAdd(m: maplibregl.Map) {
+  fullBtn?: HTMLButtonElement;
+  constructor(private opts: { toggleFull: () => void; fit: () => void; north: () => boolean }) {}
+  onAdd() {
     const box = document.createElement('div');
     box.className = 'maplibregl-ctrl maplibregl-ctrl-group hm-map-buttons';
     const btn = (text: string, title: string, fn: (b: HTMLButtonElement) => void) => {
@@ -194,19 +199,8 @@ class Buttons implements maplibregl.IControl {
       box.appendChild(b);
       return b;
     };
-    btn('⛶', t('Vollbild'), (b) => {
-      const w = this.opts.wrap();
-      if (!w) return;
-      const on = w.classList.toggle('map-fullscreen');
-      document.body.classList.toggle('no-scroll', on);
-      b.textContent = on ? '✕' : '⛶';
-      setTimeout(() => m.resize(), 50);
-    });
+    this.fullBtn = btn('⛶', t('Vollbild'), () => this.opts.toggleFull());
     btn('⌖', t('Auf das Spielfeld zoomen'), () => this.opts.fit());
-    btn('◎', t('Mein Standort'), () => {
-      navigator.geolocation?.getCurrentPosition((p) => m.easeTo({ center: [p.coords.longitude, p.coords.latitude], zoom: Math.max(m.getZoom(), 16) }), () => undefined, { timeout: 8000 });
-    });
-    btn('3D', t('3D an/aus'), () => setMapSettings({ tilt: !this.opts.tilt() }));
     const n = btn('N', t('Immer nach Norden ausrichten'), () => setMapSettings({ north: !this.opts.north() }));
     n.classList.toggle('on', this.opts.north());
     this.northBtn = n;
@@ -218,8 +212,12 @@ class Buttons implements maplibregl.IControl {
   }
 }
 
-export default function MapView({ zones, markers, lines, onClick, fitKey, height = '60dvh', showDay, children }: Props) {
+export default function MapView({ zones, markers, lines, onClick, fitKey, height = '60dvh', showDay, children, fullTop, onFullscreen }: Props) {
   const settings = useMapSettings();
+  const [full, setFull] = useState(false);
+  const fullRef = useRef(false);
+  const onFullRef = useRef(onFullscreen);
+  onFullRef.current = onFullscreen;
   const el = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const ready = useRef(false);
@@ -327,10 +325,13 @@ export default function MapView({ zones, markers, lines, onClick, fitKey, height
       maxPitch: 70,
       attributionControl: { compact: true },
     });
-    m.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'top-right');
-    buttons.current = new Buttons({ wrap: () => el.current?.parentElement ?? null, fit: () => fit(true), tilt: () => settingsRef.current.tilt, north: () => settingsRef.current.north });
+    // Nur Zoom-Knöpfe: Norden gibt es einmal (Knopf "N"), 3D mit zwei Fingern.
+    m.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+    buttons.current = new Buttons({ toggleFull: () => { fullRef.current = !fullRef.current; setFull(fullRef.current); }, fit: () => fit(true), north: () => settingsRef.current.north });
     m.addControl(buttons.current, 'top-right');
     m.on('click', (e) => clickRef.current?.(e.lngLat.lat, e.lngLat.lng));
+    // Häuser in 3D, sobald die Karte geneigt ist (zwei Finger nach oben schieben).
+    m.on('pitchend', () => { if (ready.current) setBuildingsVisible(m, m.getPitch() > 5); });
     m.on('style.load', () => {
       addOverlays(m, resolveStyle(settingsRef.current.style).dark, settingsRef.current.tilt);
       ready.current = true;
@@ -411,10 +412,20 @@ export default function MapView({ zones, markers, lines, onClick, fitKey, height
     drawMarkers();
   }, [markers, lines]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Vollbild an/aus
+  useEffect(() => {
+    document.body.classList.toggle('no-scroll', full);
+    if (buttons.current?.fullBtn) buttons.current.fullBtn.textContent = full ? '✕' : '⛶';
+    onFullRef.current?.(full);
+    const tm = setTimeout(() => map.current?.resize(), 50);
+    return () => clearTimeout(tm);
+  }, [full]);
+  useEffect(() => () => document.body.classList.remove('no-scroll'), []);
+
   return (
-    <div className="map-wrap">
+    <div className={`map-wrap${full ? ' map-fullscreen' : ''}`}>
       <div ref={el} className="map" style={{ height }} />
-      <div className="map-overlay-tl"><MapStylePicker /></div>
+      {full && fullTop ? <div className="map-overlay-top">{fullTop}</div> : <div className="map-overlay-tl"><MapStylePicker /></div>}
       {children && <div className="map-overlay-bl">{children}</div>}
     </div>
   );

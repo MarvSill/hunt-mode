@@ -19,9 +19,10 @@ import { formatMinutes } from '../shared/format';
 import { api, ZONE_INFO, ZONE_KINDS, type MapFeature, type ZoneKind } from '../lib/engine';
 import {
   areaKm2, bandFromLine, centerOf, checkMap, circleWithArea, clipTo, exitPlaceOk, fieldOfPhase, INSIDE_FIELD, middleOf, nearestExitPlace, outsideShare, pointInside,
-  recommendedFieldKm2, rectWithArea, RESTRICTED_TYPES, restrictedInfo, shrinkArea, spreadPoints, unionAll, type Area,
+  recommendedFieldKm2, rectWithArea, RESTRICTED_TYPES, restrictedInfo, shrinkArea, spreadPoints, unionAll, type Area, type MapIssue,
 } from '../lib/geo';
 import { diffConfig, getGame, updateConfig, type Game } from '../lib/games';
+import { transformScale } from '@turf/turf';
 import { suggestHazards, type HazardSuggestion } from '../lib/hazards';
 import { errorText } from '../lib/supabase';
 import { gameConfigSchema, parseConfig, type GameConfig } from '../shared/config';
@@ -76,6 +77,7 @@ export default function MapEditorPage() {
   const setup = useSearchParams()[0].get('neu') === '1';
   const [game, setGame] = useState<Game | null>(null);
   const [savedConfig, setSavedConfig] = useState<GameConfig | null>(null);
+  const issuesRef = useRef<MapIssue[]>([]);
   const [config, setConfig] = useState<GameConfig | null>(null);
   const [items, setItems] = useState<Item[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
@@ -350,9 +352,9 @@ export default function MapEditorPage() {
     const next = new Map<string, GeoJSON.Position>();
     for (const it of exits) {
       const pt = (it.feature.geometry as GeoJSON.Point).coordinates;
-      if (exitPlaceOk(pt, inner, blocked)) { placed.push(pt); continue; }
+      if (exitPlaceOk(pt, inner, blocked, config?.exit.radius_m ?? 0)) { placed.push(pt); continue; }
       const others = [...placed, ...exits.filter((x) => x !== it).map((x) => (x.feature.geometry as GeoJSON.Point).coordinates)];
-      const to = nearestExitPlace(pt, inner, blocked, others);
+      const to = nearestExitPlace(pt, inner, blocked, others, config?.exit.radius_m ?? 0);
       if (!to) continue;
       next.set(it.key, to);
       placed.push(to);
@@ -367,7 +369,7 @@ export default function MapEditorPage() {
     }));
     setDirty(true);
     setMsg({ ok: true, text: t('{0} Fluchtpunkt(e) lagen in einer Gefahrenzone oder ausserhalb der kleinsten Zone und wurden automatisch an die nächste erlaubte Stelle verschoben.', { 0: moved }) });
-  }, [items, phaseFields, loaded, editable, pending]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [items, phaseFields, loaded, editable, pending, config?.exit.radius_m]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Neue Zeichnung übernehmen
   handleCreateRef.current = (layer: L.Layer) => {
@@ -400,9 +402,9 @@ export default function MapEditorPage() {
       if (p.kind === 'exit') {
         // Fluchtpunkte immer in der kleinsten Zone und nie in einer Gefahrenzone: sonst gleich an die nächste erlaubte Stelle.
         const inner = innermostField();
-        if (inner && !exitPlaceOk(pt, inner, blockedArea())) {
+        if (inner && !exitPlaceOk(pt, inner, blockedArea(), config?.exit.radius_m ?? 0)) {
           const others = itemsRef.current.filter((x) => x.feature.properties.kind === 'exit').map((x) => (x.feature.geometry as GeoJSON.Point).coordinates);
-          const to = nearestExitPlace(pt, inner, blockedArea(), others);
+          const to = nearestExitPlace(pt, inner, blockedArea(), others, config?.exit.radius_m ?? 0);
           if (!to) {
             setMsg({ ok: false, text: t('In der kleinsten Zone ist kein Platz ausserhalb der Gefahrenzonen. Bitte das Spielfeld oder die Verkleinerung anpassen.') });
             setTimeout(() => startDraw(p, false), 0);
@@ -616,7 +618,11 @@ export default function MapEditorPage() {
         await updateConfig(game.id, config, changes);
         setSavedConfig(config);
       }
-      setMsg({ ok: true, text: changes.length ? t('Gespeichert: {0} Elemente und die Einstellungen zur Verkleinerung.', { 0: n }) : t('Gespeichert: {0} Elemente.', { 0: n }) });
+      // Gleich beim Speichern sagen, was noch fehlt oder nicht stimmt (nicht erst beim Starten des Spiels).
+      const errs = issuesRef.current.filter((i) => i.level === 'error');
+      const saved = changes.length ? t('Gespeichert: {0} Elemente und die Einstellungen zur Verkleinerung.', { 0: n }) : t('Gespeichert: {0} Elemente.', { 0: n });
+      if (errs.length) setMsg({ ok: false, text: `${saved} ${t('Aber so kann das Spiel noch nicht starten:')} ${errs.map((i) => i.text).join(' ')}` });
+      else setMsg({ ok: true, text: saved });
       setDirty(false);
       return true;
     } catch (err) {
@@ -706,6 +712,22 @@ export default function MapEditorPage() {
     setMsg({ ok: true, text: me ? t('Spielfeld um deinen Standort erstellt. Du kannst es antippen und die Ecken verschieben. Danach „Weiter“.') : t('Spielfeld erstellt. Du kannst es antippen und die Ecken verschieben. Danach „Weiter“.') });
   }
 
+  /** Spielfeld mit + / − grösser oder kleiner machen (um die Mitte, Form bleibt gleich). */
+  function scaleField(factor: number) {
+    const m = map.current;
+    const old = itemsRef.current.find((x) => x.feature.properties.kind === 'spielfeld' && !x.feature.properties.day_index);
+    if (!m || !old) return;
+    const geom = old.feature.geometry as GeoJSON.Polygon | GeoJSON.MultiPolygon;
+    const scaled = transformScale({ type: 'Feature', geometry: geom, properties: {} } as GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.MultiPolygon>, Math.sqrt(factor), { origin: 'centroid' });
+    group.current?.removeLayer(old.layer);
+    const it = addItem({ type: 'Feature', geometry: scaled.geometry, properties: { ...old.feature.properties } });
+    const next = [...itemsRef.current.filter((x) => x !== old), it];
+    itemsRef.current = next;
+    setItems(next);
+    setDirty(true);
+    m.fitBounds((it.layer as L.Polygon).getBounds(), { padding: [20, 20] });
+  }
+
   function autoMeet(): GeoJSON.Position | null {
     const f = fieldOfPhase(itemsRef.current.map((x) => x.feature), 1);
     if (!f) return null;
@@ -769,6 +791,7 @@ export default function MapEditorPage() {
     autoShrink: shrink === 'auto', manualShrink: shrink === 'manuell', finalField: phaseFields[phaseFields.length - 1] ?? null,
     recommendedKm2: recKm2,
   });
+  issuesRef.current = issues;
   const sticking = field1 ? items.filter((it) => INSIDE_FIELD.includes(it.feature.properties.kind) && isArea(it.feature) && outsideShare(asArea(it.feature), field1) > 0.01) : [];
   const unitLabel = t('Phase');
   const limits = timeLimits(config);
@@ -876,7 +899,14 @@ export default function MapEditorPage() {
                 <button onClick={draw({ kind: 'spielfeld', tool: 'Rectangle' })}>{t('▭ Rechteck')}</button>
                 <button onClick={draw({ kind: 'spielfeld', tool: 'Polygon' })}>{t('✎ Eigene Form')}</button>
               </div>
-              {field1 && <div className="muted small">{t('Tipp: Tippe das Spielfeld an, um die Ecken zu verschieben.')}</div>}
+              {field1 && editable && (
+                <div className="row" style={{ alignItems: 'center', gap: 10 }}>
+                  <button type="button" className="big" style={{ minWidth: 56, fontSize: 24 }} aria-label={t('Spielfeld kleiner')} onClick={() => scaleField(1 / 1.2)}>−</button>
+                  <div className="spacer" style={{ textAlign: 'center' }}><strong>{kmText(areaKm2(field1))}</strong><div className="muted small">{t('Grösse des Spielfelds')}</div></div>
+                  <button type="button" className="big" style={{ minWidth: 56, fontSize: 24 }} aria-label={t('Spielfeld grösser')} onClick={() => scaleField(1.2)}>+</button>
+                </div>
+              )}
+              {field1 && <div className="muted small">{t('Tipp: Mit − und + wird das Spielfeld kleiner oder grösser. Tippe es an, um die Ecken zu verschieben.')}</div>}
             </>
           )}
 

@@ -258,6 +258,25 @@ const RULES: Rule[] = [
   r('Die Wiederholung gibt es erst nach Spielende.', 'Le replay n’est disponible qu’après la fin de la partie.', 'The replay is only available after the game.'),
   r('Zu lange in einer Gefahrenzone', 'Trop longtemps dans une zone dangereuse', 'Too long in a danger zone'),
 
+  // Runde 17 (0027): Spielfeld verlassen ohne Countdown, Fluchtpunkt öffnet mit dem Ende der Spielzeit
+  r('Du bist ausserhalb des Spielfelds!', 'Tu es hors de la zone de jeu !', 'You are outside the play area!'),
+  r('Die Hunter sehen dich jetzt live. Geh sofort zurück ins Spielfeld. Noch {D} min, dann giltst du als gefangen.',
+    'Les hunters te voient maintenant en direct. Retourne tout de suite dans la zone. Encore $1 min, puis tu es considéré comme capturé.',
+    'The hunters now see you live. Go back into the play area right away. $1 min left, then you count as caught.'),
+  r('Die Hunter sehen dich jetzt live. Geh sofort zurück ins Spielfeld. Noch {D} min, dann bist du disqualifiziert.',
+    'Les hunters te voient maintenant en direct. Retourne tout de suite dans la zone. Encore $1 min, puis tu es disqualifié.',
+    'The hunters now see you live. Go back into the play area right away. $1 min left, then you are disqualified.'),
+  r('Die Hunter sehen dich jetzt live. Geh sofort zurück ins Spielfeld. Noch {D} min, dann gibt es eine Strafe.',
+    'Les hunters te voient maintenant en direct. Retourne tout de suite dans la zone. Encore $1 min, puis il y a une pénalité.',
+    'The hunters now see you live. Go back into the play area right away. $1 min left, then there is a penalty.'),
+  r('Er öffnet um {H} (Ende der Spielzeit). Dann habt ihr bis {H} Zeit, in den Kreis zu kommen.',
+    'Il s’ouvre à $1 (fin du temps de jeu). Vous avez ensuite jusqu’à $2 pour entrer dans le cercle.',
+    'It opens at $1 (end of the game time). You then have until $2 to get into the circle.'),
+  r('Ihr erfahrt ihn nicht. Er öffnet um {H}. Gejagt wird bis {H} oder bis alle gefangen oder angekommen sind.',
+    'Vous ne le saurez pas. Il s’ouvre à $1. La chasse continue jusqu’à $2 ou jusqu’à ce que tous soient capturés ou arrivés.',
+    'You won’t find out where it is. It opens at $1. The hunt goes on until $2 or until everyone is caught or has arrived.'),
+  r('Wer bis {H} in den Kreis kommt, ist gerettet.', 'Celui qui entre dans le cercle avant $1 est sauvé.', 'Anyone who gets into the circle by $1 is saved.'),
+
   // Fluchtpunkt mit Freigabe, Spielzeit, Löschen (0022)
   r('Er ist erst ab {H} offen. Seid zwischen {H} und {H} im Kreis.',
     'Il n’est ouvert qu’à partir de $1. Soyez dans le cercle entre $2 et $3.',

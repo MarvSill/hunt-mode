@@ -55,7 +55,6 @@ const LABELS: Record<string, string> = lazy({
   'hideout.max_minutes': 'Verschanzen-Limit',
   'hideout.stationary_minutes': 'Verschanzen-Erkennung',
   'exit.reveal_minutes_before_end': 'Bekanntgabe des Fluchtpunkts vor Ende',
-  'exit.usable_minutes_before_end': 'Fluchtpunkt nutzbar ab',
   'spectator.delay_minutes': 'Zuschauer-Verzögerung',
 });
 
@@ -82,7 +81,6 @@ export function timeLimits(c: GameConfig): Record<string, TimeLimit> {
     'hideout.max_minutes': { max: Math.max(5, d), reason: game },
     'hideout.stationary_minutes': { max: Math.max(5, c.hideout.max_minutes), reason: t('das Verschanzen-Limit nur {0} min ist', { 0: c.hideout.max_minutes }) },
     'exit.reveal_minutes_before_end': { max: d, reason: game },
-    'exit.usable_minutes_before_end': { max: c.exit.reveal_minutes_before_end, reason: t('der Fluchtpunkt erst {0} min vor Schluss bekannt wird', { 0: c.exit.reveal_minutes_before_end }) },
     'spectator.delay_minutes': { max: Math.max(0, d - 5), reason: t('Zuschauer sonst nichts sähen') },
   };
   // Nur Regeln prüfen, die im Spiel auch aktiv sind.

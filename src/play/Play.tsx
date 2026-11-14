@@ -14,13 +14,15 @@ import EmergencyBox from './EmergencyBox';
 import { colorFor, Confirm, nameOf, Section, tagOf } from './common';
 import { CallButtons } from './EmergencyBox';
 import HunterPanel from './HunterPanel';
-import PlayerPanel from './PlayerPanel';
+import PlayerPanel, { CatchAsk, JokerBox } from './PlayerPanel';
+import CatchCode from './CatchCode';
 import Result from './Result';
 import { t, lazy } from '../i18n';
 import { isNative, nativeNotify, openAppSettings } from '../lib/native';
 import NumberField from '../components/NumberField';
 import { SpeedhuntButtons, SpeedhuntDialog } from './SpeedhuntMap';
 import Loader from '../components/Loader';
+import Swipe from '../components/Swipe';
 import SafetyNotice from './SafetyNotice';
 import { DeviceAlert, useOutsideVibration, useRadarAlarm } from './Alerts';
 
@@ -69,14 +71,29 @@ export default function PlayPage() {
   const mapVersion = useRef<number | null>(null);
   const [sosAsk, setSosAsk] = useState(false);
   const [seenNotes, setSeenNotes] = useState(0);
+  // Weggewischte Meldungen (nur auf diesem Gerät, je Spiel).
+  const [hiddenNotes, setHiddenNotesState] = useState<Set<number>>(() => {
+    try { return new Set(JSON.parse(localStorage.getItem(`hm-notes-hidden-${id}`) ?? '[]') as number[]); } catch { return new Set(); }
+  });
+  const setHiddenNotes = (v: Set<number>) => {
+    setHiddenNotesState(v);
+    try { localStorage.setItem(`hm-notes-hidden-${id}`, JSON.stringify([...v].slice(-500))); } catch { /* nur für diese Sitzung */ }
+  };
+  const hideNote = (n: number) => setHiddenNotes(new Set([...hiddenNotes, n]));
   const [seenChats, setSeenChats] = useState<number | null>(null);
 
   const roleRef = useRef<string | undefined>(undefined);
   const lastAlarm = useRef(0);
   useEffect(() => {
-    // Browser spielen Töne erst nach einer Berührung der Seite ab.
-    document.addEventListener('pointerdown', unlockAudio, { once: true });
-    return () => document.removeEventListener('pointerdown', unlockAudio);
+    // Browser spielen Töne erst nach einer Berührung der Seite ab. Bei jeder Berührung und beim Zurückkommen in die
+    // App wieder einschalten (iOS stellt den Ton nach dem Hintergrund oft stumm).
+    const onVisible = () => { if (document.visibilityState === 'visible') unlockAudio(); };
+    document.addEventListener('pointerdown', unlockAudio);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      document.removeEventListener('pointerdown', unlockAudio);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
   }, []);
 
   const onNew = useCallback((list: Notification[]) => {
@@ -140,6 +157,8 @@ export default function PlayPage() {
     try { localStorage.setItem('hm-pings-andere', v ? 'aus' : 'an'); } catch { /* nur für diese Sitzung */ }
   };
   const [blitzOpen, setBlitzOpen] = useState(false);
+  const [fullMap, setFullMap] = useState(false);
+  const [sheet, setSheet] = useState<null | 'joker' | 'code' | 'fangen'>(null);
   const [pauseReason, setPauseReason] = useState('');
   const tracker = useTracker(id, tracking, kick);
   const pos = tracker.last ? { lat: tracker.last.lat, lng: tracker.last.lng } : null;
@@ -253,13 +272,16 @@ export default function PlayPage() {
   const ended = ['beendet', 'archiviert'].includes(g.status);
   const players = s.participants.filter((p) => p.role === 'spieler');
   const live = ['vorsprung', 'laeuft', 'finale'].includes(g.status);
-  const exitOpenAt = g.ends_at ? new Date(g.ends_at).getTime() - g.config.exit.usable_minutes_before_end * 60000 : null;
+  // Fluchtpunkt öffnet mit dem Ende der Spielzeit; danach läuft das Spiel bis alle da sind, höchstens bis deadline_at.
+  const exitOpenAt = g.ends_at ? new Date(g.ends_at).getTime() : null;
+  const finalEnd = g.deadline_at ?? g.ends_at;
   const headline = g.paused ? (g.pause_kind === 'host' ? t('PAUSE') : g.pause_kind === 'sicherheit' ? t('WARTEN AUF ALLE') : t('UNTERBROCHEN: NOTFALL'))
     : g.status === 'vorsprung' ? t('Jagd in {0}', { 0: countdown(g.hunt_start_at, now) })
-    : g.status === 'finale' && exitOpenAt && now < exitOpenAt ? t('Fluchtpunkt öffnet um {0} · Ende in {1}', { 0: clock(new Date(exitOpenAt).toISOString(), g.timezone), 1: countdown(g.ends_at, now) })
-    : g.status === 'finale' ? t('Fluchtpunkt noch {0} offen', { 0: countdown(g.ends_at, now) })
+    : g.status === 'finale' && exitOpenAt && now < exitOpenAt ? t('Fluchtpunkt öffnet in {0}', { 0: countdown(g.ends_at, now) })
+    : g.config.exit.enabled && exitOpenAt && now >= exitOpenAt ? t('Fluchtpunkt offen · Schluss in {0}', { 0: countdown(finalEnd, now) })
     : ended ? t('Spiel beendet') : t('Ende in {0}', { 0: countdown(g.ends_at, now) });
 
+  const myTag = s.participants.find((p) => p.id === s.me.id)?.tag;
   const roleLabel = role === 'spieler' ? t('Spieler') : role === 'zuschauer' ? t('Zuschauer') : t('Hunter');
   const canSos = !ended && role !== 'zuschauer' && s.me.state !== 'notfall';
   const unseen = tab === 'meldungen' ? 0 : s.notifications.length - seenNotes;
@@ -303,10 +325,12 @@ export default function PlayPage() {
 
       <div className="toasts">
         {toasts.slice(0, 1).map((n) => (
-          <div key={n.id} className={`toast ${n.priority}`} role="status" onClick={() => setToasts((t) => t.filter((x) => x.id !== n.id))}>
-            {toasts.length > 1 && <span className="more">+{toasts.length - 1}</span>}
-            <strong>{n.title}</strong>{n.body && <div className="small">{n.body}</div>}
-          </div>
+          <Swipe key={n.id} className={`toast ${n.priority}`} role="status" onDismiss={() => setToasts((t) => t.filter((x) => x.id !== n.id))}>
+            <div onClick={() => setToasts((t) => t.filter((x) => x.id !== n.id))}>
+              {toasts.length > 1 && <span className="more">+{toasts.length - 1}</span>}
+              <strong>{n.title}</strong>{n.body && <div className="small">{n.body}</div>}
+            </div>
+          </Swipe>
         ))}
       </div>
 
@@ -352,55 +376,96 @@ export default function PlayPage() {
             ))}
           </nav>
           <div style={{ display: tab === 'karte' ? 'block' : 'none' }}>
-            <div className="map-box">
-              <MapView zones={zones} markers={markers} fitKey={g.id} height="62dvh" showDay={g.phase ?? g.current_day}>
-                {(() => {
-                  // Timer bis zum nächsten Ping (Hunter: nächster Ping irgendeines Spielers, Spieler: der eigene).
-                  const next = role === 'spieler' ? s.me.next_ping_at : s.next_silent_ping_at;
-                  if (!next || g.paused || g.status === 'vorsprung') return null;
-                  return <span className="map-chip timer" aria-live="off">⏱ {t('Nächster Ping in {0}', { 0: countdown(next, now) })}</span>;
-                })()}
-                {role === 'hunter' && <SpeedhuntButtons s={s} act={act} onOpen={() => setBlitzOpen(true)} />}
-                {s.pings.some((p) => p.lat != null) && (
-                  <span className="map-chip">
-                    📍
-                    <select aria-label={t('Pings auf der Karte')} value={pingCustom ? 'x' : String(pingCount)}
-                      onChange={(e) => {
-                        if (e.target.value === 'x') { setPingCustom(true); setPingCount(pingCount > 1 && pingCount !== 3 ? pingCount : 5); return; }
-                        setPingCustom(false);
-                        setPingCount(Number(e.target.value));
-                      }}>
-                      <option value="1">{t('Nur letzter Ping')}</option>
-                      <option value="3">{t('Letzte 3 Pings')}</option>
-                      <option value="0">{t('Alle Pings')}</option>
-                      <option value="x">{t('Eigene Anzahl …')}</option>
-                    </select>
-                    {pingCustom && <NumberField label={t('Pings je Spieler')} value={pingCount || 5} min={1} max={200} onChange={setPingCount} />}
-                  </span>
-                )}
-                {role === 'spieler' && s.pings.some((p) => p.participant_id !== s.me.id && p.lat != null) && (
-                  <button type="button" className="map-chip" aria-pressed={!othersHidden} onClick={() => setOthersHidden(!othersHidden)}>
-                    👥 {othersHidden ? t('Andere Spieler: aus') : t('Andere Spieler: an')}
-                  </button>
-                )}
-                {role === 'spieler' && s.me.radar && (
-                  <span className={`map-chip${s.me.radar.near ? ' red pulse' : ''}`} role="status">
-                    📡 {s.me.radar.near ? t('Hunter näher als {0} m!', { 0: s.me.radar.distance_m }) : s.me.radar.near === false ? t('Kein Hunter näher als {0} m', { 0: s.me.radar.distance_m }) : t('Nähe-Radar')}
-                  </span>
-                )}
-              </MapView>
-            </div>
+            {(() => {
+              // Was rund um die Karte gehört: kleine Karte = über und unter der Karte, grosse Karte = auf der Karte.
+              const next = role === 'spieler' ? s.me.next_ping_at : s.next_silent_ping_at;
+              const showPing = !!next && !g.paused && g.status !== 'vorsprung' && !(role === 'spieler' && !['aktiv', 'ausserhalb'].includes(s.me.state));
+              const blitzRunning = s.speedhunts.some((x) => x.status === 'laeuft');
+              const info = (
+                <>
+                  {myTag && <span className={`map-chip me ${role === 'spieler' ? 'spieler' : 'hunter'}`}>{t('Du: {0}', { 0: myTag })}</span>}
+                  {fullMap && <span className={`map-chip timer${g.paused ? ' red' : ''}`}>{headline}</span>}
+                  {showPing && <span className="map-chip timer" aria-live="off">⏱ {t('Ping in {0}', { 0: countdown(next, now) })}</span>}
+                  {role === 'spieler' && s.me.radar && (
+                    <span className={`map-chip${s.me.radar.near ? ' red pulse' : ' green'}`} role="status">
+                      📡 {s.me.radar.near ? t('Hunter näher als {0} m!', { 0: s.me.radar.distance_m }) : s.me.radar.near === false ? t('Kein Hunter näher als {0} m', { 0: s.me.radar.distance_m }) : t('Nähe-Radar')}
+                    </span>
+                  )}
+                  {blitzRunning && <span className="map-chip red pulse">⚡ {t('Blitzjagd läuft')}</span>}
+                  {role === 'spieler' && s.me.state === 'ausserhalb' && <span className="map-chip red pulse">{t('Zurück ins Spielfeld!')}</span>}
+                </>
+              );
+              const pingPick = s.pings.some((p) => p.lat != null) && (
+                <span className="map-chip">
+                  📍
+                  <select aria-label={t('Pings auf der Karte')} value={pingCustom ? 'x' : String(pingCount)}
+                    onChange={(e) => {
+                      if (e.target.value === 'x') { setPingCustom(true); setPingCount(pingCount > 1 && pingCount !== 3 ? pingCount : 5); return; }
+                      setPingCustom(false);
+                      setPingCount(Number(e.target.value));
+                    }}>
+                    <option value="1">{t('Nur letzter Ping')}</option>
+                    <option value="3">{t('Letzte 3 Pings')}</option>
+                    <option value="0">{t('Alle Pings')}</option>
+                    <option value="x">{t('Eigene Anzahl …')}</option>
+                  </select>
+                  {pingCustom && <NumberField label={t('Pings je Spieler')} value={pingCount || 5} min={1} max={200} onChange={setPingCount} />}
+                </span>
+              );
+              const othersBtn = role === 'spieler' && s.pings.some((p) => p.participant_id !== s.me.id && p.lat != null) && (
+                <button type="button" className="map-chip" aria-pressed={!othersHidden} onClick={() => setOthersHidden(!othersHidden)}>
+                  👥 {othersHidden ? t('Andere Spieler: aus') : t('Andere Spieler: an')}
+                </button>
+              );
+              const playerActive = role === 'spieler' && ['aktiv', 'ausserhalb'].includes(s.me.state);
+              const actions = (
+                <>
+                  {role === 'hunter' && <SpeedhuntButtons s={s} act={act} onOpen={() => setBlitzOpen(true)} />}
+                  {role === 'hunter' && fullMap && <button type="button" className="map-chip big" onClick={() => setSheet('fangen')}>🤚 {t('Fangen')}</button>}
+                  {playerActive && fullMap && g.config.joker.enabled && <button type="button" className="map-chip big" onClick={() => setSheet('joker')}>🃏 {t('Joker')}{s.me.inventory.length > 0 ? ` (${s.me.inventory.length})` : ''}</button>}
+                  {playerActive && fullMap && <button type="button" className="map-chip big" onClick={() => setSheet('code')}>🔢 {t('Fang-Code')}</button>}
+                </>
+              );
+              return (
+                <>
+                  {!fullMap && <div className="map-info">{info}</div>}
+                  <div className="map-box">
+                    <MapView zones={zones} markers={markers} fitKey={g.id} height="58dvh" showDay={g.phase ?? g.current_day} onFullscreen={setFullMap}
+                      fullTop={fullMap ? (
+                        <div className="stack" style={{ gap: 6 }}>
+                          <div className="map-info">{info}{canSos && <button type="button" className="sos small" onClick={() => setSosAsk(true)}>{t('SOS')}</button>}</div>
+                          {role === 'spieler' && <CatchAsk s={s} act={act} />}
+                        </div>
+                      ) : undefined}>
+                      {fullMap ? <>{actions}{pingPick}{othersBtn}</> : null}
+                    </MapView>
+                  </div>
+                  {!fullMap && (
+                    <div className="map-under">
+                      {actions}
+                      {pingPick}
+                      {othersBtn}
+                      <span className="badge">{s.free_players}/{players.length} {t('Spieler frei')}</span>
+                      {tracker.last && <span className="badge">{t('GPS ±')}{tracker.last.acc} m</span>}
+                      {s.pings.some((p) => p.lat != null) && <span className="badge"><i className="ring-dot" style={{ borderColor: RING_LAST }} /> {t('letzter Ping')}</span>}
+                      {s.pings.some((p) => p.source === 'speedhunt' && p.lat != null) && <span className="badge"><i className="ring-dot" style={{ borderColor: RING_BLITZ }} /> {t('Blitzjagd')}</span>}
+                    </div>
+                  )}
+                </>
+              );
+            })()}
             {blitzOpen && <SpeedhuntDialog s={s} act={act} onClose={() => setBlitzOpen(false)} />}
-            <div className="row small" style={{ marginTop: 8 }}>
-              {role === 'spieler' && s.me.next_ping_at && <span className="badge">{t('Nächster Ping')} {clock(s.me.next_ping_at)}</span>}
-              {s.next_silent_ping_at && role !== 'spieler' && <span className="badge">{t('Nächster Ping')} {clock(s.next_silent_ping_at)}</span>}
-              <span className="badge">{s.free_players}/{players.length} {t('Spieler frei')}</span>
-              {s.speedhunts.some((x) => x.status === 'laeuft') && <span className="badge red pulse">{t('Blitzjagd')}</span>}
-              {tracker.last && <span className="badge">{t('GPS ±')}{tracker.last.acc} m</span>}
-              {tracking && <span className={`badge${tracker.sentAt && Date.now() - tracker.sentAt < 60000 ? '' : ' red'}`}>📡 {tracker.sentAt ? t('gesendet vor {0} s', { 0: Math.max(0, Math.round((Date.now() - tracker.sentAt) / 1000)) }) : t('noch nicht gesendet')}</span>}
-              {s.pings.some((p) => p.lat != null) && <span className="badge"><i className="ring-dot" style={{ borderColor: RING_LAST }} /> {t('letzter Ping')}</span>}
-              {s.pings.some((p) => p.source === 'speedhunt' && p.lat != null) && <span className="badge"><i className="ring-dot" style={{ borderColor: RING_BLITZ }} /> {t('Blitzjagd')}</span>}
-            </div>
+            {sheet && (
+              <div className="overlay sheet" role="dialog" onClick={() => setSheet(null)}>
+                <div className="card stack sheet-card" onClick={(e) => e.stopPropagation()}>
+                  {sheet === 'joker' && <JokerBox s={s} now={now} act={act} running={['laeuft', 'finale'].includes(g.status) && !g.paused} />}
+                  {sheet === 'joker' && s.me.inventory.length === 0 && <div className="muted">{t('Noch keine Joker frei.')}</div>}
+                  {sheet === 'fangen' && <HunterPanel s={s} now={now} act={act} pos={pos} />}
+                  <button type="button" className="ghost block" onClick={() => setSheet(null)}>{t('Schliessen')}</button>
+                </div>
+              </div>
+            )}
+            {sheet === 'code' && <CatchCode gameId={g.id} onClose={() => setSheet(null)} />}
           </div>
 
           <div style={{ display: tab === 'aktionen' ? 'block' : 'none' }}>
@@ -447,18 +512,22 @@ export default function PlayPage() {
 
           <div style={{ display: tab === 'meldungen' ? 'block' : 'none' }}>
             <div className="card">
+              {s.notifications.some((n) => !hiddenNotes.has(n.id)) && <div className="muted small" style={{ marginBottom: 6 }}>{t('Zur Seite wischen zum Entfernen.')}</div>}
               <ul className="list">
-                {s.notifications.map((n) => (
-                  <li key={n.id} className={`note ${n.priority}`}>
-                    <div className="spacer">
-                      <div><strong>{n.title}</strong></div>
-                      {n.body && <div className="small">{n.body}</div>}
-                    </div>
-                    <span className="muted small">{clock(n.at, g.timezone)}</span>
+                {s.notifications.filter((n) => !hiddenNotes.has(n.id)).map((n) => (
+                  <li key={n.id} style={{ display: 'block', padding: 0 }}>
+                    <Swipe className={`note ${n.priority} swipe-row`} onDismiss={() => hideNote(n.id)}>
+                      <div className="spacer">
+                        <div><strong>{n.title}</strong></div>
+                        {n.body && <div className="small">{n.body}</div>}
+                      </div>
+                      <span className="muted small">{clock(n.at, g.timezone)}</span>
+                    </Swipe>
                   </li>
                 ))}
-                {s.notifications.length === 0 && <li className="muted">{t('Noch keine Meldungen.')}</li>}
+                {s.notifications.every((n) => hiddenNotes.has(n.id)) && <li className="muted">{t('Noch keine Meldungen.')}</li>}
               </ul>
+              {hiddenNotes.size > 0 && <button type="button" className="ghost small" onClick={() => setHiddenNotes(new Set())}>{t('Entfernte wieder zeigen')}</button>}
             </div>
           </div>
 

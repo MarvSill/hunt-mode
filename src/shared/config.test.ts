@@ -155,12 +155,12 @@ describe('Validierung', () => {
     expect(validateConfig(c).config.exit.reveal_minutes_before_end).toBe(50);
   });
 
-  it('Vorsprung ist Teil der Spielzeit, Fluchtpunkt erst nach der Bekanntgabe nutzbar', () => {
-    const c = mergeConfig(defaultConfig(), { game: { duration_minutes: 20 }, start: { head_start_minutes: 60 }, exit: { reveal_minutes_before_end: 10, usable_minutes_before_end: 15 } });
+  it('Vorsprung ist Teil der Spielzeit, Fluchtpunkt öffnet mit dem Ende der Spielzeit', () => {
+    const c = mergeConfig(defaultConfig(), { game: { duration_minutes: 20 }, start: { head_start_minutes: 60 }, exit: { reveal_minutes_before_end: 10, usable_minutes_before_end: 15, arrival_deadline_offset_minutes: 0 } });
     expect(c.start.head_start_minutes).toBe(15);
-    expect(c.exit.usable_minutes_before_end).toBe(10);
+    expect(c.exit.usable_minutes_before_end).toBe(0);
     expect(c.ping.first_ping_delay_minutes).toBe(0);
-    expect(c.exit.arrival_deadline_offset_minutes).toBe(0);
+    expect(c.exit.arrival_deadline_offset_minutes).toBe(60);
   });
 
   it('warnt bei kurzen Spielen mit Ausrichtung auf volle Stunden', () => {

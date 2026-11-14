@@ -9,6 +9,9 @@ import GroupPage from './pages/Group';
 import GroupsPage from './pages/Groups';
 import JoinPage from './pages/Join';
 import IntroPage, { introSeen } from './pages/Intro';
+import LanguageFirst from './pages/LanguageFirst';
+import RunningGamePrompt from './components/RunningGamePrompt';
+import { langChosen } from './i18n';
 import PrivacyPage from './pages/Privacy';
 
 import LoginPage from './pages/Login';
@@ -31,8 +34,10 @@ export default function App() {
   // Untere Leiste nur auf den Hauptseiten; in Spiel, Karte und Erstellen stört sie.
   const showNav = ['/', '/beitreten', '/gruppen', '/profil'].includes(location.pathname) || /^\/gruppen\//.test(location.pathname);
   const [introDone, setIntroDone] = useState(introSeen);
+  const [langDone, setLangDone] = useState(langChosen);
 
   if (!supabase) return <SetupMissingPage />;
+  if (!langDone && !location.pathname.startsWith('/datenschutz')) return <LanguageFirst onDone={() => setLangDone(true)} />;
   if (loading) return <Loader />;
   if (recovering) return <NewPasswordPage />;
   if (!session) {
@@ -73,6 +78,7 @@ export default function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       </Suspense>
+      {(showNav || /^\/spiel\/[^/]+\/?$/.test(location.pathname)) && <RunningGamePrompt />}
       {showNav && <nav className="nav">
         <NavLink to="/" end><Icon name="home" />{t('Start')}</NavLink>
         <NavLink to="/beitreten"><Icon name="join" />{t('Beitreten')}</NavLink>

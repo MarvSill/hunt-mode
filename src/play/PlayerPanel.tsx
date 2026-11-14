@@ -33,16 +33,7 @@ export default function PlayerPanel({ s, now, act }: PanelProps) {
     <div className="stack">
       {showCode && <CatchCode gameId={g.id} onClose={() => setShowCode(false)} />}
 
-      {pendingCatch && (
-        <div className="notice error stack">
-          <strong>{nameOf(s, pendingCatch.hunter_id)} {t('meldet, dass du gefangen wurdest.')}</strong>
-          <span className="small">{t('Antwort bis')} {clock(pendingCatch.expires_at)}{t('. Lehnst du ab, gilt der Fang nicht. Ohne Antwort entscheidet der GPS-Abstand.')}</span>
-          <div className="row">
-            <button className="primary" onClick={() => act(() => api.catchRespond(pendingCatch.id, true))}>{t('Ja, gefangen')}</button>
-            <button onClick={() => act(() => api.catchRespond(pendingCatch.id, false))}>{t('Nein, stimmt nicht')}</button>
-          </div>
-        </div>
-      )}
+      {pendingCatch && <CatchAsk s={s} act={act} />}
 
       {me.hideout_prompt && (
         <div className="notice stack">
@@ -65,14 +56,15 @@ export default function PlayerPanel({ s, now, act }: PanelProps) {
           <div className="notice error pulse stack" role="alert">
             <strong style={{ fontSize: 20 }}>{t('Zurück ins Spielfeld!')}</strong>
             {deadline && <div className="big-num red">{countdown(deadline, now)}</div>}
-            <span className="small">{t('Bist du bis dann nicht zurück, sehen dich die Hunter live. Ab dem 3. Verlassen gibt es keinen Countdown mehr.')}</span>
+            <span className="small">{t('Die Hunter sehen dich gleich live.')}</span>
           </div>
         );
       })()}
 
       {me.state === 'ausserhalb' && (
-        <div className="notice error">
-          <strong>{t('Du bist ausserhalb des Spielfelds!')}</strong> {t('Die Hunter sehen dich live. Zeit draussen:')} {formatMinutes(Math.floor(me.out_accum_s / 60))} {t('von')} {formatMinutes(cfg.out_of_bounds.max_minutes)}.
+        <div className="notice error pulse stack" role="alert">
+          <strong style={{ fontSize: 20 }}>{t('Zurück ins Spielfeld!')}</strong>
+          <span>{t('Die Hunter sehen dich live, bis du wieder drin bist. Zeit draussen:')} {formatMinutes(Math.floor(me.out_accum_s / 60))} {t('von')} {formatMinutes(cfg.out_of_bounds.max_minutes)}.</span>
         </div>
       )}
       {me.in_restricted && (() => {
@@ -99,14 +91,15 @@ export default function PlayerPanel({ s, now, act }: PanelProps) {
       {me.radar && <RadarCard radar={me.radar} now={now} />}
 
       {g.exit_revealed && g.ends_at && (() => {
-        const openAt = new Date(g.ends_at).getTime() - cfg.exit.usable_minutes_before_end * 60000;
+        const openAt = new Date(g.ends_at).getTime();
+        const endAt = g.deadline_at ?? g.ends_at;
         const open = now >= openAt;
         return (
           <div className={`notice ${open ? 'success' : ''} stack`} role="status">
-            <strong>🏁 {open ? t('Fluchtpunkt noch offen bis {0}', { 0: clock(g.ends_at, g.timezone) }) : t('Fluchtpunkt bekannt, aber noch zu')}</strong>
+            <strong>🏁 {open ? t('Fluchtpunkt offen: jetzt hin!') : t('Fluchtpunkt bekannt, aber noch zu')}</strong>
             {!open && <div className="big-num">{t('öffnet in {0}', { 0: countdown(new Date(openAt).toISOString(), now) })}</div>}
-            {open && <div className="big-num">{t('noch {0}', { 0: countdown(g.ends_at, now) })}</div>}
-            <span className="small">{t('Gerettet ist, wer zwischen {0} und {1} (Spielende) frei im gestrichelten Kreis ist. Vorher zählt es noch nicht.', { 0: clock(new Date(openAt).toISOString(), g.timezone), 1: clock(g.ends_at, g.timezone) })}</span>
+            {open && endAt && <div className="big-num">{t('noch {0}', { 0: countdown(endAt, now) })}</div>}
+            <span className="small">{t('Er öffnet um {0}, wenn die Spielzeit abgelaufen ist. Wer bis {1} frei in den gestrichelten Kreis kommt, ist gerettet.', { 0: clock(new Date(openAt).toISOString(), g.timezone), 1: clock(endAt, g.timezone) })}</span>
           </div>
         );
       })()}
@@ -118,7 +111,6 @@ export default function PlayerPanel({ s, now, act }: PanelProps) {
       <Section title={t('Status')}>
         <div className="grid2">
           {s.participants.find((p) => p.id === me.id)?.tag && <div><div className="muted small">{t('Dein Buchstabe')}</div><div className="big-num">{s.participants.find((p) => p.id === me.id)?.tag}</div></div>}
-          <div><div className="muted small">{t('Nächster Ping')}</div><div className="big-num">{me.next_ping_at ? countdown(me.next_ping_at, now) : '–'}</div></div>
           {me.hideout && (
             <div><div className="muted small">{t('Verschanzt')} {me.hideout.inside ? t('(drinnen)') : t('(draussen)')}</div>
               <div className="big-num">{formatMinutes(Math.floor((me.hideout.max_s - me.hideout.accum_s) / 60))} {t('übrig')}</div></div>
@@ -137,7 +129,7 @@ export default function PlayerPanel({ s, now, act }: PanelProps) {
 
 
 
-      {g.exit_revealed && cfg.exit.confirm !== 'geofence' && g.ends_at && now >= new Date(g.ends_at).getTime() - cfg.exit.usable_minutes_before_end * 60000 && (
+      {g.exit_revealed && cfg.exit.confirm !== 'geofence' && g.ends_at && now >= new Date(g.ends_at).getTime() && (
         <button className="block" onClick={() => act(() => api.confirmExit(g.id), t('Am Fluchtpunkt!'))}>{t('Ich bin am Fluchtpunkt')}</button>
       )}
 
@@ -147,7 +139,7 @@ export default function PlayerPanel({ s, now, act }: PanelProps) {
 }
 
 /** Joker gut sichtbar: grosser Titel, darunter jeder Joker mit eigenem Zeichen. Noch gesperrte mit Uhrzeit. */
-function JokerBox({ s, now, act, running }: Pick<PanelProps, 's' | 'now' | 'act'> & { running: boolean }) {
+export function JokerBox({ s, now, act, running }: Pick<PanelProps, 's' | 'now' | 'act'> & { running: boolean }) {
   const g = s.game;
   const cfg = g.config;
   const huntStart = g.hunt_start_at ? new Date(g.hunt_start_at).getTime() : null;
@@ -195,6 +187,22 @@ function RadarCard({ radar, now }: { radar: NonNullable<PanelProps['s']['me']['r
         ? t('Hunter näher als {0} m!', { 0: radar.distance_m })
         : near === false ? t('Kein Hunter näher als {0} m', { 0: radar.distance_m }) : t('Nähe-Radar: dein Standort fehlt noch')}</strong>
       <span className="small">{t('Nähe-Radar noch {0}. Es zeigt nur, ob ein Hunter nah ist, nicht wo.', { 0: countdown(radar.ends_at, now) })}</span>
+    </div>
+  );
+}
+
+/** Ein Hunter meldet einen Fang: Ja / Nein. Erscheint im Aktionen-Bereich und auf der grossen Karte. */
+export function CatchAsk({ s, act }: Pick<PanelProps, 's' | 'act'>) {
+  const pendingCatch = s.catches.find((c) => c.runner_id === s.me.id && c.status === 'wartet_auf_bestaetigung');
+  if (!pendingCatch) return null;
+  return (
+    <div className="notice error stack" role="alert">
+      <strong>{nameOf(s, pendingCatch.hunter_id)} {t('meldet, dass du gefangen wurdest.')}</strong>
+      <span className="small">{t('Antwort bis')} {clock(pendingCatch.expires_at)}{t('. Lehnst du ab, gilt der Fang nicht. Ohne Antwort entscheidet der GPS-Abstand.')}</span>
+      <div className="row">
+        <button className="primary" onClick={() => act(() => api.catchRespond(pendingCatch.id, true))}>{t('Ja, gefangen')}</button>
+        <button onClick={() => act(() => api.catchRespond(pendingCatch.id, false))}>{t('Nein, stimmt nicht')}</button>
+      </div>
     </div>
   );
 }

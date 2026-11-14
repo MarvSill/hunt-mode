@@ -163,7 +163,7 @@ export const gameConfigSchema = z.object({
       max_minutes: int(10, 1, 600, 'Limit draussen bzw. in Gefahrenzone (min)'),
       count_mode: choice(['pro_ausflug', 'pro_tag'], 'pro_ausflug', 'Zählweise'),
       on_timeout: choice(['catch', 'disqualify', 'penalty'], 'catch', 'Folge bei Ablauf'),
-      grace_seconds: int(60, 0, 600, 'Countdown beim Verlassen des Spielfelds oder Betreten einer Gefahrenzone (s, 1. und 2. Mal)'),
+      grace_seconds: int(60, 0, 600, 'Countdown beim Betreten einer Gefahrenzone (s, 1. und 2. Mal)'),
     })
     .default({})
     .describe('Ausserhalb des Spielfelds'),
@@ -220,9 +220,10 @@ export const gameConfigSchema = z.object({
       enabled: bool(true, 'Fluchtpunkt aktiv'),
       radius_m: int(30, 5, 500, 'Radius (m)'),
       reveal_minutes_before_end: int(10, 0, 1440, 'Bekanntgabe vor Ende (min)'),
-      usable_minutes_before_end: int(2, 0, 1440, 'Nutzbar ab vor Ende (min)'),
-      // Fest 0: das Spiel endet pünktlich, ohne Nachspielzeit.
-      arrival_deadline_offset_minutes: int(0, 0, 120, 'Ankunftsfrist nach Ende (min)'),
+      // Fest 0: der Fluchtpunkt öffnet, sobald die Spielzeit abgelaufen ist.
+      usable_minutes_before_end: int(0, 0, 1440, 'Nutzbar ab vor Ende (min)'),
+      // Höchstzeit nach der Spielzeit: so lange haben die Spieler, um zum Fluchtpunkt zu kommen. Dann ist Schluss.
+      arrival_deadline_offset_minutes: int(60, 0, 240, 'Zeit bis zum Fluchtpunkt nach der Spielzeit (min)'),
       confirm: choice(['geofence', 'qr'], 'geofence', 'Bestätigung'),
       missed_policy: choice(['verloren', 'gewonnen_ohne_exit'], 'verloren', 'Nicht angekommen'),
     })
@@ -292,13 +293,14 @@ export function normalizeConfig(c: GameConfig): GameConfig {
   c.transport.live_during = false;
   // Hunter sehen alle bisherigen Pings (auf der Karte wählt jeder selbst, wie viele).
   c.ping.history_per_player = Math.max(c.ping.history_per_player, 200);
-  // Nach dem Vorsprung sofort ein Ping; das Spiel endet pünktlich; nie zweimal dasselbe Ziel.
+  // Nach dem Vorsprung sofort ein Ping; nie zweimal dasselbe Ziel.
   c.ping.first_ping_delay_minutes = 0;
-  c.exit.arrival_deadline_offset_minutes = 0;
+  // Fluchtpunkt öffnet mit dem Ende der Spielzeit; danach höchstens 5 bis 240 min bis zum Spielende (alte Spiele mit 0: 60).
+  c.exit.usable_minutes_before_end = 0;
+  c.exit.arrival_deadline_offset_minutes = c.exit.arrival_deadline_offset_minutes ? Math.min(240, Math.max(5, c.exit.arrival_deadline_offset_minutes)) : 60;
   c.speedhunt.no_consecutive_same_target = true;
   // Spielzeit gilt alles inklusive: der Vorsprung ist ein Teil davon.
   c.start.head_start_minutes = Math.min(c.start.head_start_minutes, Math.max(0, c.game.duration_minutes - 5));
-  c.exit.usable_minutes_before_end = Math.min(c.exit.usable_minutes_before_end, c.exit.reveal_minutes_before_end);
   // Fangen geht immer auf beide Arten: Zahlencode eingeben oder Fang melden und der Spieler bestätigt.
   c.catch.method = ['qr', 'touch_confirm'];
   return c;
