@@ -16,6 +16,11 @@ if (isNative) {
 }
 if (isNative) void setupNotifyChannel().then(() => ensureNotifyPermission());
 installTapFeedback();
+// Tastatur offen (Textfeld hat den Fokus): Klasse am body, damit die Leiste unten Platz macht.
+const isTextField = (el: EventTarget | null) => el instanceof HTMLTextAreaElement
+  || (el instanceof HTMLInputElement && !['checkbox', 'radio', 'button', 'submit', 'range', 'file', 'color'].includes(el.type));
+document.addEventListener('focusin', (e) => { if (isTextField(e.target)) document.body.classList.add('kb-open'); });
+document.addEventListener('focusout', (e) => { if (isTextField(e.target)) setTimeout(() => { if (!isTextField(document.activeElement)) document.body.classList.remove('kb-open'); }, 50); });
 import './styles.css';
 
 // Bei einem Sprachwechsel wird die App neu aufgebaut, damit alle Texte die neue Sprache haben.

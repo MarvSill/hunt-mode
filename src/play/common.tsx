@@ -27,8 +27,8 @@ export function tagOf(s: GameState, id: string | null | undefined): string | und
 
 /** Name mit Zeichen davor, z. B. "A · Anna". */
 export function nameTag(s: GameState, id: string | null | undefined): string {
-  const tag = tagOf(s, id);
-  return tag ? `${tag} · ${nameOf(s, id)}` : nameOf(s, id);
+  // Im Spiel nur der Buchstabe (die Namen der anderen sieht niemand).
+  return tagOf(s, id) ?? nameOf(s, id);
 }
 
 // Gut unterscheidbare Farben ohne Gelb und Rot (Gelb = letzter Ping, Rot = Blitzjagd und Hunter).

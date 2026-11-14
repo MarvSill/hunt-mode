@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { App as CapApp } from '@capacitor/app';
 import Icon, { type IconName } from '../components/Icon';
 import MapView, { type Marker } from '../components/MapView';
 import RulesSummary from '../components/RulesSummary';
@@ -86,6 +87,15 @@ export default function PlayPage() {
   const { id } = useParams<{ id: string }>();
   const [toasts, setToasts] = useState<Notification[]>([]);
   const [tab, setTab] = useState<Tab>('karte');
+  const [chatOpen, setChatOpen] = useState<string | null>(null);
+  const goBackRef = useRef<() => void>(() => undefined);
+  // Android: Zurück-Taste des Handys wie der Pfeil oben (sonst verlässt man das Spiel aus Versehen).
+  useEffect(() => {
+    if (!isNative) return;
+    const h = CapApp.addListener('backButton', () => goBackRef.current());
+    return () => { void h.then((x) => x.remove()); };
+  }, []);
+  const navigate = useNavigate();
   const [zones, setZones] = useState<MapFeature[]>([]);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [notifPerm, setNotifPerm] = useState(typeof Notification !== 'undefined' ? Notification.permission : 'denied');
@@ -184,7 +194,8 @@ export default function PlayPage() {
   const [tipsDone, setTipsDone] = useState<Record<string, boolean>>({});
   const tipKey = `hm-tips-${s?.me.role ?? ''}`;
   const tips = !!s && (s.me.role === 'spieler' || s.me.role === 'hunter') && tab === 'karte' && !fullMap
-    && ['vorsprung', 'laeuft', 'finale'].includes(s.game.status) && !tipsDone[tipKey] && (() => { try { return !localStorage.getItem(tipKey); } catch { return false; } })();
+    // Erst nach dem Sicherheitshinweis und wenn das Spiel wirklich läuft (nicht während "Warten auf alle").
+    && ['vorsprung', 'laeuft', 'finale'].includes(s.game.status) && s.me.safety_ok && !s.game.paused && !tipsDone[tipKey] && (() => { try { return !localStorage.getItem(tipKey); } catch { return false; } })();
   const closeTips = () => { setTipsDone((d) => ({ ...d, [tipKey]: true })); try { localStorage.setItem(tipKey, '1'); } catch { /* egal */ } };
   const [pauseReason, setPauseReason] = useState('');
   const tracker = useTracker(id, tracking, kick);
@@ -266,7 +277,7 @@ export default function PlayPage() {
       list.push({
         id: `pos${x.participant_id}`, lat: x.lat, lng: x.lng, accuracy: x.accuracy_m,
         color: isMe ? '#58a6ff' : colorFor(s, x.participant_id), kind: isMe ? 'me' : pp?.role === 'spieler' ? 'player' : 'hunter',
-        label: `${isMe ? t('Du') : pp?.name ?? '?'}${x.live && !isMe ? t(' (LIVE)') : ''} · ${clock(x.at)}`, pulse: x.live && tf && !isMe, text: pp?.tag ?? undefined,
+        label: `${isMe ? t('Du') : pp?.tag ?? pp?.name ?? '?'}${x.live && !isMe ? t(' (LIVE)') : ''} · ${clock(x.at)}`, pulse: x.live && tf && !isMe, text: pp?.tag ?? undefined,
       });
     }
     // Eigene Live-Position (schneller als der Server-Stand)
@@ -276,7 +287,7 @@ export default function PlayPage() {
     for (const e of s.me.effects) {
       if (e.type === 'hunter_snapshot') {
         for (const h of (e.payload.hunters as { name: string; tag?: string; lat: number; lng: number; at?: string }[]) ?? []) {
-          list.push({ id: `hs${e.id}${h.name}`, lat: h.lat, lng: h.lng, color: '#f85149', kind: 'hunter', label: t('Hunter {0} · Ping {1} (nicht live)', { 0: h.tag ? `${h.tag} ${h.name}` : h.name, 1: clock(h.at) }), text: h.tag });
+          list.push({ id: `hs${e.id}${h.name}`, lat: h.lat, lng: h.lng, color: '#f85149', kind: 'hunter', label: t('Hunter {0} · Ping {1} (nicht live)', { 0: h.tag ?? h.name, 1: clock(h.at) }), text: h.tag });
         }
       }
     }
@@ -309,6 +320,15 @@ export default function PlayPage() {
     : ended ? t('Spiel beendet') : t('Ende in {0}', { 0: countdown(g.ends_at, now) });
 
   const myTag = s.participants.find((p) => p.id === s.me.id)?.tag;
+  // Zurück (Pfeil oben und Android-Taste): erst Fenster schliessen, dann aus dem Chat zur Chat-Liste, dann zur Karte, erst dann aus dem Spiel.
+  goBackRef.current = () => {
+    if (sosAsk) return setSosAsk(false);
+    if (sheet) return setSheet(null);
+    if (blitzOpen) return setBlitzOpen(false);
+    if (tab === 'chat' && chatOpen && role === 'hunter') return setChatOpen(null);
+    if (tab !== 'karte') return openTab('karte');
+    navigate('/');
+  };
   const roleLabel = role === 'spieler' ? t('Spieler') : role === 'zuschauer' ? t('Zuschauer') : t('Hunter');
   const canSos = !ended && role !== 'zuschauer' && s.me.state !== 'notfall';
   const unseen = tab === 'mehr' ? 0 : s.notifications.length - seenNotes;
@@ -323,7 +343,7 @@ export default function PlayPage() {
   return (
     <div className="app wide play">
       <div className="topbar">
-        <Link to="/" className="button ghost back" aria-label={t('Zur Startseite')}><Icon name="back" /></Link>
+        <button type="button" className="ghost back" aria-label={t('Zurück')} onClick={() => goBackRef.current()}><Icon name="back" /></button>
         <div className="spacer play-head">
           <div className="sub-line">
             <span className={`role-pill ${role === 'spieler' ? 'spieler' : role === 'zuschauer' ? 'zuschauer' : 'hunter'}`} style={{ padding: '1px 8px', marginRight: 6 }}>{roleLabel}</span>
@@ -402,7 +422,7 @@ export default function PlayPage() {
               </button>
             ))}
           </nav>
-          <div style={{ display: tab === 'karte' ? 'block' : 'none' }}>
+          <div className="tab-panel" style={{ display: tab === 'karte' ? 'block' : 'none' }}>
             {(() => {
               // Was rund um die Karte gehört: kleine Karte = über und unter der Karte, grosse Karte = auf der Karte.
               const next = role === 'spieler' ? s.me.next_ping_at : s.next_silent_ping_at;
@@ -498,15 +518,23 @@ export default function PlayPage() {
             {sheet === 'code' && <CatchCode gameId={g.id} onClose={() => setSheet(null)} />}
           </div>
 
-          <div style={{ display: tab === 'aktionen' ? 'block' : 'none' }}>
+          <div className="tab-panel" style={{ display: tab === 'aktionen' ? 'block' : 'none' }}>
             {role === 'spieler' && <PlayerPanel s={s} now={now} act={act} pos={pos} />}
             {role === 'hunter' && <HunterPanel s={s} now={now} act={act} pos={pos} />}
             {role === 'zuschauer' && <div className="card muted">{t('Du schaust zu. Positionen siehst du mit')} {g.config.spectator.delay_minutes} {t('min Verzögerung.')}</div>}
+            <details className="acc">
+              <summary>
+                <span className="ico" aria-hidden="true">📖</span>
+                <span className="spacer"><span className="t">{t('Spielregeln')}</span><span className="s" style={{ display: 'block' }}>{t('Alles Wichtige in Kürze')}</span></span>
+                <Icon name="chevron" className="chev" />
+              </summary>
+              <div className="body"><RulesSummary config={g.config} /></div>
+            </details>
           </div>
 
-          <div style={{ display: tab === 'mehr' ? 'block' : 'none' }}>
+          <div className="tab-panel" style={{ display: tab === 'mehr' ? 'block' : 'none' }}>
             <h2 className="section-h">🔔 {t('Meldungen')}</h2>
-            <div className="card">
+            <div className="card notes-box">
               {s.notifications.some((n) => !hiddenNotes.has(n.id)) && <div className="muted small" style={{ marginBottom: 6 }}>{t('Zur Seite wischen zum Entfernen.')}</div>}
               <ul className="list">
                 {s.notifications.filter((n) => !hiddenNotes.has(n.id)).map((n) => (
@@ -553,17 +581,9 @@ export default function PlayPage() {
                 <Confirm className="ghost" disabled={!live} label={t('Spiel abbrechen')} confirm={t('Spiel jetzt für alle abbrechen? Dann hat keiner gewonnen.')} onYes={() => act(() => api.endGame(g.id))} />
               </Section>
             )}
-            <details className="acc">
-              <summary>
-                <span className="ico" aria-hidden="true">📖</span>
-                <span className="spacer"><span className="t">{t('Spielregeln')}</span><span className="s" style={{ display: 'block' }}>{t('Alles Wichtige in Kürze')}</span></span>
-                <Icon name="chevron" className="chev" />
-              </summary>
-              <div className="body"><RulesSummary config={g.config} /></div>
-            </details>
           </div>
 
-          {tab === 'chat' && <Chat s={s} />}
+          {tab === 'chat' && <div className="tab-panel"><Chat s={s} open={chatOpen} onOpen={setChatOpen} /></div>}
 
         </>
       )}

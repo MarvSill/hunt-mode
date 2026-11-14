@@ -107,12 +107,10 @@ export function PlayerMore({ s, act }: Pick<PanelProps, 's' | 'act'>) {
   const g = s.game;
   const running = ['laeuft', 'finale'].includes(g.status) && !g.paused;
   const active = ['aktiv', 'ausserhalb'].includes(me.state);
-  const tag = s.participants.find((p) => p.id === me.id)?.tag;
   const effects = me.effects.filter((e) => e.type !== 'fake_ping' && e.type !== 'hunter_snapshot' && e.type !== 'leo' && e.type !== 'naehe_radar');
   return (
     <Section title={`📊 ${t('Status')}`}>
       <div className="grid2">
-        {tag && <div><div className="muted small">{t('Dein Buchstabe')}</div><div className="big-num">{tag}</div></div>}
         {me.hideout && (
           <div><div className="muted small">{t('Verschanzt')} {me.hideout.inside ? t('(drinnen)') : t('(draussen)')}</div>
             <div className="big-num">{formatMinutes(Math.floor((me.hideout.max_s - me.hideout.accum_s) / 60))} {t('übrig')}</div></div>

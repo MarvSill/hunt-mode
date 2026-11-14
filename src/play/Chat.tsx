@@ -27,7 +27,7 @@ export function channelsFor(s: GameState): ChatThread[] {
       { id: 'taskforce', label: t('Hunter-Team'), write: true, read: ['taskforce'] },
       { id: 'spieler', label: t('An alle Spieler'), write: true, read: ['spieler'] },
       ...s.participants.filter((p) => p.role === 'spieler').map((p) => ({
-        id: `sp:${p.id}`, label: t('Mit {0}', { 0: p.tag ? `${p.tag} ${p.name}` : p.name }), write: true, read: [`sp:${p.id}`, 'spieler'],
+        id: `sp:${p.id}`, label: t('Mit {0}', { 0: p.tag ?? p.name }), write: true, read: [`sp:${p.id}`, 'spieler'],
       })),
     ];
   }
@@ -35,7 +35,7 @@ export function channelsFor(s: GameState): ChatThread[] {
 }
 
 // Chat über die Tabelle messages (RLS filtert die Kanäle), neue Nachrichten per Realtime.
-export function MessageList({ filter, value, channel, onSend, height = '50dvh', labelOf, onPick }: {
+export function MessageList({ filter, value, channel, onSend, height = '50dvh', labelOf, onPick, fill = false }: {
   filter: { column: 'game_id' | 'group_id'; value: string };
   value?: string;
   /** Kanäle, deren Nachrichten gezeigt werden (null = alle). */
@@ -46,6 +46,8 @@ export function MessageList({ filter, value, channel, onSend, height = '50dvh', 
   labelOf?: (channel: string) => string | null;
   /** Antippen einer Nachricht öffnet ihren Kanal (zum Antworten). */
   onPick?: (channel: string) => void;
+  /** Ganze verfügbare Höhe nutzen: Nachrichten scrollen, das Eingabefeld bleibt immer unten sichtbar. */
+  fill?: boolean;
 }) {
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [text, setText] = useState('');
@@ -100,8 +102,8 @@ export function MessageList({ filter, value, channel, onSend, height = '50dvh', 
   }
 
   return (
-    <div className="stack">
-      <div ref={box} className="chat" style={{ maxHeight: height }}>
+    <div className="stack" style={fill ? { display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, gap: 8 } : undefined}>
+      <div ref={box} className="chat" style={fill ? { flex: 1, minHeight: 0, maxHeight: 'none', overflowY: 'auto' } : { maxHeight: height }}>
         {msgs.length === 0 && <div className="muted small">{t('Noch keine Nachrichten.')}</div>}
         {msgs.map((m) => (
           <div key={m.id} className={`bubble${m.sender_id === me ? ' mine' : ''}`} onClick={onPick ? () => onPick(m.channel) : undefined} style={onPick ? { cursor: 'pointer' } : undefined}>
@@ -114,7 +116,8 @@ export function MessageList({ filter, value, channel, onSend, height = '50dvh', 
       {err && <div className="notice error">{err}</div>}
       {onSend && (
         <form className="row" onSubmit={(e) => { e.preventDefault(); void send(); }}>
-          <input aria-label={t('Nachricht')} value={text} maxLength={2000} onChange={(e) => setText(e.target.value)} placeholder={t('Nachricht')} style={{ flex: 1 }} />
+          <input aria-label={t('Nachricht')} value={text} maxLength={2000} onChange={(e) => setText(e.target.value)} placeholder={t('Nachricht')} style={{ flex: 1 }}
+            onFocus={() => setTimeout(() => box.current?.scrollTo({ top: box.current.scrollHeight }), 300)} />
           <button type="submit" className="primary" disabled={!text.trim()}>{t('Senden')}</button>
         </form>
       )}
@@ -135,9 +138,42 @@ function saveRead(game: string, v: Record<string, number>) {
  * Chats wie bei WhatsApp: alle Chats untereinander (letzte Nachricht, Zeit, ungelesen). Antippen öffnet den Chat,
  * "‹" führt zurück zur Liste. Spieler haben nur einen Chat (mit den Huntern) und sehen ihn direkt.
  */
-export default function Chat({ s }: { s: GameState }) {
+export default function Chat({ s, open: openProp, onOpen }: { s: GameState; open?: string | null; onOpen?: (id: string | null) => void }) {
   const chans = channelsFor(s).filter((c) => c.id !== '*');
-  const [open, setOpen] = useState<string | null>(chans.length === 1 ? chans[0].id : null);
+  const [openState, setOpenState] = useState<string | null>(null);
+  // Spieler haben nur einen Chat: der ist immer offen. Hunter: Liste, Antippen öffnet (Zurück-Pfeil führt zur Liste).
+  const open = chans.length === 1 ? chans[0].id : openProp !== undefined ? openProp : openState;
+  const setOpen = (id: string | null) => (onOpen ? onOpen(id) : setOpenState(id));
+  const thread = useRef<HTMLDivElement>(null);
+  const [h, setH] = useState<number | null>(null);
+  // Höhe bis zur Tastatur (bzw. bis zur Leiste unten): so bleibt das Eingabefeld immer sichtbar.
+  useEffect(() => {
+    if (!open) return;
+    const vv = window.visualViewport;
+    const calc = () => {
+      const el = thread.current;
+      if (!el) return;
+      const top = el.getBoundingClientRect().top;
+      const bottomOfView = vv ? vv.height + vv.offsetTop : window.innerHeight;
+      const bar = document.body.classList.contains('kb-open') ? 0 : (document.querySelector('.tabbar') as HTMLElement | null)?.offsetHeight ?? 0;
+      setH(Math.max(220, Math.floor(bottomOfView - top - bar - 10)));
+    };
+    calc();
+    const tm = setTimeout(calc, 350);
+    vv?.addEventListener('resize', calc);
+    vv?.addEventListener('scroll', calc);
+    window.addEventListener('resize', calc);
+    document.addEventListener('focusin', calc);
+    document.addEventListener('focusout', calc);
+    return () => {
+      clearTimeout(tm);
+      vv?.removeEventListener('resize', calc);
+      vv?.removeEventListener('scroll', calc);
+      window.removeEventListener('resize', calc);
+      document.removeEventListener('focusin', calc);
+      document.removeEventListener('focusout', calc);
+    };
+  }, [open]);
   const [last, setLast] = useState<Msg[]>([]);
   const [read, setRead] = useState<Record<string, number>>(() => loadRead(s.game.id));
   const [me, setMe] = useState<string | null>(null);
@@ -208,9 +244,11 @@ export default function Chat({ s }: { s: GameState }) {
         {chans.length > 1 && <button type="button" className="ghost" aria-label={t('Zurück zu den Chats')} onClick={() => setOpen(null)}>‹ {t('Chats')}</button>}
         <strong className="spacer">💬 {cur.label} <Info title={cur.label} text={hint} /></strong>
       </div>
-      <MessageList filter={{ column: 'game_id', value: s.game.id }} channel={cur.read}
-        onSend={cur.write ? (b) => api.send(s.game.id, cur.id, b) : null}
-        labelOf={labelOf} />
+      <div ref={thread} style={{ height: h ?? undefined, minHeight: 220 }}>
+        <MessageList filter={{ column: 'game_id', value: s.game.id }} channel={cur.read}
+          onSend={cur.write ? (b) => api.send(s.game.id, cur.id, b) : null}
+          labelOf={labelOf} fill />
+      </div>
     </div>
   );
 }

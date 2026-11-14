@@ -44,5 +44,7 @@ Live: https://marvsill.github.io/hunt-mode/ · Repo: github.com/MarvSill/hunt-mo
 - Keine Strafen. SOS unterbricht das ganze Spiel und alarmiert alle. Fluchtpunkt: min. 4 Kandidaten, Wahl erst bei Bekanntgabe, nur Spieler sehen ihn.
 - Fluchtpunkt öffnet erst mit dem Ende der Spielzeit; danach läuft das Spiel, bis alle gefangen oder angekommen sind, höchstens die eingestellte Zeit. Ohne Fluchtpunkt: Ende mit der Spielzeit, wer frei ist, gewinnt.
 - Spielfeld verlassen: sofort live und Alarm (kein Countdown). Gefahrenzonen: Countdown wie bisher.
+- Im Spiel nur Buchstaben statt Namen (Spieler A, B …, Hunter H1 …), überall. Namen nur in der Lobby.
+- Hunter können auf der Karte zeichnen (Stift); alle Hunter sehen und ändern es, Spieler nie.
 - Fortbewegung nur erlaubt/verboten (ÖV/Taxi/Auto, Velo/Trottinett), kein Live-Standort.
 - Web-App: Standort nur, solange die App offen ist (Browser-Grenze). Handy-App: Standort auch im Hintergrund. Push bei gesperrtem Bildschirm fehlt noch (Android: Firebase, iPhone: Apple Developer Program) – Marvin hat es vorerst zurückgestellt.

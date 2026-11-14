@@ -469,19 +469,21 @@ body:has(.running-bar) .app { padding-bottom: calc(env(safe-area-inset-bottom) +
 .alerts:empty { display: none; }
 .alerts { margin-bottom: 8px; }
 .alerts .notice { margin: 0; }
-/* Runde 18: Zeichnen der Hunter */
-.draw-pen { position: absolute; right: 10px; top: 200px; z-index: 1001; width: 44px; height: 44px; min-height: 0; padding: 0; border-radius: 12px; background: #fff; color: #1f2328; border: 1px solid rgba(0,0,0,.2); box-shadow: 0 2px 8px rgba(0,0,0,.35); font-size: 20px; display: flex; align-items: center; justify-content: center; }
-.draw-pen.on { background: #f85149; color: #fff; border-color: #f85149; }
-.map-fullscreen .draw-pen { top: calc(200px + env(safe-area-inset-top)); right: calc(10px + env(safe-area-inset-right)); }
-.draw-panel { position: absolute; left: 10px; right: 64px; bottom: 28px; z-index: 1002; max-width: 440px; background: rgba(13,17,23,.95); border: 1px solid var(--border); border-radius: 16px; padding: 10px; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 8px 24px rgba(0,0,0,.5); }
-.map-fullscreen .draw-panel { bottom: calc(28px + env(safe-area-inset-bottom)); }
-.draw-tools { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
-.draw-tool { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 2px; min-height: 0; font-size: 18px; border-radius: 10px; }
+/* Runde 19: Zeichnen der Hunter (Stift unten rechts, mit dem Finger zeichnen, lange drücken = ändern) */
+.draw-pen { position: absolute; right: 10px; bottom: 34px; z-index: 1001; width: 48px; height: 48px; min-height: 0; padding: 0; border-radius: 50%; background: #fff; color: #1f2328; border: 1px solid rgba(0,0,0,.2); box-shadow: 0 2px 10px rgba(0,0,0,.4); font-size: 22px; display: flex; align-items: center; justify-content: center; }
+.draw-pen.on { background: #2ea043; color: #fff; border-color: #2ea043; font-weight: 900; }
+.map-fullscreen .draw-pen { bottom: calc(34px + env(safe-area-inset-bottom)); right: calc(10px + env(safe-area-inset-right)); }
+.map-overlay-bl { max-width: calc(100% - 80px); }
+.draw-bar { position: absolute; left: 10px; right: 68px; bottom: 28px; z-index: 1002; max-width: 420px; background: rgba(13,17,23,.94); border: 1px solid var(--border); border-radius: 14px; padding: 8px; display: flex; flex-direction: column; gap: 6px; box-shadow: 0 8px 24px rgba(0,0,0,.5); }
+.map-fullscreen .draw-bar { bottom: calc(28px + env(safe-area-inset-bottom)); }
+.draw-tool { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 5px 2px; min-height: 0; font-size: 18px; border-radius: 10px; }
 .draw-tool small { font-size: 11px; }
-.draw-tool.on { background: var(--red); border-color: var(--red); color: #fff; }
+.draw-tool.on { background: #2ea043; border-color: #2ea043; color: #fff; }
 .draw-colors { display: flex; gap: 8px; flex-wrap: wrap; }
-.draw-color { width: 28px; height: 28px; min-height: 0; padding: 0; border-radius: 50%; border: 2px solid rgba(255,255,255,.3); }
+.draw-color { width: 26px; height: 26px; min-height: 0; padding: 0; border-radius: 50%; border: 2px solid rgba(255,255,255,.3); }
 .draw-color.on { border: 3px solid #fff; box-shadow: 0 0 0 2px #000; }
+.draw-menu { position: absolute; z-index: 1003; width: 262px; background: rgba(13,17,23,.97); border: 1px solid var(--border); border-radius: 14px; padding: 8px; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 10px 30px rgba(0,0,0,.6); }
+.draw-hint { position: absolute; left: 50%; top: 12px; transform: translateX(-50%); z-index: 1003; background: rgba(13,17,23,.94); border-radius: 999px; padding: 8px 14px; font-size: 13px; font-weight: 700; white-space: nowrap; }
 .draw-label { background: rgba(13,17,23,.9); color: #fff; font-size: 12px; font-weight: 700; padding: 3px 8px; border-radius: 8px; border: 2px solid #fff; white-space: nowrap; pointer-events: none; }
 /* Hilfe-Karte (Helfer, Hinweise): klein und ganz unten am Bildschirm */
 .guide-card { left: 0; right: 0; bottom: 0; max-width: 640px; margin: 0 auto; border-radius: 16px 16px 0 0; border-width: 2px 0 0; padding: 10px 14px calc(10px + env(safe-area-inset-bottom)); gap: 4px; font-size: 14px; z-index: 2050; }
@@ -489,3 +491,11 @@ body:has(.running-bar) .app { padding-bottom: calc(env(safe-area-inset-bottom) +
 .guide-card .small { font-size: 13px; }
 .guide-card button.small { min-height: 34px; padding: 4px 12px; }
 .guide-card.top { bottom: auto; top: 0; border-radius: 0 0 16px 16px; border-width: 0 0 2px; padding: calc(10px + env(safe-area-inset-top)) 14px 10px; }
+/* Runde 19b: sanfter Übergang zwischen den Tabs im Spiel */
+@keyframes hm-tab-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.tab-panel { animation: hm-tab-in .2s ease-out; }
+@media (prefers-reduced-motion: reduce) { .tab-panel { animation: none; } }
+/* Meldungen unter "Mehr": feste Box, ältere durch Scrollen */
+.notes-box { max-height: 42dvh; overflow-y: auto; overscroll-behavior: contain; }
+/* Tastatur offen: die Leiste unten verschwindet, damit Eingabefeld und Senden sichtbar bleiben */
+body.kb-open .tabbar, body.kb-open .running-bar { display: none; }
