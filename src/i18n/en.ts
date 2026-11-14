@@ -1354,4 +1354,10 @@ export const en: Record<string, string> = {
   "Nur das Hunter-Team liest mit": "Only the hunter team can read this",
   "Alle Spieler lesen mit": "All players can read this",
   "Dieser Spieler und alle Hunter lesen mit": "This player and all hunters can read this",
+  "Mit dem Finger zeichnen.": "Draw with your finger.",
+  "Mit dem Finger eine Form umfahren.": "Trace a shape with your finger.",
+  "Mit dem Finger über Zeichnungen fahren.": "Run your finger over drawings.",
+  "Werkzeug wählen. Zeichnung halten und ziehen = verschieben, antippen = ändern.": "Pick a tool. Hold a drawing and drag = move, tap = edit.",
+  "Form": "Shape",
+  "Radieren": "Erase",
 };

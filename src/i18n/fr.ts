@@ -1354,4 +1354,10 @@ export const fr: Record<string, string> = {
   "Nur das Hunter-Team liest mit": "Seule l’équipe des hunters lit",
   "Alle Spieler lesen mit": "Tous les joueurs lisent",
   "Dieser Spieler und alle Hunter lesen mit": "Ce joueur et tous les hunters lisent",
+  "Mit dem Finger zeichnen.": "Dessine avec le doigt.",
+  "Mit dem Finger eine Form umfahren.": "Trace une forme avec le doigt.",
+  "Mit dem Finger über Zeichnungen fahren.": "Passe le doigt sur les dessins.",
+  "Werkzeug wählen. Zeichnung halten und ziehen = verschieben, antippen = ändern.": "Choisis un outil. Maintenir un dessin et glisser = déplacer, toucher = modifier.",
+  "Form": "Forme",
+  "Radieren": "Gommer",
 };
