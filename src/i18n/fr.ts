@@ -1348,4 +1348,10 @@ export const fr: Record<string, string> = {
   "Von der Mitte aus mit dem Finger aufziehen.": "Tire avec le doigt depuis le centre.",
   "Karte bewegen: Stift mit ✓ ausschalten. Lange drücken = ändern.": "Pour bouger la carte : désactive le stylo avec ✓. Appui long = modifier.",
   "Mit dem Finger an die neue Stelle ziehen.": "Fais glisser avec le doigt jusqu’au nouvel endroit.",
+  "Noch keine Nachrichten. Schreib die erste!": "Pas encore de messages. Écris le premier !",
+  "Hier kannst du nur lesen.": "Ici, tu peux seulement lire.",
+  "Alle Hunter lesen mit": "Tous les hunters lisent",
+  "Nur das Hunter-Team liest mit": "Seule l’équipe des hunters lit",
+  "Alle Spieler lesen mit": "Tous les joueurs lisent",
+  "Dieser Spieler und alle Hunter lesen mit": "Ce joueur et tous les hunters lisent",
 };

@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { api } from '../lib/engine';
 import { db, errorText } from '../lib/supabase';
 import type { GameState } from '../lib/engine';
 import { t, locale } from '../i18n';
-import Info from '../components/Info';
 
 interface Msg { id: number; channel: string; sender_id: string | null; sender_name: string | null; body: string; at: string }
 
@@ -34,34 +34,12 @@ export function channelsFor(s: GameState): ChatThread[] {
   return [];
 }
 
-// Chat über die Tabelle messages (RLS filtert die Kanäle), neue Nachrichten per Realtime.
-export function MessageList({ filter, value, channel, onSend, height = '50dvh', labelOf, onPick, fill = false }: {
-  filter: { column: 'game_id' | 'group_id'; value: string };
-  value?: string;
-  /** Kanäle, deren Nachrichten gezeigt werden (null = alle). */
-  channel: string[] | null;
-  onSend: ((body: string) => Promise<unknown>) | null;
-  height?: string;
-  /** Bei "Alle Nachrichten": Name des Kanals über jeder Nachricht. */
-  labelOf?: (channel: string) => string | null;
-  /** Antippen einer Nachricht öffnet ihren Kanal (zum Antworten). */
-  onPick?: (channel: string) => void;
-  /** Ganze verfügbare Höhe nutzen: Nachrichten scrollen, das Eingabefeld bleibt immer unten sichtbar. */
-  fill?: boolean;
-}) {
+/** Nachrichten laden und live halten (RLS filtert die Kanäle). */
+function useMessages(filter: { column: 'game_id' | 'group_id'; value: string }, channel: string[] | null, key = '') {
   const [msgs, setMsgs] = useState<Msg[]>([]);
-  const [text, setText] = useState('');
-  const [err, setErr] = useState<string | null>(null);
-  const [me, setMe] = useState<string | null>(null);
-  const box = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    void db().auth.getUser().then(({ data }) => setMe(data.user?.id ?? null));
-  }, []);
-
   useEffect(() => {
     const fetchAll = () => {
-      let q = db().from('messages').select('id,channel,sender_id,sender_name,body,at').eq(filter.column, filter.value).order('id', { ascending: false }).limit(100);
+      let q = db().from('messages').select('id,channel,sender_id,sender_name,body,at').eq(filter.column, filter.value).order('id', { ascending: false }).limit(150);
       if (channel) q = q.in('channel', channel);
       void q.then(({ data, error }) => {
         if (error) return;
@@ -74,7 +52,7 @@ export function MessageList({ filter, value, channel, onSend, height = '50dvh', 
     // Falls die Live-Verbindung hängt: alle 10 s nachschauen.
     const poll = setInterval(fetchAll, 10000);
     const sub = db()
-      .channel(`msg:${filter.value}:${channel?.join(',') ?? 'all'}:${value ?? ''}`)
+      .channel(`msg:${filter.value}:${channel?.join(',') ?? 'all'}:${key}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `${filter.column}=eq.${filter.value}` }, (p) => {
         const m = p.new as Msg;
         if (!channel || channel.includes(m.channel)) setMsgs((prev) => (prev.some((x) => x.id === m.id) ? prev : [...prev, m]));
@@ -84,44 +62,165 @@ export function MessageList({ filter, value, channel, onSend, height = '50dvh', 
       clearInterval(poll);
       void db().removeChannel(sub);
     };
-  }, [filter.column, filter.value, channel?.join(','), value]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [filter.column, filter.value, channel?.join(','), key]); // eslint-disable-line react-hooks/exhaustive-deps
+  return msgs;
+}
 
+function useMe() {
+  const [me, setMe] = useState<string | null>(null);
+  useEffect(() => { void db().auth.getUser().then(({ data }) => setMe(data.user?.id ?? null)); }, []);
+  return me;
+}
+
+const timeOf = (at: string) => new Date(at).toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' });
+
+/** Sprechblasen wie bei WhatsApp: eigene rechts, andere links mit Absender (nur beim ersten einer Folge), Uhrzeit in der Blase. */
+function Bubbles({ msgs, me, labelOf, onPick }: { msgs: Msg[]; me: string | null; labelOf?: (c: string) => string | null; onPick?: (c: string) => void }) {
+  return (
+    <>
+      {msgs.map((m, i) => {
+        const mine = m.sender_id === me;
+        const prev = msgs[i - 1];
+        const first = !prev || prev.sender_id !== m.sender_id || prev.channel !== m.channel;
+        const label = labelOf?.(m.channel);
+        return (
+          <div key={m.id} className={`bubble${mine ? ' mine' : ''}${first ? ' first' : ''}`} onClick={onPick ? () => onPick(m.channel) : undefined}>
+            {label && <div className="bubble-tag">{label}</div>}
+            {!mine && first && <div className="bubble-from">{m.sender_name ?? '?'}</div>}
+            <span className="bubble-text">{m.body}</span>
+            <span className="bubble-time">{timeOf(m.at)}</span>
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
+/** Eingabe unten: wächst mit dem Text (bis 5 Zeilen), Enter sendet, runder Senden-Knopf. */
+function Composer({ onSend, onFocus }: { onSend: (body: string) => Promise<unknown>; onFocus?: () => void }) {
+  const [text, setText] = useState('');
+  const [err, setErr] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const ta = useRef<HTMLTextAreaElement>(null);
   useEffect(() => {
-    box.current?.scrollTo({ top: box.current.scrollHeight });
-  }, [msgs]);
-
+    const el = ta.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
+  }, [text]);
   async function send() {
-    if (!text.trim() || !onSend) return;
+    const body = text.trim();
+    if (!body || busy) return;
     setErr(null);
+    setBusy(true);
     try {
-      await onSend(text.trim());
+      await onSend(body);
       setText('');
     } catch (e) {
       setErr(errorText(e));
+    } finally {
+      setBusy(false);
+      ta.current?.focus();
     }
   }
-
   return (
-    <div className="stack" style={fill ? { display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, gap: 8 } : undefined}>
-      <div ref={box} className="chat" style={fill ? { flex: 1, minHeight: 0, maxHeight: 'none', overflowY: 'auto' } : { maxHeight: height }}>
-        {msgs.length === 0 && <div className="muted small">{t('Noch keine Nachrichten.')}</div>}
-        {msgs.map((m) => (
-          <div key={m.id} className={`bubble${m.sender_id === me ? ' mine' : ''}`} onClick={onPick ? () => onPick(m.channel) : undefined} style={onPick ? { cursor: 'pointer' } : undefined}>
-            {labelOf?.(m.channel) && <div className="tiny" style={{ fontWeight: 700 }}>{labelOf(m.channel)}</div>}
-            <div className="small muted">{m.sender_name ?? '?'} · {new Date(m.at).toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' })}</div>
-            <div>{m.body}</div>
-          </div>
-        ))}
+    <form className="composer" onSubmit={(e) => { e.preventDefault(); void send(); }}>
+      {err && <div className="composer-err">{err}</div>}
+      <textarea ref={ta} rows={1} aria-label={t('Nachricht')} value={text} maxLength={2000} placeholder={t('Nachricht')}
+        onChange={(e) => setText(e.target.value)} onFocus={onFocus}
+        onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void send(); } }} />
+      <button type="submit" className="composer-send" disabled={!text.trim() || busy} aria-label={t('Senden')}>➤</button>
+    </form>
+  );
+}
+
+/** Nachrichtenliste mit Eingabe in einer Karte (Gruppen-Chat ausserhalb des Spiels). */
+export function MessageList({ filter, value, channel, onSend, height = '50dvh', labelOf, onPick }: {
+  filter: { column: 'game_id' | 'group_id'; value: string };
+  value?: string;
+  /** Kanäle, deren Nachrichten gezeigt werden (null = alle). */
+  channel: string[] | null;
+  onSend: ((body: string) => Promise<unknown>) | null;
+  height?: string;
+  labelOf?: (channel: string) => string | null;
+  onPick?: (channel: string) => void;
+}) {
+  const msgs = useMessages(filter, channel, value);
+  const me = useMe();
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => { box.current?.scrollTo({ top: box.current.scrollHeight }); }, [msgs]);
+  return (
+    <div className="stack">
+      <div ref={box} className="chat" style={{ maxHeight: height }}>
+        {msgs.length === 0 && <div className="muted small" style={{ margin: 'auto' }}>{t('Noch keine Nachrichten.')}</div>}
+        <Bubbles msgs={msgs} me={me} labelOf={labelOf} onPick={onPick} />
       </div>
-      {err && <div className="notice error">{err}</div>}
-      {onSend && (
-        <form className="row" onSubmit={(e) => { e.preventDefault(); void send(); }}>
-          <input aria-label={t('Nachricht')} value={text} maxLength={2000} onChange={(e) => setText(e.target.value)} placeholder={t('Nachricht')} style={{ flex: 1 }}
-            onFocus={() => setTimeout(() => box.current?.scrollTo({ top: box.current.scrollHeight }), 300)} />
-          <button type="submit" className="primary" disabled={!text.trim()}>{t('Senden')}</button>
-        </form>
-      )}
+      {onSend && <Composer onSend={onSend} />}
     </div>
+  );
+}
+
+/**
+ * Ein offener Chat im Spiel, wie bei WhatsApp über den ganzen Bildschirm: oben Kopf mit Zurück, unten das Eingabefeld.
+ * Die Höhe folgt dem sichtbaren Bereich: geht die Tastatur auf, sitzt das Eingabefeld direkt darauf, und die neuesten
+ * Nachrichten stehen gleich darüber.
+ */
+function ChatScreen({ s, chan, hint, avatar, onBack }: { s: GameState; chan: ChatThread; hint: string; avatar: string; onBack: () => void }) {
+  const msgs = useMessages({ column: 'game_id', value: s.game.id }, chan.read, chan.id);
+  const me = useMe();
+  const box = useRef<HTMLDivElement>(null);
+  const [vp, setVp] = useState(() => ({ top: 0, h: window.innerHeight }));
+  const [kb, setKb] = useState(false);
+  const toBottom = () => requestAnimationFrame(() => box.current?.scrollTo({ top: box.current.scrollHeight }));
+
+  useEffect(() => {
+    const vv = window.visualViewport;
+    const upd = () => {
+      const h = vv ? vv.height : window.innerHeight;
+      setVp({ top: vv ? vv.offsetTop : 0, h });
+      // Tastatur offen, wenn der sichtbare Bereich deutlich kleiner ist als das Fenster.
+      setKb(window.innerHeight - h > 120 || document.body.classList.contains('kb-open'));
+      toBottom();
+    };
+    upd();
+    vv?.addEventListener('resize', upd);
+    vv?.addEventListener('scroll', upd);
+    window.addEventListener('resize', upd);
+    document.addEventListener('focusin', upd);
+    document.addEventListener('focusout', upd);
+    document.body.classList.add('no-scroll');
+    return () => {
+      vv?.removeEventListener('resize', upd);
+      vv?.removeEventListener('scroll', upd);
+      window.removeEventListener('resize', upd);
+      document.removeEventListener('focusin', upd);
+      document.removeEventListener('focusout', upd);
+      document.body.classList.remove('no-scroll');
+    };
+  }, []);
+  useEffect(() => { toBottom(); }, [msgs]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const labelOf = (c: string) => (c === 'spieler' && chan.id !== 'spieler' ? t('An alle Spieler') : null);
+  return createPortal(
+    <div className={`chat-screen${kb ? ' kb' : ''}`} style={{ top: vp.top, height: vp.h }}>
+      <header className="chat-head">
+        <button type="button" className="chat-back" aria-label={t('Zurück')} onClick={onBack}>‹</button>
+        <span className="chat-avatar" aria-hidden="true">{avatar}</span>
+        <div className="spacer" style={{ minWidth: 0 }}>
+          <div className="chat-name">{chan.label}</div>
+          <div className="chat-sub">{hint}</div>
+        </div>
+      </header>
+      <div ref={box} className="chat-msgs">
+        <div className="chat-msgs-inner">
+          {msgs.length === 0 && <div className="chat-empty">💬 {t('Noch keine Nachrichten. Schreib die erste!')}</div>}
+          <Bubbles msgs={msgs} me={me} labelOf={labelOf} />
+        </div>
+      </div>
+      {chan.write ? <Composer onSend={(b) => api.send(s.game.id, chan.id, b)} onFocus={() => setTimeout(toBottom, 300)} />
+        : <div className="composer muted small">{t('Hier kannst du nur lesen.')}</div>}
+    </div>,
+    document.body,
   );
 }
 
@@ -135,54 +234,18 @@ function saveRead(game: string, v: Record<string, number>) {
 }
 
 /**
- * Chats wie bei WhatsApp: alle Chats untereinander (letzte Nachricht, Zeit, ungelesen). Antippen öffnet den Chat,
- * "‹" führt zurück zur Liste. Spieler haben nur einen Chat (mit den Huntern) und sehen ihn direkt.
+ * Chats wie bei WhatsApp: alle Chats untereinander (letzte Nachricht, Zeit, ungelesen). Antippen öffnet den Chat über
+ * den ganzen Bildschirm, "‹" führt zurück. Spieler haben nur einen Chat (mit den Huntern): der öffnet sich direkt.
  */
-export default function Chat({ s, open: openProp, onOpen }: { s: GameState; open?: string | null; onOpen?: (id: string | null) => void }) {
+export default function Chat({ s, open: openProp, onOpen, onLeave }: { s: GameState; open?: string | null; onOpen?: (id: string | null) => void; onLeave?: () => void }) {
   const chans = channelsFor(s).filter((c) => c.id !== '*');
   const [openState, setOpenState] = useState<string | null>(null);
-  // Spieler haben nur einen Chat: der ist immer offen. Hunter: Liste, Antippen öffnet (Zurück-Pfeil führt zur Liste).
   const open = chans.length === 1 ? chans[0].id : openProp !== undefined ? openProp : openState;
   const setOpen = (id: string | null) => (onOpen ? onOpen(id) : setOpenState(id));
-  const thread = useRef<HTMLDivElement>(null);
-  const [h, setH] = useState<number | null>(null);
-  // Höhe bis zur Tastatur (bzw. bis zur Leiste unten): so bleibt das Eingabefeld immer sichtbar.
-  useEffect(() => {
-    if (!open) return;
-    const vv = window.visualViewport;
-    const calc = () => {
-      const el = thread.current;
-      if (!el) return;
-      const top = el.getBoundingClientRect().top;
-      const bottomOfView = vv ? vv.height + vv.offsetTop : window.innerHeight;
-      const bar = document.body.classList.contains('kb-open') ? 0 : (document.querySelector('.tabbar') as HTMLElement | null)?.offsetHeight ?? 0;
-      setH(Math.max(220, Math.floor(bottomOfView - top - bar - 10)));
-    };
-    calc();
-    const tm = setTimeout(calc, 350);
-    vv?.addEventListener('resize', calc);
-    vv?.addEventListener('scroll', calc);
-    window.addEventListener('resize', calc);
-    document.addEventListener('focusin', calc);
-    document.addEventListener('focusout', calc);
-    return () => {
-      clearTimeout(tm);
-      vv?.removeEventListener('resize', calc);
-      vv?.removeEventListener('scroll', calc);
-      window.removeEventListener('resize', calc);
-      document.removeEventListener('focusin', calc);
-      document.removeEventListener('focusout', calc);
-    };
-  }, [open]);
   const [last, setLast] = useState<Msg[]>([]);
   const [read, setRead] = useState<Record<string, number>>(() => loadRead(s.game.id));
-  const [me, setMe] = useState<string | null>(null);
+  const me = useMe();
 
-  useEffect(() => {
-    void db().auth.getUser().then(({ data }) => setMe(data.user?.id ?? null));
-  }, []);
-
-  // Für die Liste: die letzten Nachrichten aller Chats (RLS zeigt nur, was man lesen darf).
   useEffect(() => {
     const load = () => void db().from('messages').select('id,channel,sender_id,sender_name,body,at').eq('game_id', s.game.id)
       .order('id', { ascending: false }).limit(400).then(({ data }) => setLast((data ?? []) as Msg[]));
@@ -203,6 +266,8 @@ export default function Chat({ s, open: openProp, onOpen }: { s: GameState; open
     }
   }, [cur, last]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const avatarOf = (c: ChatThread) => (c.id === 'taskforce' ? '🎯' : c.id === 'spieler' ? '📣' : s.me.role === 'spieler' ? '🔴' : (s.participants.find((p) => `sp:${p.id}` === c.id)?.tag ?? '💬'));
+
   if (!chans.length) return <div className="card muted">{t('Im Chat schreiben nur Spieler und Hunter. Wichtige Meldungen findest du unter „Meldungen“.')}</div>;
 
   if (!cur) {
@@ -217,7 +282,7 @@ export default function Chat({ s, open: openProp, onOpen }: { s: GameState; open
       <div className="card chat-list">
         {rows.map(({ c, newest, unread }) => (
           <button key={c.id} type="button" className="chat-row" onClick={() => setOpen(c.id)}>
-            <span className="chat-avatar" aria-hidden="true">{c.id === 'taskforce' ? '🎯' : c.id === 'spieler' ? '📣' : (s.participants.find((p) => `sp:${p.id}` === c.id)?.tag ?? '💬')}</span>
+            <span className="chat-avatar" aria-hidden="true">{avatarOf(c)}</span>
             <span className="spacer" style={{ minWidth: 0, textAlign: 'left' }}>
               <span className="chat-name">{c.label}</span>
               <span className="chat-last">{newest ? `${newest.sender_id === me ? t('Du') : newest.sender_name ?? '?'}: ${newest.body}` : t('Noch keine Nachrichten.')}</span>
@@ -233,22 +298,9 @@ export default function Chat({ s, open: openProp, onOpen }: { s: GameState; open
   }
 
   const hint = s.me.role === 'spieler'
-    ? t('Hier schreibst du mit den Huntern. Alle Hunter lesen mit, ihre Antworten erscheinen hier. Mit anderen Spielern kannst du nicht schreiben.')
-    : cur.id === 'taskforce' ? t('Nur das Hunter-Team liest mit.')
-    : cur.id === 'spieler' ? t('Alle Spieler lesen diese Nachricht.')
-    : t('Dieser Spieler und alle Hunter lesen mit. Seine Antworten erscheinen hier.');
-  const labelOf = (c: string) => (c === 'spieler' && cur.id !== 'spieler' ? t('An alle Spieler') : null);
-  return (
-    <div className="stack">
-      <div className="row" style={{ alignItems: 'center' }}>
-        {chans.length > 1 && <button type="button" className="ghost" aria-label={t('Zurück zu den Chats')} onClick={() => setOpen(null)}>‹ {t('Chats')}</button>}
-        <strong className="spacer">💬 {cur.label} <Info title={cur.label} text={hint} /></strong>
-      </div>
-      <div ref={thread} style={{ height: h ?? undefined, minHeight: 220 }}>
-        <MessageList filter={{ column: 'game_id', value: s.game.id }} channel={cur.read}
-          onSend={cur.write ? (b) => api.send(s.game.id, cur.id, b) : null}
-          labelOf={labelOf} fill />
-      </div>
-    </div>
-  );
+    ? t('Alle Hunter lesen mit')
+    : cur.id === 'taskforce' ? t('Nur das Hunter-Team liest mit')
+    : cur.id === 'spieler' ? t('Alle Spieler lesen mit')
+    : t('Dieser Spieler und alle Hunter lesen mit');
+  return <ChatScreen key={cur.id} s={s} chan={cur} hint={hint} avatar={avatarOf(cur)} onBack={() => (chans.length > 1 ? setOpen(null) : onLeave?.())} />;
 }

@@ -583,7 +583,7 @@ export default function PlayPage() {
             )}
           </div>
 
-          {tab === 'chat' && <div className="tab-panel"><Chat s={s} open={chatOpen} onOpen={setChatOpen} /></div>}
+          {tab === 'chat' && <div className="tab-panel"><Chat s={s} open={chatOpen} onOpen={setChatOpen} onLeave={() => openTab('karte')} /></div>}
 
         </>
       )}
