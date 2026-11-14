@@ -30,12 +30,21 @@ function presetConfig(id: string): GameConfig {
   return c;
 }
 
+/** Helfer beim Erstellen: geht jeden Punkt einzeln durch. Öffnet sich beim allerersten Spiel von selbst, sonst über "?". */
 const GUIDE: GuideStep[] = lazy([
-  { title: 'Willkommen!', text: 'In vier Schritten ist dein Spiel bereit. Du kannst den Helfer jederzeit schliessen und über "?" wieder öffnen.' },
-  { target: 'name', title: '1. Name', text: 'Gib dem Spiel einen Namen, z. B. den Ort. Den sehen alle, die mitspielen.' },
-  { target: 'presets', title: '2. Spielart', text: 'Wähle eine Vorlage. Sie stellt alle Regeln passend ein: Dauer, Pings, Blitzjagden, Joker. Für den Anfang ist "Schnell 90 min" oder "Stadtabend 3 h" ideal. Mit "Eigenes Spiel" stellst du alles selbst ein; sobald du etwas änderst, wird es automatisch ein eigenes Spiel.' },
-  { target: 'adjust', title: '3. Anpassen (freiwillig)', text: 'Tippe einen Bereich an, um ihn zu ändern, z. B. die Anzahl Spieler oder wie oft gepingt wird. Bei jeder Einstellung erklärt das i, was sie bewirkt.' },
-  { target: 'create', title: '4. Karte', text: 'Danach zeichnest du das Spielfeld auf der Karte. Erst dann bekommst du den Code, mit dem deine Freunde beitreten.' },
+  { title: 'Hallo! Ich helfe dir beim Erstellen', text: 'Ich gehe mit dir jeden Punkt durch. Du kannst mich jederzeit schliessen und über "?" oben rechts wieder öffnen.' },
+  { target: 'name', title: 'Name', text: 'Gib dem Spiel einen Namen, z. B. den Ort. Den sehen alle, die mitspielen.' },
+  { target: 'presets', title: 'Spielart', text: 'Wähle eine Vorlage. Sie stellt alle Regeln passend ein. Für das erste Spiel ist "Stadtabend 3 h" ideal. Du musst danach nichts mehr ändern.' },
+  { target: 'q-👥', title: 'Spieler und Hunter', text: 'Wie viele verstecken sich (Spieler), wie viele jagen (Hunter)? Ein Hunter auf drei bis vier Spieler ist ein guter Anfang.' },
+  { target: 'q-⏱️', title: 'Zeit', text: 'Wie lange das Spiel dauert und wie viel Vorsprung die Spieler haben. Der Vorsprung gehört zur Spielzeit.' },
+  { target: 'q-📍', title: 'Pings', text: 'Wie oft die Hunter sehen, wo jeder Spieler gerade ist (nur diesen Moment, nicht live). Kürzer = schwerer für die Spieler.' },
+  { target: 'q-⚡', title: 'Blitzjagd', text: 'Die Hunter können ein paar Mal einen Spieler mehrmals kurz hintereinander orten. Hier stellst du ein, wie oft.' },
+  { target: 'q-🏁', title: 'Fangen und Gewinnen', text: 'Mit Fluchtpunkt müssen die Spieler am Schluss zu einem Ziel. Ohne Fluchtpunkt gewinnt, wer bis zum Ende frei bleibt.' },
+  { target: 'q-🃏', title: 'Joker', text: 'Hilfen für die Spieler, die nach einer Zeit frei werden. Du kannst sie auch ausschalten.' },
+  { target: 'q-🚌', title: 'Fortbewegung', text: 'Dürfen die Spieler Bus, Tram, Velo oder Trottinett nutzen? Erlaubt oder verboten.' },
+  { target: 'q-✨', title: 'Extras', text: 'Weitere Regeln wie Verschanzen oder Zuschauer. Für den Anfang kannst du alles so lassen.' },
+  { target: 'issues', title: 'Prüfung', text: 'Passt etwas nicht zusammen, steht es hier. Rot muss behoben werden, Gelb ist nur ein Hinweis.' },
+  { target: 'create', title: 'Weiter zur Karte', text: 'Tippe hier. Danach zeichnest du das Spielfeld und setzt den Startpunkt. Erst dann bekommst du den Code für deine Freunde.' },
 ]);
 
 /** Datum und Uhrzeit getrennt (das kombinierte Feld ist auf dem Handy zu breit). */
@@ -59,7 +68,9 @@ export default function NewGamePage() {
   const [editError, setEditError] = useState<string | null>(null);
   const [groups, setGroups] = useState<{ id: string; name: string }[]>([]);
   const [groupId, setGroupId] = useState('');
-  const [guide, setGuide] = useState(false);
+  // Beim allerersten Erstellen öffnet sich der Helfer von selbst.
+  const [guide, setGuide] = useState(() => { try { return !localStorage.getItem('hm-guide-new'); } catch { return false; } });
+  const closeGuide = () => { setGuide(false); try { localStorage.setItem('hm-guide-new', '1'); } catch { /* egal */ } };
   const [templates, setTemplates] = useState<Template[]>([]);
   const [origin, setOrigin] = useState<string | null>(null);
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
@@ -184,7 +195,7 @@ export default function NewGamePage() {
         <h1>{t('Neues Spiel')}</h1>
         <button type="button" className="ghost icon-btn" aria-label={t('Helfer')} onClick={() => setGuide(true)}><Icon name="help" /></button>
       </div>
-      {guide && <Guide steps={GUIDE} onClose={() => setGuide(false)} />}
+      {guide && <Guide steps={GUIDE} onClose={closeGuide} />}
 
       <form onSubmit={submit}>
         <div className="step-head"><span className="n">1</span><h2>{t('Wie heisst euer Spiel?')}</h2></div>
@@ -318,7 +329,6 @@ export default function NewGamePage() {
         </div>
 
         <div className="step-head"><span className="n">4</span><h2>{t('Karte zeichnen')}</h2></div>
-        <p className="muted small" style={{ marginTop: 0 }}>{t('Im nächsten Schritt legst du auf der Karte das Spielfeld fest. Danach bekommst du den Code zum Einladen.')}</p>
 
         <div style={{ marginTop: 12 }} data-guide="issues"><IssueList issues={result.issues} compact /></div>
 

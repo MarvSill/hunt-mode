@@ -465,3 +465,7 @@ body:has(.running-bar) .app { padding-bottom: calc(env(safe-area-inset-bottom) +
 .chat-last { display: block; color: var(--muted); font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .chat-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
 .chat-unread { background: #2ea043; color: #fff; border-radius: 999px; min-width: 22px; height: 22px; line-height: 22px; text-align: center; font-size: 12px; font-weight: 700; padding: 0 6px; }
+.section-h { font-size: 17px; margin: 4px 2px 8px; }
+.alerts:empty { display: none; }
+.alerts { margin-bottom: 8px; }
+.alerts .notice { margin: 0; }

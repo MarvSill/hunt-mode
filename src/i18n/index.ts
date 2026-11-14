@@ -28,8 +28,13 @@ function detect(): Lang {
   } catch {
     // ohne Speicher: Sprache des Geräts
   }
-  const nav = (typeof navigator !== 'undefined' ? navigator.language : 'de').slice(0, 2).toLowerCase();
-  return nav === 'fr' ? 'fr' : nav === 'en' ? 'en' : 'de';
+  // Sprache des Handys; ist es keine der drei, dann Englisch.
+  const langs = typeof navigator !== 'undefined' ? [...(navigator.languages ?? []), navigator.language] : [];
+  for (const l of langs) {
+    const k = (l || '').slice(0, 2).toLowerCase();
+    if (k === 'de' || k === 'fr' || k === 'en') return k;
+  }
+  return 'en';
 }
 
 let current: Lang = detect();

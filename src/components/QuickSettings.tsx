@@ -175,7 +175,7 @@ function Box({ title, icon, summary, info, children }: {
   title: string; icon: string; summary: string; info?: { title: string; text: string }; children: ReactNode;
 }) {
   return (
-    <details className="acc" data-guide={`q-${title}`}>
+    <details className="acc" data-guide={`q-${icon}`}>
       <summary>
         <span className="ico" aria-hidden="true">{icon}</span>
         <span className="spacer">

@@ -111,7 +111,7 @@ export default function Result({ s, zones }: { s: GameState; zones: MapFeature[]
           : winners.size ? tr('Sieger: {0}', { 0: [...winners].map((w) => nameOf(s, w)).join(', ') }) : tr('Die Hunter gewinnen')}</h1>
         <div className="muted">{REASONS[r?.reason ?? ''] ?? ''}</div>
         {r && <div className="small">{r.hours} h · {r.catches} {tr('Fänge ·')} {r.speedhunts} {tr('Blitzjagden ·')} {r.pings} {tr('Pings')}</div>}
-        <button type="button" className="small" style={{ alignSelf: 'center' }} onClick={() => setReplayAsk(true)}>🔁 {tr('Gleiche Variante nochmal spielen')}</button>
+        <button type="button" className="small" style={{ alignSelf: 'center' }} onClick={() => setReplayAsk(true)}>🔁 {tr('Nochmal spielen')}</button>
         {replayAsk && <ReplayAsk gameId={s.game.id} name={s.game.name} onClose={() => setReplayAsk(false)} />}
         {s.game.config.win.prize && winners.size > 0 && <div className="badge green" style={{ alignSelf: 'center' }}>{tr('Preis:')} {s.game.config.win.prize}</div>}
       </div>

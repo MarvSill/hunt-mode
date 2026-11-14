@@ -3,6 +3,7 @@ import { api } from '../lib/engine';
 import { db, errorText } from '../lib/supabase';
 import type { GameState } from '../lib/engine';
 import { t, locale } from '../i18n';
+import Info from '../components/Info';
 
 interface Msg { id: number; channel: string; sender_id: string | null; sender_name: string | null; body: string; at: string }
 
@@ -203,13 +204,10 @@ export default function Chat({ s }: { s: GameState }) {
   const labelOf = (c: string) => (c === 'spieler' && cur.id !== 'spieler' ? t('An alle Spieler') : null);
   return (
     <div className="stack">
-      {chans.length > 1 && (
-        <div className="row" style={{ alignItems: 'center' }}>
-          <button type="button" className="ghost" aria-label={t('Zurück zu den Chats')} onClick={() => setOpen(null)}>‹ {t('Chats')}</button>
-          <strong className="spacer">{cur.label}</strong>
-        </div>
-      )}
-      <div className="muted small">{hint}</div>
+      <div className="row" style={{ alignItems: 'center' }}>
+        {chans.length > 1 && <button type="button" className="ghost" aria-label={t('Zurück zu den Chats')} onClick={() => setOpen(null)}>‹ {t('Chats')}</button>}
+        <strong className="spacer">💬 {cur.label} <Info title={cur.label} text={hint} /></strong>
+      </div>
       <MessageList filter={{ column: 'game_id', value: s.game.id }} channel={cur.read}
         onSend={cur.write ? (b) => api.send(s.game.id, cur.id, b) : null}
         labelOf={labelOf} />

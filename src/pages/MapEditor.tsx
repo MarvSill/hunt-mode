@@ -880,11 +880,10 @@ export default function MapEditorPage() {
 
           {cur.id === 'feld' && (
             <>
-              <div className="notice small">
-                <strong>{t('Empfohlene Fläche: etwa {0}', { 0: kmText(recKm2) })}</strong>
-                <div>{t('Berechnet aus Ping-Abstand ({0}), Anzahl Pings, Anzahl Personen ({1}) und Fortbewegung. Das ist nur ein Richtwert: die passende Grösse hängt auch von der Umgebung ab (Häuser, Wald, Wasser, Strassen). Du kannst die Fläche jederzeit selbst anpassen.', { 0: formatMinutes(config.ping.interval_minutes), 1: config.roles.players_max + config.roles.hunters_max })}</div>
+              <div className="small">
+                <strong>✨ {t('Empfohlene Fläche: etwa {0}', { 0: kmText(recKm2) })}</strong> <Info title={t('Empfohlene Fläche')} text={t('Berechnet aus Ping-Abstand ({0}), Anzahl Pings, Anzahl Personen ({1}) und Fortbewegung. Das ist nur ein Richtwert: die passende Grösse hängt auch von der Umgebung ab (Häuser, Wald, Wasser, Strassen). Du kannst die Fläche jederzeit selbst anpassen.', { 0: formatMinutes(config.ping.interval_minutes), 1: config.roles.players_max + config.roles.hunters_max })} />
               </div>
-              <div className="muted small"><strong>{t('Von der App erstellen lassen:')}</strong> {me ? t('Form wählen, das Spielfeld wird mit der empfohlenen Fläche um deinen Standort (blauer Punkt) gelegt.') : t('Karte auf den Ort schieben (oder oben suchen), dann Form wählen.')}</div>
+              <div className="muted small">{me ? t('Um deinen Standort:') : t('Karte auf den Ort schieben, dann:')}</div>
               <div className="tool-row size-row">
                 <button className="size-btn primary" onClick={() => quickField(recKm2, 'kreis')}>
                   <strong>{t('◯ Kreis')}</strong><span className="small">{kmText(recKm2)}</span>
@@ -893,7 +892,7 @@ export default function MapEditorPage() {
                   <strong>{t('▭ Rechteck')}</strong><span className="small">{kmText(recKm2)}</span>
                 </button>
               </div>
-              <div className="muted small"><strong>{t('Oder selbst zeichnen:')}</strong> {t('Zeichne die Fläche so, wie sie zur Umgebung passt.')}</div>
+              <div className="muted small">{t('Oder selbst zeichnen:')}</div>
               <div className="tool-row">
                 <button onClick={draw({ kind: 'spielfeld', tool: 'Circle' })}>{t('◯ Kreis')}</button>
                 <button onClick={draw({ kind: 'spielfeld', tool: 'Rectangle' })}>{t('▭ Rechteck')}</button>
@@ -906,23 +905,23 @@ export default function MapEditorPage() {
                   <button type="button" className="big" style={{ minWidth: 56, fontSize: 24 }} aria-label={t('Spielfeld grösser')} onClick={() => scaleField(1.2)}>+</button>
                 </div>
               )}
-              {field1 && <div className="muted small">{t('Tipp: Mit − und + wird das Spielfeld kleiner oder grösser. Tippe es an, um die Ecken zu verschieben.')}</div>}
+              {field1 && <div className="muted small">{t('Antippen = Ecken verschieben')}</div>}
             </>
           )}
 
           {cur.id === 'treff' && (
             <>
-              <button className="primary" onClick={meetHere} disabled={!field1 || !me}>{t('📍 Startpunkt hier (mein Standort)')}</button>
-              <button onClick={autoPoints} disabled={!field1}>{t('✨ Startpunkt automatisch setzen')}</button>
-              <button onClick={draw({ kind: 'treffpunkt', tool: 'Marker' })} disabled={!field1}>{t('👆 Startpunkt selbst antippen')}</button>
+              <button className="primary" onClick={meetHere} disabled={!field1 || !me}>{t('📍 Hier (mein Standort)')}</button>
+              <button onClick={autoPoints} disabled={!field1}>{t('✨ Automatisch')}</button>
+              <button onClick={draw({ kind: 'treffpunkt', tool: 'Marker' })} disabled={!field1}>{t('👆 Selbst antippen')}</button>
               {!me && <div className="muted small">{t('Warte auf deinen Standort … (Standort erlauben)')}</div>}
             </>
           )}
 
           {cur.id === 'exit' && (
             <>
-              <button className="primary" onClick={() => autoExits(4)} disabled={!field1}>{t('✨ 4 Fluchtpunkt-Kandidaten automatisch setzen')}</button>
-              <button onClick={draw({ kind: 'exit', tool: 'Marker' })} disabled={!field1}>{t('🏁 Fluchtpunkte selbst antippen (nacheinander)')}</button>
+              <button className="primary" onClick={() => autoExits(4)} disabled={!field1}>{t('✨ 4 Fluchtpunkte automatisch')}</button>
+              <button onClick={draw({ kind: 'exit', tool: 'Marker' })} disabled={!field1}>{t('👆 Fluchtpunkte selbst setzen')}</button>
               <div className="muted small">{features.filter((f) => f.properties.kind === 'exit').length} {t('von mindestens 4 Kandidaten gesetzt.')}</div>
             </>
           )}

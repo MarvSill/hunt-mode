@@ -5,6 +5,69 @@ import CatchCode from './CatchCode';
 import { Confirm, nameOf, Section, type PanelProps } from './common';
 import { t } from '../i18n';
 
+/**
+ * Spieler-Bereich, aufgeteilt (Runde 17):
+ * - PlayerAlerts: was gerade wichtig ist, direkt bei der Karte (Fang bestätigen, ausserhalb, Gefahrenzone, Blitzjagd,
+ *   Verschanzen-Frage, Fluchtpunkt). Erscheint nur, wenn es gerade gilt.
+ * - PlayerPanel ("Aktionen"): nur Joker und Fang-Code.
+ * - PlayerMore ("Mehr"): Status, Verschanzen melden, Aufgeben.
+ */
+export function PlayerAlerts({ s, now, act, compact = false }: Pick<PanelProps, 's' | 'now' | 'act'> & { compact?: boolean }) {
+  const cfg = s.game.config;
+  const me = s.me;
+  const g = s.game;
+  if (me.role !== 'spieler' || !['aktiv', 'ausserhalb'].includes(me.state)) return null;
+  const shOnMe = s.speedhunts.some((x) => x.status === 'laeuft' && x.target_id === me.id);
+  const exit = g.exit_revealed && g.ends_at ? (() => {
+    const openAt = new Date(g.ends_at).getTime();
+    const endAt = g.deadline_at ?? g.ends_at;
+    return { openAt, endAt, open: now >= openAt };
+  })() : null;
+  const danger = me.in_restricted ? (() => {
+    const warn = s.notifications.find((n) => n.kind === 'danger_warning' || n.kind === 'danger_live');
+    const deadline = warn?.kind === 'danger_warning' ? (warn.payload.deadline as string | undefined) : undefined;
+    return { deadline, live: !deadline || new Date(deadline).getTime() <= now };
+  })() : null;
+  return (
+    <div className="stack alerts">
+      <CatchAsk s={s} act={act} />
+      {me.hideout_prompt && (
+        <div className="notice stack">
+          <strong>{t('Bist du verschanzt?')}</strong>
+          {!compact && <span className="small">{t('Du bist schon länger am selben Ort. In Wohnungen, Häusern oder anderen nicht öffentlichen Orten zählt die Zeit (max.')} {formatMinutes(cfg.hideout.max_minutes)}).</span>}
+          <div className="row">
+            <button className="primary" onClick={() => act(() => api.hideout(g.id, true))}>{t('Ja, ich bin drinnen')}</button>
+            <button onClick={() => act(() => api.hideout(g.id, false))}>{t('Nein, draussen')}</button>
+          </div>
+        </div>
+      )}
+      {me.state === 'ausserhalb' && !compact && (
+        <div className="notice error pulse stack" role="alert">
+          <strong style={{ fontSize: 20 }}>{t('Zurück ins Spielfeld!')}</strong>
+          <span>{t('Die Hunter sehen dich live, bis du wieder drin bist. Zeit draussen:')} {formatMinutes(Math.floor(me.out_accum_s / 60))} {t('von')} {formatMinutes(cfg.out_of_bounds.max_minutes)}.</span>
+        </div>
+      )}
+      {danger && (
+        <div className="notice error pulse stack" role="alert">
+          <strong style={{ fontSize: compact ? 16 : 20 }}>{t('Gefahrenzone! Sofort raus')}{!danger.live && danger.deadline ? ` · ${countdown(danger.deadline, now)}` : ''}</strong>
+          {!compact && <span className="small">{danger.live ? t('Die Hunter sehen dich live, bis du die Gefahrenzone verlassen hast.') : t('Bist du bis dann nicht draussen, sehen dich die Hunter live. Ab dem 3. Mal gibt es keinen Countdown mehr.')}</span>}
+        </div>
+      )}
+      {shOnMe && <div className="notice error pulse"><strong>⚡ {t('BLITZJAGD läuft')}{t(' auf DICH')}!</strong></div>}
+      {exit && (
+        <div className={`notice ${exit.open ? 'success' : ''} stack`} role="status">
+          <strong>🏁 {exit.open ? t('Fluchtpunkt offen: jetzt hin!') : t('Fluchtpunkt bekannt, aber noch zu')} · {exit.open ? t('noch {0}', { 0: countdown(exit.endAt, now) }) : t('öffnet in {0}', { 0: countdown(new Date(exit.openAt).toISOString(), now) })}</strong>
+          {!compact && <span className="small">{t('Er öffnet um {0}, wenn die Spielzeit abgelaufen ist. Wer bis {1} frei in den gestrichelten Kreis kommt, ist gerettet.', { 0: clock(new Date(exit.openAt).toISOString(), g.timezone), 1: clock(exit.endAt, g.timezone) })}</span>}
+          {exit.open && cfg.exit.confirm !== 'geofence' && (
+            <button className="primary" onClick={() => act(() => api.confirmExit(g.id), t('Am Fluchtpunkt!'))}>{t('Ich bin am Fluchtpunkt')}</button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** "Aktionen" der Spieler: nur Joker und Fang-Code. */
 export default function PlayerPanel({ s, now, act }: PanelProps) {
   const cfg = s.game.config;
   const me = s.me;
@@ -12,9 +75,6 @@ export default function PlayerPanel({ s, now, act }: PanelProps) {
   const [showCode, setShowCode] = useState(false);
   const active = ['aktiv', 'ausserhalb'].includes(me.state);
   const running = ['laeuft', 'finale'].includes(g.status) && !g.paused;
-  const pendingCatch = s.catches.find((c) => c.runner_id === me.id && c.status === 'wartet_auf_bestaetigung');
-  const shOnMe = s.speedhunts.some((x) => x.status === 'laeuft' && x.target_id === me.id);
-  const shRunning = s.speedhunts.filter((x) => x.status === 'laeuft');
 
   if (!active) {
     return (
@@ -32,109 +92,42 @@ export default function PlayerPanel({ s, now, act }: PanelProps) {
   return (
     <div className="stack">
       {showCode && <CatchCode gameId={g.id} onClose={() => setShowCode(false)} />}
-
-      {pendingCatch && <CatchAsk s={s} act={act} />}
-
-      {me.hideout_prompt && (
-        <div className="notice stack">
-          <strong>{t('Bist du verschanzt?')}</strong>
-          <span className="small">{t('Du bist schon länger am selben Ort. In Wohnungen, Häusern oder anderen nicht öffentlichen Orten zählt die Zeit (max.')} {formatMinutes(cfg.hideout.max_minutes)}).</span>
-          <div className="row">
-            <button className="primary" onClick={() => act(() => api.hideout(g.id, true))}>{t('Ja, ich bin drinnen')}</button>
-            <button onClick={() => act(() => api.hideout(g.id, false))}>{t('Nein, draussen')}</button>
-          </div>
-        </div>
-      )}
-
-
-
-      {me.out_pending && me.state !== 'ausserhalb' && (() => {
-        // Countdown aus der letzten Warnung: so lange Zeit, um ins Spielfeld zurückzukehren.
-        const warn = s.notifications.find((n) => n.kind === 'outside_warning');
-        const deadline = warn?.payload.deadline as string | undefined;
-        return (
-          <div className="notice error pulse stack" role="alert">
-            <strong style={{ fontSize: 20 }}>{t('Zurück ins Spielfeld!')}</strong>
-            {deadline && <div className="big-num red">{countdown(deadline, now)}</div>}
-            <span className="small">{t('Die Hunter sehen dich gleich live.')}</span>
-          </div>
-        );
-      })()}
-
-      {me.state === 'ausserhalb' && (
-        <div className="notice error pulse stack" role="alert">
-          <strong style={{ fontSize: 20 }}>{t('Zurück ins Spielfeld!')}</strong>
-          <span>{t('Die Hunter sehen dich live, bis du wieder drin bist. Zeit draussen:')} {formatMinutes(Math.floor(me.out_accum_s / 60))} {t('von')} {formatMinutes(cfg.out_of_bounds.max_minutes)}.</span>
-        </div>
-      )}
-      {me.in_restricted && (() => {
-        // Gefahrenzone: gleicher Countdown wie beim Verlassen des Spielfelds.
-        const warn = s.notifications.find((n) => n.kind === 'danger_warning' || n.kind === 'danger_live');
-        const deadline = warn?.kind === 'danger_warning' ? (warn.payload.deadline as string | undefined) : undefined;
-        const live = !deadline || new Date(deadline).getTime() <= now;
-        return (
-          <div className="notice error pulse stack" role="alert">
-            <strong style={{ fontSize: 20 }}>{t('Gefahrenzone! Sofort raus')}</strong>
-            {!live && deadline && <div className="big-num red">{countdown(deadline, now)}</div>}
-            <span className="small">{live ? t('Die Hunter sehen dich live, bis du die Gefahrenzone verlassen hast.') : t('Bist du bis dann nicht draussen, sehen dich die Hunter live. Ab dem 3. Mal gibt es keinen Countdown mehr.')}</span>
-          </div>
-        );
-      })()}
-
-      {shRunning.length > 0 && (
-        <div className="notice error pulse">
-          <strong>{t('BLITZJAGD läuft')}{shOnMe ? t(' auf DICH') : ''}!</strong>{' '}
-          {shRunning.map((x) => t('Abfrage {0}/{1}', { 0: x.queries_used, 1: x.queries_total })).join(' · ')}
-        </div>
-      )}
-
+      <button className="primary block big" onClick={() => setShowCode(true)}>🔢 {t('Fang-Code zeigen')}</button>
       {me.radar && <RadarCard radar={me.radar} now={now} />}
-
-      {g.exit_revealed && g.ends_at && (() => {
-        const openAt = new Date(g.ends_at).getTime();
-        const endAt = g.deadline_at ?? g.ends_at;
-        const open = now >= openAt;
-        return (
-          <div className={`notice ${open ? 'success' : ''} stack`} role="status">
-            <strong>🏁 {open ? t('Fluchtpunkt offen: jetzt hin!') : t('Fluchtpunkt bekannt, aber noch zu')}</strong>
-            {!open && <div className="big-num">{t('öffnet in {0}', { 0: countdown(new Date(openAt).toISOString(), now) })}</div>}
-            {open && endAt && <div className="big-num">{t('noch {0}', { 0: countdown(endAt, now) })}</div>}
-            <span className="small">{t('Er öffnet um {0}, wenn die Spielzeit abgelaufen ist. Wer bis {1} frei in den gestrichelten Kreis kommt, ist gerettet.', { 0: clock(new Date(openAt).toISOString(), g.timezone), 1: clock(endAt, g.timezone) })}</span>
-          </div>
-        );
-      })()}
-
       {cfg.joker.enabled && <JokerBox s={s} now={now} act={act} running={running} />}
-
-      <button className="primary block big" onClick={() => setShowCode(true)}>{t('Fang-Code zeigen')}</button>
-
-      <Section title={t('Status')}>
-        <div className="grid2">
-          {s.participants.find((p) => p.id === me.id)?.tag && <div><div className="muted small">{t('Dein Buchstabe')}</div><div className="big-num">{s.participants.find((p) => p.id === me.id)?.tag}</div></div>}
-          {me.hideout && (
-            <div><div className="muted small">{t('Verschanzt')} {me.hideout.inside ? t('(drinnen)') : t('(draussen)')}</div>
-              <div className="big-num">{formatMinutes(Math.floor((me.hideout.max_s - me.hideout.accum_s) / 60))} {t('übrig')}</div></div>
-          )}
-          {me.live && <div><div className="muted small">{t('Sichtbarkeit')}</div><div className="big-num red">{t('LIVE')}</div></div>}
-        </div>
-        {me.effects.filter((e) => e.type !== 'fake_ping' && e.type !== 'hunter_snapshot' && e.type !== 'leo' && e.type !== 'naehe_radar').map((e) => (
-          <div key={e.id} className="badge green">{ITEM_LABELS[e.type] ?? e.type} {t('bis')} {clock(e.ends_at)}</div>
-        ))}
-        {cfg.hideout.enabled && cfg.hideout.detection !== 'automatisch' && !me.hideout?.inside && running && (
-          <button className="small" onClick={() => act(() => api.hideout(g.id, true), t('Verschanzen gemeldet.'))}>{t('Ich bin verschanzt (Haus/Wohnung)')}</button>
-        )}
-        {me.hideout?.inside && <button className="small" onClick={() => act(() => api.hideout(g.id, false))}>{t('Ich bin wieder draussen')}</button>}
-      </Section>
-
-
-
-
-      {g.exit_revealed && cfg.exit.confirm !== 'geofence' && g.ends_at && now >= new Date(g.ends_at).getTime() && (
-        <button className="block" onClick={() => act(() => api.confirmExit(g.id), t('Am Fluchtpunkt!'))}>{t('Ich bin am Fluchtpunkt')}</button>
-      )}
-
-      <Confirm className="ghost block" label={t('Aufgeben')} confirm={t('Wirklich aufgeben?')} onYes={() => act(() => api.giveUp(g.id))} />
+      {cfg.joker.enabled && s.me.inventory.length === 0 && <div className="muted small">{t('Noch keine Joker frei.')}</div>}
     </div>
+  );
+}
+
+/** "Mehr" der Spieler: Status, Verschanzen melden, Aufgeben. */
+export function PlayerMore({ s, act }: Pick<PanelProps, 's' | 'act'>) {
+  const cfg = s.game.config;
+  const me = s.me;
+  const g = s.game;
+  const running = ['laeuft', 'finale'].includes(g.status) && !g.paused;
+  const active = ['aktiv', 'ausserhalb'].includes(me.state);
+  const tag = s.participants.find((p) => p.id === me.id)?.tag;
+  const effects = me.effects.filter((e) => e.type !== 'fake_ping' && e.type !== 'hunter_snapshot' && e.type !== 'leo' && e.type !== 'naehe_radar');
+  return (
+    <Section title={`📊 ${t('Status')}`}>
+      <div className="grid2">
+        {tag && <div><div className="muted small">{t('Dein Buchstabe')}</div><div className="big-num">{tag}</div></div>}
+        {me.hideout && (
+          <div><div className="muted small">{t('Verschanzt')} {me.hideout.inside ? t('(drinnen)') : t('(draussen)')}</div>
+            <div className="big-num">{formatMinutes(Math.floor((me.hideout.max_s - me.hideout.accum_s) / 60))} {t('übrig')}</div></div>
+        )}
+        {me.live && <div><div className="muted small">{t('Sichtbarkeit')}</div><div className="big-num red">{t('LIVE')}</div></div>}
+      </div>
+      {effects.map((e) => (
+        <div key={e.id} className="badge green">{ITEM_LABELS[e.type] ?? e.type} {t('bis')} {clock(e.ends_at)}</div>
+      ))}
+      {active && cfg.hideout.enabled && cfg.hideout.detection !== 'automatisch' && !me.hideout?.inside && running && (
+        <button className="small" onClick={() => act(() => api.hideout(g.id, true), t('Verschanzen gemeldet.'))}>🏠 {t('Ich bin verschanzt (Haus/Wohnung)')}</button>
+      )}
+      {active && me.hideout?.inside && <button className="small" onClick={() => act(() => api.hideout(g.id, false))}>🚶 {t('Ich bin wieder draussen')}</button>}
+      {active && <Confirm className="ghost block" label={`🏳️ ${t('Aufgeben')}`} confirm={t('Wirklich aufgeben?')} onYes={() => act(() => api.giveUp(g.id))} />}
+    </Section>
   );
 }
 

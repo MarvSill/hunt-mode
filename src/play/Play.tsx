@@ -14,7 +14,7 @@ import EmergencyBox from './EmergencyBox';
 import { colorFor, Confirm, nameOf, Section, tagOf } from './common';
 import { CallButtons } from './EmergencyBox';
 import HunterPanel from './HunterPanel';
-import PlayerPanel, { CatchAsk, JokerBox } from './PlayerPanel';
+import PlayerPanel, { JokerBox, PlayerAlerts, PlayerMore } from './PlayerPanel';
 import CatchCode from './CatchCode';
 import Result from './Result';
 import { t, lazy } from '../i18n';
@@ -24,6 +24,7 @@ import { SpeedhuntButtons, SpeedhuntDialog } from './SpeedhuntMap';
 import Loader from '../components/Loader';
 import Swipe from '../components/Swipe';
 import SafetyNotice from './SafetyNotice';
+import Guide, { type GuideStep } from '../components/Guide';
 import { DeviceAlert, useOutsideVibration, useRadarAlarm } from './Alerts';
 
 /** Wie viele Pings je Spieler auf der Karte: 1 = nur der letzte, 0 = alle. Jeder wählt selbst (nur auf diesem Gerät). */
@@ -42,8 +43,9 @@ function loadPingCount(): number {
 const RING_LAST = '#ffd60a';
 const RING_BLITZ = '#ff3b30';
 
-type Tab = 'karte' | 'aktionen' | 'meldungen' | 'chat';
-const TABS: [Tab, string, IconName][] = lazy([['karte', 'Karte', 'map'], ['aktionen', 'Aktionen', 'bolt'], ['meldungen', 'Meldungen', 'bell'], ['chat', 'Chat', 'chat']]);
+// Leiste unten: Karte · Aktionen · Chat · Mehr (Meldungen, Alarm, Status, Regeln, Spiel steuern).
+type Tab = 'karte' | 'aktionen' | 'chat' | 'mehr';
+const TABS: [Tab, string, IconName][] = lazy([['karte', 'Karte', 'map'], ['aktionen', 'Aktionen', 'bolt'], ['chat', 'Chat', 'chat'], ['mehr', 'Mehr', 'more']]);
 
 function beep(critical: boolean) {
   try {
@@ -60,6 +62,24 @@ function beep(critical: boolean) {
     // ohne Ton
   }
 }
+
+/** Hinweise beim ersten Spiel als Spieler. */
+const TIPS_PLAYER: GuideStep[] = lazy([
+  { target: 'me', title: 'Das bist du', text: 'Dein Buchstabe. So heissen deine Pings auf der Karte (A1, A2 …).' },
+  { target: 'ping', title: 'Nächster Ping', text: 'Dann sehen die Hunter, wo du gerade bist. Nur diesen Moment, nicht live. Dein Handy klingelt.' },
+  { target: 'map', title: 'Karte', text: 'Mit ⛶ oben rechts wird sie gross. Dort hast du auch Joker und Fang-Code.' },
+  { target: 'tabs', title: 'Unten', text: 'Aktionen: Joker und Fang-Code. Chat: mit den Huntern. Mehr: Meldungen, Alarm, Regeln.' },
+  { target: 'sos', title: 'SOS', text: 'Nur im echten Notfall. Das Spiel stoppt und alle kommen helfen.' },
+]);
+
+/** Hinweise beim ersten Spiel als Hunter. */
+const TIPS_HUNTER: GuideStep[] = lazy([
+  { target: 'me', title: 'Das bist du', text: 'Dein Zeichen im Hunter-Team.' },
+  { target: 'map', title: 'Pings', text: 'Die farbigen Punkte sind die Pings der Spieler (A1, A2 …). Gelb umrandet = der neueste. Mit ⛶ wird die Karte gross.' },
+  { target: 'ping', title: 'Nächster Ping', text: 'Dann kommt der nächste Standort der Spieler.' },
+  { target: 'tabs', title: 'Unten', text: 'Aktionen: fangen (Code eingeben oder Fang melden). Chat: mit jedem Spieler und dem Hunter-Team. Mehr: Meldungen, Alarm, Regeln.' },
+  { target: 'sos', title: 'SOS', text: 'Nur im echten Notfall. Das Spiel stoppt und alle kommen helfen.' },
+]);
 
 export default function PlayPage() {
   const { id } = useParams<{ id: string }>();
@@ -159,6 +179,12 @@ export default function PlayPage() {
   const [blitzOpen, setBlitzOpen] = useState(false);
   const [fullMap, setFullMap] = useState(false);
   const [sheet, setSheet] = useState<null | 'joker' | 'code' | 'fangen'>(null);
+  // Erstes Spiel in dieser Rolle: kurze Hinweise direkt auf der Karte (danach nie wieder).
+  const [tipsDone, setTipsDone] = useState<Record<string, boolean>>({});
+  const tipKey = `hm-tips-${s?.me.role ?? ''}`;
+  const tips = !!s && (s.me.role === 'spieler' || s.me.role === 'hunter') && tab === 'karte' && !fullMap
+    && ['vorsprung', 'laeuft', 'finale'].includes(s.game.status) && !tipsDone[tipKey] && (() => { try { return !localStorage.getItem(tipKey); } catch { return false; } })();
+  const closeTips = () => { setTipsDone((d) => ({ ...d, [tipKey]: true })); try { localStorage.setItem(tipKey, '1'); } catch { /* egal */ } };
   const [pauseReason, setPauseReason] = useState('');
   const tracker = useTracker(id, tracking, kick);
   const pos = tracker.last ? { lat: tracker.last.lat, lng: tracker.last.lng } : null;
@@ -284,12 +310,12 @@ export default function PlayPage() {
   const myTag = s.participants.find((p) => p.id === s.me.id)?.tag;
   const roleLabel = role === 'spieler' ? t('Spieler') : role === 'zuschauer' ? t('Zuschauer') : t('Hunter');
   const canSos = !ended && role !== 'zuschauer' && s.me.state !== 'notfall';
-  const unseen = tab === 'meldungen' ? 0 : s.notifications.length - seenNotes;
+  const unseen = tab === 'mehr' ? 0 : s.notifications.length - seenNotes;
   const chats = s.notifications.filter((n) => n.kind === 'chat').length;
   const unseenChat = tab === 'chat' || seenChats === null ? 0 : chats - seenChats;
   function openTab(next: Tab) {
     setTab(next);
-    if (next === 'meldungen' && s) setSeenNotes(s.notifications.length);
+    if (next === 'mehr' && s) setSeenNotes(s.notifications.length);
     if (next === 'chat' && s) setSeenChats(s.notifications.filter((n) => n.kind === 'chat').length);
   }
 
@@ -304,7 +330,7 @@ export default function PlayPage() {
           </div>
           <div className="headline">{headline}</div>
         </div>
-        {canSos && <button className="sos" aria-label={t('NOTFALL')} onClick={() => setSosAsk(true)}>{t('SOS')}</button>}
+        {canSos && <button className="sos" data-guide="sos" aria-label={t('NOTFALL')} onClick={() => setSosAsk(true)}>{t('SOS')}</button>}
       </div>
 
       {sosAsk && (
@@ -366,11 +392,11 @@ export default function PlayPage() {
       {ended ? <Result s={s} zones={zones} /> : (
         <>
           <EmergencyBox s={s} act={act} showMap={() => setTab('karte')} />
-          <nav className="tabbar">
+          <nav className="tabbar" data-guide="tabs">
             {TABS.map(([id, label, icon]) => (
               <button key={id} className={tab === id ? 'active' : ''} onClick={() => openTab(id)}>
                 <Icon name={icon} />{label}
-                {id === 'meldungen' && unseen > 0 && <span className="pip" aria-label={t('{0} neu', { 0: unseen })} />}
+                {id === 'mehr' && unseen > 0 && <span className="pip" aria-label={t('{0} neu', { 0: unseen })} />}
                 {id === 'chat' && unseenChat > 0 && <span className="pip" aria-label={t('{0} neu', { 0: unseenChat })} />}
               </button>
             ))}
@@ -383,9 +409,9 @@ export default function PlayPage() {
               const blitzRunning = s.speedhunts.some((x) => x.status === 'laeuft');
               const info = (
                 <>
-                  {myTag && <span className={`map-chip me ${role === 'spieler' ? 'spieler' : 'hunter'}`}>{t('Du: {0}', { 0: myTag })}</span>}
+                  {myTag && <span data-guide="me" className={`map-chip me ${role === 'spieler' ? 'spieler' : 'hunter'}`}>{t('Du: {0}', { 0: myTag })}</span>}
                   {fullMap && <span className={`map-chip timer${g.paused ? ' red' : ''}`}>{headline}</span>}
-                  {showPing && <span className="map-chip timer" aria-live="off">⏱ {t('Ping in {0}', { 0: countdown(next, now) })}</span>}
+                  {showPing && <span data-guide="ping" className="map-chip timer" aria-live="off">⏱ {t('Ping in {0}', { 0: countdown(next, now) })}</span>}
                   {role === 'spieler' && s.me.radar && (
                     <span className={`map-chip${s.me.radar.near ? ' red pulse' : ' green'}`} role="status">
                       📡 {s.me.radar.near ? t('Hunter näher als {0} m!', { 0: s.me.radar.distance_m }) : s.me.radar.near === false ? t('Kein Hunter näher als {0} m', { 0: s.me.radar.distance_m }) : t('Nähe-Radar')}
@@ -429,12 +455,13 @@ export default function PlayPage() {
               return (
                 <>
                   {!fullMap && <div className="map-info">{info}</div>}
-                  <div className="map-box">
+                  {!fullMap && <PlayerAlerts s={s} now={now} act={act} />}
+                  <div className="map-box" data-guide="map">
                     <MapView zones={zones} markers={markers} fitKey={g.id} height="58dvh" showDay={g.phase ?? g.current_day} onFullscreen={setFullMap}
                       fullTop={fullMap ? (
                         <div className="stack" style={{ gap: 6 }}>
                           <div className="map-info">{info}{canSos && <button type="button" className="sos small" onClick={() => setSosAsk(true)}>{t('SOS')}</button>}</div>
-                          {role === 'spieler' && <CatchAsk s={s} act={act} />}
+                          <PlayerAlerts s={s} now={now} act={act} compact />
                         </div>
                       ) : undefined}>
                       {fullMap ? <>{actions}{pingPick}{othersBtn}</> : null}
@@ -454,6 +481,7 @@ export default function PlayPage() {
                 </>
               );
             })()}
+            {tips && <Guide steps={role === 'spieler' ? TIPS_PLAYER : TIPS_HUNTER} onClose={closeTips} />}
             {blitzOpen && <SpeedhuntDialog s={s} act={act} onClose={() => setBlitzOpen(false)} />}
             {sheet && (
               <div className="overlay sheet" role="dialog" onClick={() => setSheet(null)}>
@@ -470,9 +498,32 @@ export default function PlayPage() {
 
           <div style={{ display: tab === 'aktionen' ? 'block' : 'none' }}>
             {role === 'spieler' && <PlayerPanel s={s} now={now} act={act} pos={pos} />}
-            {role !== 'zuschauer' && <AlarmSettingsBox hunter={role === 'hunter'} />}
             {role === 'hunter' && <HunterPanel s={s} now={now} act={act} pos={pos} />}
             {role === 'zuschauer' && <div className="card muted">{t('Du schaust zu. Positionen siehst du mit')} {g.config.spectator.delay_minutes} {t('min Verzögerung.')}</div>}
+          </div>
+
+          <div style={{ display: tab === 'mehr' ? 'block' : 'none' }}>
+            <h2 className="section-h">🔔 {t('Meldungen')}</h2>
+            <div className="card">
+              {s.notifications.some((n) => !hiddenNotes.has(n.id)) && <div className="muted small" style={{ marginBottom: 6 }}>{t('Zur Seite wischen zum Entfernen.')}</div>}
+              <ul className="list">
+                {s.notifications.filter((n) => !hiddenNotes.has(n.id)).map((n) => (
+                  <li key={n.id} style={{ display: 'block', padding: 0 }}>
+                    <Swipe className={`note ${n.priority} swipe-row`} onDismiss={() => hideNote(n.id)}>
+                      <div className="spacer">
+                        <div><strong>{n.title}</strong></div>
+                        {n.body && <div className="small">{n.body}</div>}
+                      </div>
+                      <span className="muted small">{clock(n.at, g.timezone)}</span>
+                    </Swipe>
+                  </li>
+                ))}
+                {s.notifications.every((n) => hiddenNotes.has(n.id)) && <li className="muted">{t('Noch keine Meldungen.')}</li>}
+              </ul>
+              {hiddenNotes.size > 0 && <button type="button" className="ghost small" onClick={() => setHiddenNotes(new Set())}>{t('Entfernte wieder zeigen')}</button>}
+            </div>
+            {role === 'spieler' && <PlayerMore s={s} act={act} />}
+            {role !== 'zuschauer' && <AlarmSettingsBox hunter={role === 'hunter'} />}
             {g.host && (
               <Section title={t('Spiel steuern')} badge={g.is_test ? <span className="badge">{t('Probelauf')}</span> : undefined}>
                 <div className="muted small">{t('Du hast das Spiel erstellt. Es läuft am Stück bis')} {clock(g.ends_at, g.timezone)} ({countdown(g.ends_at, now)}).</div>
@@ -494,7 +545,7 @@ export default function PlayPage() {
                 {live && g.paused && g.pause_kind === 'host' && (
                   <div className="stack">
                     <button className="primary block big" onClick={() => act(() => api.resume(g.id), t('Das Spiel läuft wieder.'))}>{t('▶ Spiel fortsetzen')}</button>
-                    <Link to={`/spiel/${g.id}/regeln`} className="button block">{t('Einstellungen ändern (nur wenn nötig)')}</Link>
+                    <Link to={`/spiel/${g.id}/regeln`} className="button block">{t('⚙️ Regeln ändern')}</Link>
                   </div>
                 )}
                 <Confirm className="ghost" disabled={!live} label={t('Spiel abbrechen')} confirm={t('Spiel jetzt für alle abbrechen? Dann hat keiner gewonnen.')} onYes={() => act(() => api.endGame(g.id))} />
@@ -508,27 +559,6 @@ export default function PlayPage() {
               </summary>
               <div className="body"><RulesSummary config={g.config} /></div>
             </details>
-          </div>
-
-          <div style={{ display: tab === 'meldungen' ? 'block' : 'none' }}>
-            <div className="card">
-              {s.notifications.some((n) => !hiddenNotes.has(n.id)) && <div className="muted small" style={{ marginBottom: 6 }}>{t('Zur Seite wischen zum Entfernen.')}</div>}
-              <ul className="list">
-                {s.notifications.filter((n) => !hiddenNotes.has(n.id)).map((n) => (
-                  <li key={n.id} style={{ display: 'block', padding: 0 }}>
-                    <Swipe className={`note ${n.priority} swipe-row`} onDismiss={() => hideNote(n.id)}>
-                      <div className="spacer">
-                        <div><strong>{n.title}</strong></div>
-                        {n.body && <div className="small">{n.body}</div>}
-                      </div>
-                      <span className="muted small">{clock(n.at, g.timezone)}</span>
-                    </Swipe>
-                  </li>
-                ))}
-                {s.notifications.every((n) => hiddenNotes.has(n.id)) && <li className="muted">{t('Noch keine Meldungen.')}</li>}
-              </ul>
-              {hiddenNotes.size > 0 && <button type="button" className="ghost small" onClick={() => setHiddenNotes(new Set())}>{t('Entfernte wieder zeigen')}</button>}
-            </div>
           </div>
 
           {tab === 'chat' && <Chat s={s} />}
