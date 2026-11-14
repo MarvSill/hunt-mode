@@ -1342,4 +1342,10 @@ export const en: Record<string, string> = {
   "Verschieben": "Move",
   "Alle Zeichnungen für alle Hunter löschen?": "Delete all drawings for all hunters?",
   "Alles löschen": "Delete all",
+  "Alles": "All",
+  "Mit dem Finger auf die Karte zeichnen.": "Draw on the map with your finger.",
+  "Auf die Karte tippen.": "Tap the map.",
+  "Von der Mitte aus mit dem Finger aufziehen.": "Drag out from the centre with your finger.",
+  "Karte bewegen: Stift mit ✓ ausschalten. Lange drücken = ändern.": "To move the map: switch off the pen with ✓. Long press = edit.",
+  "Mit dem Finger an die neue Stelle ziehen.": "Drag it with your finger to the new spot.",
 };

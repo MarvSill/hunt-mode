@@ -55,7 +55,7 @@ export default function HunterPanel({ s, now, act, pos }: PanelProps) {
             {free.filter((p) => p.state !== 'notfall').map((p) => (
               <button key={p.id} type="button" className="block" onClick={() => {
                 setClaimOpen(false);
-                void act(() => api.catchClaim(g.id, p.id, pos?.lat, pos?.lng), t('Fang gemeldet. {0} muss bestätigen.', { 0: p.name }));
+                void act(() => api.catchClaim(g.id, p.id, pos?.lat, pos?.lng), t('Fang gemeldet. {0} muss bestätigen.', { 0: p.tag ?? p.name }));
               }}>{nameTag(s, p.id)}</button>
             ))}
             {free.length === 0 && <div className="muted small">{t('Kein Spieler ist mehr frei.')}</div>}
@@ -101,7 +101,7 @@ export default function HunterPanel({ s, now, act, pos }: PanelProps) {
             return (
               <li key={p.id}>
                 <div className="spacer">
-                  <div>{p.tag && <span className="tag">{p.tag}</span>}{p.name} {p.protected && <span className="badge">{t('geschützt')}</span>} {livePos && <span className="badge red">{t('LIVE')}</span>}</div>
+                  <div>{p.tag ? <span className="tag">{p.tag}</span> : p.name} {p.protected && <span className="badge">{t('geschützt')}</span>} {livePos && <span className="badge red">{t('LIVE')}</span>}</div>
                   <div className="muted small">
                     {STATE_LABELS[p.state] ?? p.state}
                     {last && ` · ${SOURCE_LABELS[last.source] ?? last.source} ${clock(last.at)}${last.stale_seconds ? t(' ({0} min alt)', { 0: Math.round(last.stale_seconds / 60) }) : ''}`}
@@ -110,7 +110,7 @@ export default function HunterPanel({ s, now, act, pos }: PanelProps) {
                   </div>
                 </div>
                 {live && ['aktiv', 'ausserhalb'].includes(p.state) && (
-                  <Confirm className="small" label={t('Gefangen')} confirm={t('{0} gefangen?', { 0: p.name })} onYes={() => act(() => api.catchClaim(g.id, p.id, pos?.lat, pos?.lng), t('Fang gemeldet.'))} />
+                  <Confirm className="small" label={t('Gefangen')} confirm={t('{0} gefangen?', { 0: p.tag ?? p.name })} onYes={() => act(() => api.catchClaim(g.id, p.id, pos?.lat, pos?.lng), t('Fang gemeldet.'))} />
                 )}
               </li>
             );

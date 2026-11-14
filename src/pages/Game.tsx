@@ -284,6 +284,7 @@ export default function GamePage() {
         </div>
       </details>
 
+      {inLobby && <>
       <div className="section-title">{t('Dabei (')}{roster.length})</div>
       <div className="card" style={{ paddingTop: 4, paddingBottom: 4 }}>
         {roster.map((r) => (
@@ -325,6 +326,7 @@ export default function GamePage() {
         ))}
         {roster.length === 1 && inLobby && <p className="muted small">{t('Noch niemand beigetreten. Teile den Code oben.')}</p>}
       </div>
+      </>}
       {inLobby && isHost && roster.some((r) => r.wished_role && r.wished_role !== r.role) && (
         <button className="block" style={{ marginBottom: 12 }} onClick={applyWishes}>{t('Wunschrollen übernehmen')}</button>
       )}

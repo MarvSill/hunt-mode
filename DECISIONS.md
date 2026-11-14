@@ -222,3 +222,9 @@ Abweichungen von der Spezifikation und Annahmen, wo sie nichts festlegt.
 ## Runde 18 (2026-11-14)
 - Helfer und Hinweise: kleine Karte ganz unten am Bildschirm (nicht mehr in der Mitte). Zeigt sie auf etwas weit unten (z. B. die Leiste), rückt sie nach oben.
 - Hunter zeichnen auf der Karte: Stift am Kartenrand öffnet die Werkzeuge Punkt, Strich, Kreis, Fläche, Farbe, Text, Verschieben, Löschen, Alles löschen. Alle Hunter sehen es sofort und jeder kann alles ändern; Spieler und Zuschauer nie (Tabelle hunter_drawings, Migration 0028).
+
+## Runde 19 (2026-11-14)
+- „Bereit“ bleibt gesetzt, wenn der Host Rollen verteilt oder mischt (Migration 0029).
+- Hinweise beim ersten Spiel erst nach dem Sicherheitshinweis und wenn das Spiel läuft.
+- Zeichnen der Hunter neu: Stift unten rechts (nicht mehr bei den Kartenknöpfen). Stift an = mit dem Finger zeichnen (freihand), Punkt antippen oder Kreis aufziehen; Karte bewegen nur mit Stift aus. Lange auf eine Zeichnung drücken (immer) = Menü mit Verschieben (Finger ziehen), Farbe, Text, Löschen. Flächen entfallen.
+- Im Spiel sieht niemand die Namen der anderen, nur Buchstaben (A, B …, H1, H2 …): Spielstand, Meldungen, Chat, Blitzjagd, Fangen, Ergebnis. Die Teilnehmerliste mit Namen gibt es nur in der Lobby (Migration 0030).

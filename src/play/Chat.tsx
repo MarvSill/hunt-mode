@@ -27,7 +27,7 @@ export function channelsFor(s: GameState): ChatThread[] {
       { id: 'taskforce', label: t('Hunter-Team'), write: true, read: ['taskforce'] },
       { id: 'spieler', label: t('An alle Spieler'), write: true, read: ['spieler'] },
       ...s.participants.filter((p) => p.role === 'spieler').map((p) => ({
-        id: `sp:${p.id}`, label: t('Mit {0}', { 0: p.tag ? `${p.tag} ${p.name}` : p.name }), write: true, read: [`sp:${p.id}`, 'spieler'],
+        id: `sp:${p.id}`, label: t('Mit {0}', { 0: p.tag ?? p.name }), write: true, read: [`sp:${p.id}`, 'spieler'],
       })),
     ];
   }

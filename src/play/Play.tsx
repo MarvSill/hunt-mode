@@ -184,7 +184,8 @@ export default function PlayPage() {
   const [tipsDone, setTipsDone] = useState<Record<string, boolean>>({});
   const tipKey = `hm-tips-${s?.me.role ?? ''}`;
   const tips = !!s && (s.me.role === 'spieler' || s.me.role === 'hunter') && tab === 'karte' && !fullMap
-    && ['vorsprung', 'laeuft', 'finale'].includes(s.game.status) && !tipsDone[tipKey] && (() => { try { return !localStorage.getItem(tipKey); } catch { return false; } })();
+    // Erst nach dem Sicherheitshinweis und wenn das Spiel wirklich läuft (nicht während "Warten auf alle").
+    && ['vorsprung', 'laeuft', 'finale'].includes(s.game.status) && s.me.safety_ok && !s.game.paused && !tipsDone[tipKey] && (() => { try { return !localStorage.getItem(tipKey); } catch { return false; } })();
   const closeTips = () => { setTipsDone((d) => ({ ...d, [tipKey]: true })); try { localStorage.setItem(tipKey, '1'); } catch { /* egal */ } };
   const [pauseReason, setPauseReason] = useState('');
   const tracker = useTracker(id, tracking, kick);
@@ -266,7 +267,7 @@ export default function PlayPage() {
       list.push({
         id: `pos${x.participant_id}`, lat: x.lat, lng: x.lng, accuracy: x.accuracy_m,
         color: isMe ? '#58a6ff' : colorFor(s, x.participant_id), kind: isMe ? 'me' : pp?.role === 'spieler' ? 'player' : 'hunter',
-        label: `${isMe ? t('Du') : pp?.name ?? '?'}${x.live && !isMe ? t(' (LIVE)') : ''} · ${clock(x.at)}`, pulse: x.live && tf && !isMe, text: pp?.tag ?? undefined,
+        label: `${isMe ? t('Du') : pp?.tag ?? pp?.name ?? '?'}${x.live && !isMe ? t(' (LIVE)') : ''} · ${clock(x.at)}`, pulse: x.live && tf && !isMe, text: pp?.tag ?? undefined,
       });
     }
     // Eigene Live-Position (schneller als der Server-Stand)
@@ -276,7 +277,7 @@ export default function PlayPage() {
     for (const e of s.me.effects) {
       if (e.type === 'hunter_snapshot') {
         for (const h of (e.payload.hunters as { name: string; tag?: string; lat: number; lng: number; at?: string }[]) ?? []) {
-          list.push({ id: `hs${e.id}${h.name}`, lat: h.lat, lng: h.lng, color: '#f85149', kind: 'hunter', label: t('Hunter {0} · Ping {1} (nicht live)', { 0: h.tag ? `${h.tag} ${h.name}` : h.name, 1: clock(h.at) }), text: h.tag });
+          list.push({ id: `hs${e.id}${h.name}`, lat: h.lat, lng: h.lng, color: '#f85149', kind: 'hunter', label: t('Hunter {0} · Ping {1} (nicht live)', { 0: h.tag ?? h.name, 1: clock(h.at) }), text: h.tag });
         }
       }
     }

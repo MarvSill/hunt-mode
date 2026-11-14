@@ -86,7 +86,7 @@ export default function Result({ s, zones }: { s: GameState; zones: MapFeature[]
       lines.push({ id: pid, color, points: upto.map((p) => [p[1], p[2]]) });
       const last = upto[upto.length - 1];
       const p = s.participants.find((x) => x.id === pid);
-      markers.push({ id: pid, lat: last[1], lng: last[2], color, label: p?.name ?? '?', kind: p?.role === 'spieler' ? 'player' : 'hunter' });
+      markers.push({ id: pid, lat: last[1], lng: last[2], color, label: p?.tag ?? p?.name ?? '?', kind: p?.role === 'spieler' ? 'player' : 'hunter' });
     }
     steps.forEach((pg, i) => {
       const current = step === i;
@@ -120,13 +120,13 @@ export default function Result({ s, zones }: { s: GameState; zones: MapFeature[]
           {players.map((p) => (
             <li key={p.id}>
               <span className="dot" style={{ background: colorFor(s, p.id) }} />
-              <span className="spacer">{p.tag && <span className="tag">{p.tag}</span>}{p.name}</span>
+              <span className="spacer">{p.tag ? <span className="tag">{p.tag}</span> : p.name}</span>
               <span className={`badge${winners.has(p.id) ? ' green' : ''}`}>{winners.has(p.id) ? tr('Sieg') : r?.reason === 'abgebrochen' && ['aktiv', 'ausserhalb', 'notfall'].includes(p.state) ? tr('Abgebrochen') : STATE_LABELS[p.state] ?? p.state}</span>
               {r?.mode === 'punkte' && <span className="badge">{r.scores[p.id] ?? 0} P</span>}
             </li>
           ))}
           {s.participants.filter((p) => p.role === 'hunter').map((p) => (
-            <li key={p.id}><span className="dot" style={{ background: '#f85149' }} /><span className="spacer">{p.tag && <span className="tag hunter">{p.tag}</span>}{p.name}</span><span className="badge red">{tr('Kopfgeld')} {p.bounty}</span></li>
+            <li key={p.id}><span className="dot" style={{ background: '#f85149' }} /><span className="spacer">{p.tag ? <span className="tag hunter">{p.tag}</span> : p.name}</span><span className="badge red">{tr('Kopfgeld')} {p.bounty}</span></li>
           ))}
         </ul>
       </div>
