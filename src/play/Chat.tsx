@@ -178,23 +178,26 @@ function ChatScreen({ s, chan, hint, avatar, onBack }: { s: GameState; chan: Cha
     const upd = () => {
       const h = vv ? vv.height : window.innerHeight;
       setVp({ top: vv ? vv.offsetTop : 0, h });
-      // Tastatur offen, wenn der sichtbare Bereich deutlich kleiner ist als das Fenster.
-      setKb(window.innerHeight - h > 120 || document.body.classList.contains('kb-open'));
+      // Tastatur offen, wenn der sichtbare Bereich deutlich kleiner ist als das Fenster (nur danach, nicht nach dem Fokus:
+      // der kann beim Schliessen der Tastatur kurz hinterherhinken).
+      setKb(window.innerHeight - h > 120);
       toBottom();
     };
+    // Nach Fokus-Wechseln (Tastatur auf/zu) nochmals nachmessen, wenn die Animation fertig ist.
+    const later = () => { upd(); setTimeout(upd, 150); setTimeout(upd, 450); };
     upd();
     vv?.addEventListener('resize', upd);
     vv?.addEventListener('scroll', upd);
     window.addEventListener('resize', upd);
-    document.addEventListener('focusin', upd);
-    document.addEventListener('focusout', upd);
+    document.addEventListener('focusin', later);
+    document.addEventListener('focusout', later);
     document.body.classList.add('no-scroll');
     return () => {
       vv?.removeEventListener('resize', upd);
       vv?.removeEventListener('scroll', upd);
       window.removeEventListener('resize', upd);
-      document.removeEventListener('focusin', upd);
-      document.removeEventListener('focusout', upd);
+      document.removeEventListener('focusin', later);
+      document.removeEventListener('focusout', later);
       document.body.classList.remove('no-scroll');
     };
   }, []);
