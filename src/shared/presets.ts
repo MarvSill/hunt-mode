@@ -35,12 +35,6 @@ export const PRESETS: Preset[] = [
         catch_removes_one: true,
       },
       out_of_bounds: { max_minutes: 30, on_timeout: 'catch' },
-      hideout: {
-        max_minutes: 30,
-        min_leave_distance_m: 150,
-        lockout_after_first_entry_minutes: 120,
-        stationary_minutes: 10,
-      },
       joker: {
         enabled: true,
         types: [
@@ -75,12 +69,6 @@ export const PRESETS: Preset[] = [
         catch_removes_one: false,
       },
       out_of_bounds: { max_minutes: 5, on_timeout: 'catch' },
-      hideout: {
-        max_minutes: 8,
-        min_leave_distance_m: 100,
-        lockout_after_first_entry_minutes: 30,
-        stationary_minutes: 5,
-      },
       joker: {
         enabled: true,
         types: [
@@ -114,12 +102,6 @@ export const PRESETS: Preset[] = [
         catch_removes_one: false,
       },
       out_of_bounds: { max_minutes: 3, on_timeout: 'catch' },
-      hideout: {
-        max_minutes: 5,
-        min_leave_distance_m: 75,
-        lockout_after_first_entry_minutes: 0,
-        stationary_minutes: 5,
-      },
       transport: { motorized_allowed: false, bikes_allowed: false },
       joker: {
         enabled: true,

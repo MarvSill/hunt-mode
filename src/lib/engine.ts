@@ -132,16 +132,12 @@ export const api = {
   deviceCheck: (g: string, checks: Record<string, unknown>) => rpc('set_device_check', { p_game_id: g, p_checks: checks }),
   speedhuntStart: (g: string, target: string) => rpc<string>('speedhunt_start', { p_game_id: g, p_target: target }),
   speedhuntQuery: (sh: string) => rpc('speedhunt_query', { p_speedhunt_id: sh }),
-  catchCode: (g: string) => rpc<{ code: string; valid_s: number }>('my_catch_code', { p_game_id: g }),
-  catchByCode: (g: string, code: string, lat?: number, lng?: number) =>
-    rpc<{ catch_id: string; status: string; runner: string }>('catch_by_code', { p_game_id: g, p_code: code, p_lat: lat ?? null, p_lng: lng ?? null }),
   catchClaim: (g: string, runner: string, lat?: number, lng?: number) =>
     rpc<{ catch_id: string; status: string; runner: string }>('catch_claim', { p_game_id: g, p_runner: runner, p_lat: lat ?? null, p_lng: lng ?? null }),
   catchRespond: (c: string, accept: boolean) => rpc('catch_respond', { p_catch_id: c, p_accept: accept }),
   catchMedia: (c: string, path: string) => rpc('catch_attach_media', { p_catch_id: c, p_path: path }),
   confirmExit: (g: string, participant?: string) => rpc('confirm_exit', { p_game_id: g, p_participant: participant ?? null }),
   giveUp: (g: string) => rpc('give_up', { p_game_id: g }),
-  hideout: (g: string, inside: boolean) => rpc('hideout_report', { p_game_id: g, p_inside: inside }),
   transitIn: (g: string, mode: string, line: string, from: string, to: string) =>
     rpc('transit_checkin', { p_game_id: g, p_mode: mode, p_line: line, p_from: from, p_to: to }),
   transitOut: (g: string, stops: number | null) => rpc<{ live_after_minutes: number }>('transit_checkout', { p_game_id: g, p_stops: stops }),

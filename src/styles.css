@@ -524,3 +524,5 @@ body.kb-open .tabbar, body.kb-open .running-bar { display: none; }
 .chat-empty { margin: auto; color: var(--muted); font-size: 14px; text-align: center; padding: 20px; }
 .chat-screen .composer { background: rgba(15,20,28,.97); border-top: 1px solid var(--border); padding-bottom: calc(env(safe-area-inset-bottom) + 8px); }
 .chat-screen.kb .composer { padding-bottom: 8px; }
+.draw-step { width: 40px; height: 36px; min-height: 0; padding: 0; border-radius: 10px; font-size: 18px; flex-shrink: 0; }
+.draw-step:disabled { opacity: .35; }

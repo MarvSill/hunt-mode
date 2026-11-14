@@ -109,7 +109,7 @@ export default function QuickSettings({ config, onChange }: Props) {
       <Box title={t('Fangen und Gewinnen')} icon="🏁" summary={`${t('Code oder Bestätigung')}${config.exit.enabled ? t(' · mit Fluchtpunkt') : ''}`} info={SETTING_HELP.catch}>
         <div className="field">
           <span>{t('Wie wird gefangen?')} <Hint label={t('Wie wird gefangen?')} /></span>
-          <span className="muted small">{t('Immer beide Wege: Zahlencode eingeben oder Fang melden und der Spieler bestätigt.')}</span>
+          <span className="muted small">{t('Der Hunter meldet den Fang, der Spieler bestätigt.')}</span>
         </div>
         <Toggle label={t('Fluchtpunkt am Schluss (Spieler müssen hin)')} value={config.exit.enabled} onChange={(v) => set('exit', 'enabled', v)} />
         {config.exit.enabled && (
@@ -163,8 +163,7 @@ export default function QuickSettings({ config, onChange }: Props) {
         <div className="muted small">{t('Zu Fuss geht immer. Fahrten muss man nicht anmelden, und niemand wird dabei live gezeigt.')}</div>
       </Box>
 
-      <Box title={t('Extras')} icon="✨" summary={[config.hideout.enabled && t('Verschanzen'), config.spectator.enabled && t('Zuschauer')].filter(Boolean).join(' · ') || t('keine')} info={SETTING_HELP.extras}>
-        <Toggle label={t('Verschanzen-Regel (nicht zu lange am selben Ort)')} value={config.hideout.enabled} onChange={(v) => set('hideout', 'enabled', v)} />
+      <Box title={t('Extras')} icon="✨" summary={config.spectator.enabled ? t('Zuschauer') : t('keine')} info={SETTING_HELP.extras}>
         <Toggle label={t('Zuschauer erlaubt')} value={config.spectator.enabled} onChange={(v) => set('spectator', 'enabled', v)} />
       </Box>
     </div>

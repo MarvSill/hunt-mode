@@ -42,7 +42,7 @@ const GUIDE: GuideStep[] = lazy([
   { target: 'q-🏁', title: 'Fangen und Gewinnen', text: 'Mit Fluchtpunkt müssen die Spieler am Schluss zu einem Ziel. Ohne Fluchtpunkt gewinnt, wer bis zum Ende frei bleibt.' },
   { target: 'q-🃏', title: 'Joker', text: 'Hilfen für die Spieler, die nach einer Zeit frei werden. Du kannst sie auch ausschalten.' },
   { target: 'q-🚌', title: 'Fortbewegung', text: 'Dürfen die Spieler Bus, Tram, Velo oder Trottinett nutzen? Erlaubt oder verboten.' },
-  { target: 'q-✨', title: 'Extras', text: 'Weitere Regeln wie Verschanzen oder Zuschauer. Für den Anfang kannst du alles so lassen.' },
+  { target: 'q-✨', title: 'Extras', text: 'Zuschauer erlauben, die mit Verzögerung mitschauen. Für den Anfang kannst du alles so lassen.' },
   { target: 'issues', title: 'Prüfung', text: 'Passt etwas nicht zusammen, steht es hier. Rot muss behoben werden, Gelb ist nur ein Hinweis.' },
   { target: 'create', title: 'Weiter zur Karte', text: 'Tippe hier. Danach zeichnest du das Spielfeld und setzt den Startpunkt. Erst dann bekommst du den Code für deine Freunde.' },
 ]);

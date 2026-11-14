@@ -120,7 +120,7 @@ function Composer({ onSend, onFocus }: { onSend: (body: string) => Promise<unkno
       setErr(errorText(e));
     } finally {
       setBusy(false);
-      ta.current?.focus();
+      if (document.activeElement !== ta.current) ta.current?.focus();
     }
   }
   return (
@@ -129,7 +129,11 @@ function Composer({ onSend, onFocus }: { onSend: (body: string) => Promise<unkno
       <textarea ref={ta} rows={1} aria-label={t('Nachricht')} value={text} maxLength={2000} placeholder={t('Nachricht')}
         onChange={(e) => setText(e.target.value)} onFocus={onFocus}
         onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void send(); } }} />
-      <button type="submit" className="composer-send" disabled={!text.trim() || busy} aria-label={t('Senden')}>➤</button>
+      {/* Der Knopf darf dem Textfeld den Fokus nicht wegnehmen, sonst geht die Tastatur beim Senden kurz zu und wieder auf. */}
+      <button type="button" className="composer-send" disabled={!text.trim() || busy} aria-label={t('Senden')}
+        onPointerDown={(e) => e.preventDefault()} onMouseDown={(e) => e.preventDefault()}
+        onTouchEnd={(e) => { e.preventDefault(); void send(); }}
+        onClick={() => void send()}>➤</button>
     </form>
   );
 }

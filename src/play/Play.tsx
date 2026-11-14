@@ -15,8 +15,7 @@ import EmergencyBox from './EmergencyBox';
 import { colorFor, Confirm, nameOf, Section, tagOf } from './common';
 import { CallButtons } from './EmergencyBox';
 import HunterPanel from './HunterPanel';
-import PlayerPanel, { JokerBox, PlayerAlerts, PlayerMore } from './PlayerPanel';
-import CatchCode from './CatchCode';
+import PlayerPanel, { CatchAsk, JokerBox, PlayerAlerts, PlayerMore } from './PlayerPanel';
 import Result from './Result';
 import { t, lazy } from '../i18n';
 import { isNative, nativeNotify, openAppSettings } from '../lib/native';
@@ -69,8 +68,8 @@ function beep(critical: boolean) {
 const TIPS_PLAYER: GuideStep[] = lazy([
   { target: 'me', title: 'Das bist du', text: 'Dein Buchstabe. So heissen deine Pings auf der Karte (A1, A2 …).' },
   { target: 'ping', title: 'Nächster Ping', text: 'Dann sehen die Hunter, wo du gerade bist. Nur diesen Moment, nicht live. Dein Handy klingelt.' },
-  { target: 'map', title: 'Karte', text: 'Mit ⛶ oben rechts wird sie gross. Dort hast du auch Joker und Fang-Code.' },
-  { target: 'tabs', title: 'Unten', text: 'Aktionen: Joker und Fang-Code. Chat: mit den Huntern. Mehr: Meldungen, Alarm, Regeln.' },
+  { target: 'map', title: 'Karte', text: 'Mit ⛶ oben rechts wird sie gross. Dort hast du auch deine Joker.' },
+  { target: 'tabs', title: 'Unten', text: 'Aktionen: Joker und Regeln. Chat: mit den Huntern. Mehr: Meldungen, Alarm.' },
   { target: 'sos', title: 'SOS', text: 'Nur im echten Notfall. Das Spiel stoppt und alle kommen helfen.' },
 ]);
 
@@ -79,7 +78,7 @@ const TIPS_HUNTER: GuideStep[] = lazy([
   { target: 'me', title: 'Das bist du', text: 'Dein Zeichen im Hunter-Team.' },
   { target: 'map', title: 'Pings', text: 'Die farbigen Punkte sind die Pings der Spieler (A1, A2 …). Gelb umrandet = der neueste. Mit ⛶ wird die Karte gross.' },
   { target: 'ping', title: 'Nächster Ping', text: 'Dann kommt der nächste Standort der Spieler.' },
-  { target: 'tabs', title: 'Unten', text: 'Aktionen: fangen (Code eingeben oder Fang melden). Chat: mit jedem Spieler und dem Hunter-Team. Mehr: Meldungen, Alarm, Regeln.' },
+  { target: 'tabs', title: 'Unten', text: 'Aktionen: Fang melden. Chat: mit jedem Spieler und dem Hunter-Team. Mehr: Meldungen, Alarm.' },
   { target: 'sos', title: 'SOS', text: 'Nur im echten Notfall. Das Spiel stoppt und alle kommen helfen.' },
 ]);
 
@@ -189,7 +188,7 @@ export default function PlayPage() {
   };
   const [blitzOpen, setBlitzOpen] = useState(false);
   const [fullMap, setFullMap] = useState(false);
-  const [sheet, setSheet] = useState<null | 'joker' | 'code' | 'fangen'>(null);
+  const [sheet, setSheet] = useState<null | 'joker' | 'fangen'>(null);
   // Erstes Spiel in dieser Rolle: kurze Hinweise direkt auf der Karte (danach nie wieder).
   const [tipsDone, setTipsDone] = useState<Record<string, boolean>>({});
   const tipKey = `hm-tips-${s?.me.role ?? ''}`;
@@ -409,6 +408,7 @@ export default function PlayPage() {
       {msg && <div className={`notice ${msg.ok ? 'success' : 'error'}`} style={{ marginBottom: 8 }} onClick={() => setMsg(null)}>{msg.text}</div>}
 
       {!ended && <SafetyNotice s={s} act={act} />}
+      {!ended && <CatchAsk s={s} act={act} />}
       {!ended && <DeviceAlert tracker={tracker} tracking={tracking} />}
       {ended ? <Result s={s} zones={zones} /> : (
         <>
@@ -470,7 +470,6 @@ export default function PlayPage() {
                   {role === 'hunter' && <SpeedhuntButtons s={s} act={act} onOpen={() => setBlitzOpen(true)} />}
                   {role === 'hunter' && fullMap && <button type="button" className="map-chip big" onClick={() => setSheet('fangen')}>🤚 {t('Fangen')}</button>}
                   {playerActive && fullMap && g.config.joker.enabled && <button type="button" className="map-chip big" onClick={() => setSheet('joker')}>🃏 {t('Joker')}{s.me.inventory.length > 0 ? ` (${s.me.inventory.length})` : ''}</button>}
-                  {playerActive && fullMap && <button type="button" className="map-chip big" onClick={() => setSheet('code')}>🔢 {t('Fang-Code')}</button>}
                 </>
               );
               return (
@@ -495,8 +494,6 @@ export default function PlayPage() {
                       {pingPick}
                       {othersBtn}
                       <span className="badge">{s.free_players}/{players.length} {t('Spieler frei')}</span>
-                      {tracker.last && <span className="badge">{t('GPS ±')}{tracker.last.acc} m</span>}
-                      {s.pings.some((p) => p.lat != null) && <span className="badge"><i className="ring-dot" style={{ borderColor: RING_LAST }} /> {t('letzter Ping')}</span>}
                       {s.pings.some((p) => p.source === 'speedhunt' && p.lat != null) && <span className="badge"><i className="ring-dot" style={{ borderColor: RING_BLITZ }} /> {t('Blitzjagd')}</span>}
                     </div>
                   )}
@@ -515,7 +512,6 @@ export default function PlayPage() {
                 </div>
               </div>
             )}
-            {sheet === 'code' && <CatchCode gameId={g.id} onClose={() => setSheet(null)} />}
           </div>
 
           <div className="tab-panel" style={{ display: tab === 'aktionen' ? 'block' : 'none' }}>
