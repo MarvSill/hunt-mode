@@ -26,6 +26,7 @@ import Swipe from '../components/Swipe';
 import SafetyNotice from './SafetyNotice';
 import HunterDraw from './HunterDraw';
 import Guide, { type GuideStep } from '../components/Guide';
+import { setMapSettings, useMapSettings } from '../lib/mapStyle';
 import { DeviceAlert, useOutsideVibration, useRadarAlarm } from './Alerts';
 
 /** Wie viele Pings je Spieler auf der Karte: 1 = nur der letzte, 0 = alle. Jeder wählt selbst (nur auf diesem Gerät). */
@@ -62,6 +63,52 @@ function beep(critical: boolean) {
   } catch {
     // ohne Ton
   }
+}
+
+/** Eigener Standort: immer rot, für alle (Spieler und Hunter). */
+const ME_COLOR = '#ff3b30';
+
+/**
+ * Spieler sehen diese Meldungen nicht (das Handy klingelt trotzdem): beim Ping und bei der Blitzjagd wissen sie es ohnehin,
+ * zwei Meldungen auf einmal wären unnötig.
+ */
+const SILENT_FOR_PLAYERS = ['ping', 'speedhunt_start', 'speedhunt_query'];
+function silentFor(role: string | undefined, kind: string) {
+  return role === 'spieler' && SILENT_FOR_PLAYERS.includes(kind);
+}
+
+/** Blickrichtung des Handys (Kompass) in Grad ab Norden, für den eigenen Punkt auf der Karte. */
+function useHeading(on: boolean): number | null {
+  const [h, setH] = useState<number | null>(null);
+  useEffect(() => {
+    if (!on) return;
+    let last = 0;
+    let lastVal = -999;
+    const handle = (e: DeviceOrientationEvent & { webkitCompassHeading?: number }) => {
+      const v = typeof e.webkitCompassHeading === 'number' ? e.webkitCompassHeading : e.absolute && e.alpha != null ? 360 - e.alpha : null;
+      if (v == null || Number.isNaN(v)) return;
+      const t = Date.now();
+      const diff = Math.abs(((v - lastVal + 540) % 360) - 180);
+      if (t - last < 250 || diff < 6) return;
+      last = t;
+      lastVal = v;
+      setH(Math.round(v));
+    };
+    const absolute = 'ondeviceorientationabsolute' in window;
+    const ev = absolute ? 'deviceorientationabsolute' : 'deviceorientation';
+    window.addEventListener(ev, handle as EventListener);
+    // iPhone: der Kompass braucht einmal eine Erlaubnis, die nur nach einem Antippen gefragt werden darf.
+    const ask = () => {
+      const D = DeviceOrientationEvent as unknown as { requestPermission?: () => Promise<string> };
+      if (typeof D?.requestPermission === 'function') void D.requestPermission().catch(() => undefined);
+    };
+    document.addEventListener('pointerdown', ask, { once: true });
+    return () => {
+      window.removeEventListener(ev, handle as EventListener);
+      document.removeEventListener('pointerdown', ask);
+    };
+  }, [on]);
+  return h;
 }
 
 /** Hinweise beim ersten Spiel als Spieler. */
@@ -127,7 +174,8 @@ export default function PlayPage() {
   }, []);
 
   const onNew = useCallback((list: Notification[]) => {
-    setToasts((t) => [...[...list].reverse(), ...t].slice(0, 4));
+    const shown = list.filter((n) => !silentFor(roleRef.current, n.kind));
+    setToasts((t) => [...[...shown].reverse(), ...t].slice(0, 4));
     const crit = list.some((n) => n.priority === 'kritisch');
     const high = list.some((n) => n.priority !== 'normal');
     // Spieler: bei jedem Ping und jeder Blitzjagd klingeln (höchstens alle 3 s, falls mehrere gleichzeitig kommen).
@@ -148,7 +196,10 @@ export default function PlayPage() {
     // das klappt auch, wenn der Ton der Seite gesperrt ist). Im Hintergrund jede Meldung.
     if (isNative) {
       const hidden = document.visibilityState !== 'visible';
-      for (const n of list) {
+      // Stille Meldungen nur, wenn sonst nichts klingelt (damit das Handy im Hintergrund trotzdem alarmiert).
+      const loud = list.filter((n) => !silentFor(roleRef.current, n.kind));
+      const send = loud.length ? loud : list.slice(0, 1);
+      for (const n of send) {
         const important = n.priority !== 'normal' || n.kind === 'chat' || (player && !!alarmKindOf([n.kind]));
         if (hidden || important) void nativeNotify(n.id, n.title, n.body);
       }
@@ -198,6 +249,8 @@ export default function PlayPage() {
   const closeTips = () => { setTipsDone((d) => ({ ...d, [tipKey]: true })); try { localStorage.setItem(tipKey, '1'); } catch { /* egal */ } };
   const [pauseReason, setPauseReason] = useState('');
   const tracker = useTracker(id, tracking, kick);
+  const heading = useHeading(tracking);
+  const mapSettings = useMapSettings();
   const pos = tracker.last ? { lat: tracker.last.lat, lng: tracker.last.lng } : null;
   // Handy-App im Hintergrund: nach jedem gesendeten Standort auch den Spielstand holen (neue Pings und Meldungen).
   useEffect(() => {
@@ -227,7 +280,11 @@ export default function PlayPage() {
     if (s && seenChats === null) setSeenChats(s.notifications.filter((n) => n.kind === 'chat').length);
   }, [s, seenChats]);
 
+  const busy = useRef(false);
   const act = useCallback(async (fn: () => Promise<unknown>, okText?: string) => {
+    // Nicht aus Versehen zweimal: solange eine Aktion läuft, wird ein zweites Antippen ignoriert.
+    if (busy.current) return false;
+    busy.current = true;
     setMsg(null);
     try {
       await fn();
@@ -237,6 +294,8 @@ export default function PlayPage() {
     } catch (err) {
       setMsg({ ok: false, text: errorText(err) });
       return false;
+    } finally {
+      busy.current = false;
     }
   }, [reload]);
 
@@ -275,13 +334,13 @@ export default function PlayPage() {
       const pp = s.participants.find((q) => q.id === x.participant_id);
       list.push({
         id: `pos${x.participant_id}`, lat: x.lat, lng: x.lng, accuracy: x.accuracy_m,
-        color: isMe ? '#58a6ff' : colorFor(s, x.participant_id), kind: isMe ? 'me' : pp?.role === 'spieler' ? 'player' : 'hunter',
+        color: isMe ? ME_COLOR : colorFor(s, x.participant_id), heading: isMe ? heading ?? undefined : undefined, kind: isMe ? 'me' : pp?.role === 'spieler' ? 'player' : 'hunter',
         label: `${isMe ? t('Du') : pp?.tag ?? pp?.name ?? '?'}${x.live && !isMe ? t(' (LIVE)') : ''} · ${clock(x.at)}`, pulse: x.live && tf && !isMe, text: pp?.tag ?? undefined,
       });
     }
     // Eigene Live-Position (schneller als der Server-Stand)
     if (pos && !s.positions.some((x) => x.participant_id === s.me.id)) {
-      list.push({ id: 'me', lat: pos.lat, lng: pos.lng, color: '#58a6ff', kind: 'me', label: t('Du'), accuracy: tracker.last?.acc, text: s.participants.find((q) => q.id === s.me.id)?.tag ?? undefined });
+      list.push({ id: 'me', lat: pos.lat, lng: pos.lng, color: ME_COLOR, heading: heading ?? undefined, kind: 'me', label: t('Du'), accuracy: tracker.last?.acc, text: s.participants.find((q) => q.id === s.me.id)?.tag ?? undefined });
     }
     for (const e of s.me.effects) {
       if (e.type === 'hunter_snapshot') {
@@ -294,7 +353,7 @@ export default function PlayPage() {
       if (e.lat != null && e.lng != null) list.push({ id: `e${e.id}`, lat: e.lat, lng: e.lng, color: '#ff0000', kind: 'emergency', label: t('NOTFALL {0}', { 0: nameOf(s, e.participant_id) }), pulse: true });
     }
     return list;
-  }, [s, now, pos, role, tracker.last?.acc, pingCount, othersHidden]);
+  }, [s, now, pos, role, tracker.last?.acc, pingCount, othersHidden, heading]);
 
   if (!s) {
     return (
@@ -430,13 +489,17 @@ export default function PlayPage() {
               const blitzRunning = s.speedhunts.some((x) => x.status === 'laeuft');
               const info = (
                 <>
-                  {myTag && <span data-guide="me" className={`map-chip me ${role === 'spieler' ? 'spieler' : 'hunter'}`}>{t('Du: {0}', { 0: myTag })}</span>}
+                  {myTag && <span data-guide="me" className={`map-chip me ${role === 'spieler' ? 'spieler' : 'hunter'}`} style={role === 'spieler' ? { background: colorFor(s, s.me.id), borderColor: colorFor(s, s.me.id) } : undefined}>{t('Du: {0}', { 0: myTag })}</span>}
                   {fullMap && <span className={`map-chip timer${g.paused ? ' red' : ''}`}>{headline}</span>}
                   {showPing && <span data-guide="ping" className="map-chip timer" aria-live="off">⏱ {t('Ping in {0}', { 0: countdown(next, now) })}</span>}
                   {role === 'spieler' && s.me.radar && (
                     <span className={`map-chip${s.me.radar.near ? ' red pulse' : ' green'}`} role="status">
                       📡 {s.me.radar.near ? t('Hunter näher als {0} m!', { 0: s.me.radar.distance_m }) : s.me.radar.near === false ? t('Kein Hunter näher als {0} m', { 0: s.me.radar.distance_m }) : t('Nähe-Radar')}
+                      {' · '}{countdown(s.me.radar.ends_at, now)}
                     </span>
+                  )}
+                  {g.next_phase_at && live && !g.paused && new Date(g.next_phase_at).getTime() > now && (
+                    <span className="map-chip" title={t('Dann wird das Spielfeld kleiner (die neue Grenze ist gestrichelt).')}>🎯 {t('Kleiner in {0}', { 0: countdown(g.next_phase_at, now) })}</span>
                   )}
                   {blitzRunning && <span className="map-chip red pulse">⚡ {t('Blitzjagd läuft')}</span>}
                   {role === 'spieler' && s.me.state === 'ausserhalb' && <span className="map-chip red pulse">{t('Zurück ins Spielfeld!')}</span>}
@@ -458,6 +521,12 @@ export default function PlayPage() {
                   </select>
                   {pingCustom && <NumberField label={t('Pings je Spieler')} value={pingCount || 5} min={1} max={200} onChange={setPingCount} />}
                 </span>
+              );
+              const hasDanger = zones.some((z) => z.properties.kind === 'sperrzone');
+              const dangerBtn = hasDanger && (
+                <button type="button" className="map-chip" aria-pressed={mapSettings.dangerIcons !== false} onClick={() => setMapSettings({ dangerIcons: mapSettings.dangerIcons === false })}>
+                  ⚠️ {mapSettings.dangerIcons === false ? t('Symbole: aus') : t('Symbole: an')}
+                </button>
               );
               const othersBtn = role === 'spieler' && s.pings.some((p) => p.participant_id !== s.me.id && p.lat != null) && (
                 <button type="button" className="map-chip" aria-pressed={!othersHidden} onClick={() => setOthersHidden(!othersHidden)}>
@@ -485,7 +554,7 @@ export default function PlayPage() {
                           <PlayerAlerts s={s} now={now} act={act} compact />
                         </div>
                       ) : undefined}>
-                      {fullMap ? <>{actions}{pingPick}{othersBtn}</> : null}
+                      {fullMap ? <>{actions}{pingPick}{othersBtn}{dangerBtn}</> : null}
                     </MapView>
                   </div>
                   {!fullMap && (
@@ -493,6 +562,7 @@ export default function PlayPage() {
                       {actions}
                       {pingPick}
                       {othersBtn}
+                      {dangerBtn}
                       <span className="badge">{s.free_players}/{players.length} {t('Spieler frei')}</span>
                       {s.pings.some((p) => p.source === 'speedhunt' && p.lat != null) && <span className="badge"><i className="ring-dot" style={{ borderColor: RING_BLITZ }} /> {t('Blitzjagd')}</span>}
                     </div>
@@ -533,7 +603,7 @@ export default function PlayPage() {
             <div className="card notes-box">
               {s.notifications.some((n) => !hiddenNotes.has(n.id)) && <div className="muted small" style={{ marginBottom: 6 }}>{t('Zur Seite wischen zum Entfernen.')}</div>}
               <ul className="list">
-                {s.notifications.filter((n) => !hiddenNotes.has(n.id)).map((n) => (
+                {s.notifications.filter((n) => !hiddenNotes.has(n.id) && !silentFor(role, n.kind)).map((n) => (
                   <li key={n.id} style={{ display: 'block', padding: 0 }}>
                     <Swipe className={`note ${n.priority} swipe-row`} onDismiss={() => hideNote(n.id)}>
                       <div className="spacer">
@@ -544,7 +614,7 @@ export default function PlayPage() {
                     </Swipe>
                   </li>
                 ))}
-                {s.notifications.every((n) => hiddenNotes.has(n.id)) && <li className="muted">{t('Noch keine Meldungen.')}</li>}
+                {s.notifications.every((n) => hiddenNotes.has(n.id) || silentFor(role, n.kind)) && <li className="muted">{t('Noch keine Meldungen.')}</li>}
               </ul>
               {hiddenNotes.size > 0 && <button type="button" className="ghost small" onClick={() => setHiddenNotes(new Set())}>{t('Entfernte wieder zeigen')}</button>}
             </div>

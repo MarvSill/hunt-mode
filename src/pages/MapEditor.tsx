@@ -783,7 +783,7 @@ export default function MapEditorPage() {
   const has = (k: ZoneKind) => features.some((f) => f.properties.kind === k);
   const recKm2 = recommendedFieldKm2({
     pingMinutes: config.ping.interval_minutes, durationMinutes: config.game.duration_minutes,
-    people: config.roles.players_max + config.roles.hunters_max,
+    hunters: config.roles.hunters_max,
     motorized: config.transport.motorized_allowed, bikes: config.transport.bikes_allowed,
   });
   const issues = checkMap({
@@ -881,7 +881,7 @@ export default function MapEditorPage() {
           {cur.id === 'feld' && (
             <>
               <div className="small">
-                <strong>✨ {t('Empfohlene Fläche: etwa {0}', { 0: kmText(recKm2) })}</strong> <Info title={t('Empfohlene Fläche')} text={t('Berechnet aus Ping-Abstand ({0}), Anzahl Pings, Anzahl Personen ({1}) und Fortbewegung. Das ist nur ein Richtwert: die passende Grösse hängt auch von der Umgebung ab (Häuser, Wald, Wasser, Strassen). Du kannst die Fläche jederzeit selbst anpassen.', { 0: formatMinutes(config.ping.interval_minutes), 1: config.roles.players_max + config.roles.hunters_max })} />
+                <strong>✨ {t('Empfohlene Fläche: etwa {0}', { 0: kmText(recKm2) })}</strong> <Info title={t('Empfohlene Fläche')} text={t('Berechnet aus Ping-Abstand ({0}), Anzahl Pings, Anzahl Hunter ({1}) und Fortbewegung. Das ist nur ein Richtwert: die passende Grösse hängt auch von der Umgebung ab (Häuser, Wald, Wasser, Strassen). Du kannst die Fläche jederzeit selbst anpassen.', { 0: formatMinutes(config.ping.interval_minutes), 1: config.roles.hunters_max })} />
               </div>
               <div className="muted small">{me ? t('Um deinen Standort:') : t('Karte auf den Ort schieben, dann:')}</div>
               <div className="tool-row size-row">

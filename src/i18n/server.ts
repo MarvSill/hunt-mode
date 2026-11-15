@@ -38,6 +38,8 @@ const RULES: Rule[] = [
   r('Der letzte Ping liegt weniger als {D} min zurück.', 'Le dernier ping date de moins de $1 min.', 'The last ping was less than $1 min ago.'),
   r('Blitzjagd beendet', 'Chasse éclair terminée', 'Blitz hunt over'),
   r('BLITZJAGD: Abfrage {D} von {D}', 'CHASSE ÉCLAIR : requête $1 sur $2', 'BLITZ HUNT: query $1 of $2'),
+  r('Blitzjagd – dein Standort wurde geteilt', 'Chasse éclair – ta position a été partagée', 'Blitz hunt – your location was shared'),
+  r('Abfrage {D} von {D}', 'Requête $1 sur $2', 'Query $1 of $2'),
   r('Abfrage {D}/{D}: {N}', 'Requête $1/$2 : $3', 'Query $1/$2: $3'),
   r('Ziel ist unterwegs: {D} s live.', 'La cible se déplace : $1 s en direct.', 'Target is moving: $1 s live.'),
   r('Neuer Joker: Regeneration', 'Nouveau joker : Régénération', 'New joker: Regeneration'),

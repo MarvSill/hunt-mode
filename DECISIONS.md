@@ -237,3 +237,12 @@ Abweichungen von der Spezifikation und Annahmen, wo sie nichts festlegt.
 - Fang-Code ganz entfernt (App und Server, Migration 0031). Fangen nur noch über „Fang melden“; beim Spieler erscheint sofort ein Fenster mitten auf dem Bildschirm (über allem) mit „Ja, gefangen“ / „Nein, stimmt nicht“.
 - Verschanzen ganz entfernt: keine Frage, keine Zeitzählung, keine Selbstmeldung, keine Einstellung (Migration 0031 schaltet es in allen Spielen aus, check_hideout tut nichts mehr, hideout_report gelöscht).
 - Unter der Karte: „letzter Ping“ (gelber Punkt) und „GPS ±“ entfernt.
+
+## Runde 21 (2026-11-15)
+- Neue Formel für die empfohlene Fläche: 2 km² × (Ping-Abstand ÷ 4 min)^0,85 × (Anzahl Pings ÷ 5)^0,5 × Hunter^0,3 × Fortbewegung (zu Fuss 1, Velo 2, ÖV 3).
+- Farben: „Du: A“ hat die Farbe der eigenen Pings; der eigene Live-Standort ist für alle rot, mit Kegel in Blickrichtung (Kompass des Handys).
+- Spieler sehen die Meldungen „Ping … Standort eines Spielers“, „BLITZJAGD! … Einer von euch wird gejagt“ und „BLITZJAGD: Abfrage x von y“ nicht mehr (das Handy klingelt trotzdem). Der gejagte Spieler bekommt bei jeder Abfrage „Blitzjagd – dein Standort wurde geteilt“ (Migration 0032).
+- Symbole der Gefahrenzonen lassen sich ein- und ausblenden (Zonen bleiben sichtbar). Gefahrenzonen zählen erst ab 8 m innerhalb (Puffer, Migration 0032).
+- Nähe-Radar zeigt die Restzeit; über der Karte „Kleiner in …“ bis zur nächsten Verkleinerung.
+- Wiederholung: Punkt alle 5 s, Geschwindigkeit langsam/mittel/schnell, Personen ein-/ausblenden, Hunter mit H1/H2, Steuerung auch im Vollbild; Ergebnis zeigt die zurückgelegte Strecke je Person.
+- Schneller und sicherer: Spielstand alle 5 s, Live-Änderungen nach 0,3 s; eine Aktion kann nicht doppelt ausgelöst werden.

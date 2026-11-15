@@ -526,3 +526,10 @@ body.kb-open .tabbar, body.kb-open .running-bar { display: none; }
 .chat-screen.kb .composer { padding-bottom: 8px; }
 .draw-step { width: 40px; height: 36px; min-height: 0; padding: 0; border-radius: 10px; font-size: 18px; flex-shrink: 0; }
 .draw-step:disabled { opacity: .35; }
+/* Eigener Punkt: Blickrichtung als Kegel */
+.hm-mk { position: relative; }
+.hm-heading { position: absolute; inset: 0; pointer-events: none; }
+.hm-heading::before { content: ''; position: absolute; left: 50%; bottom: 100%; margin-bottom: 1px; transform: translateX(-50%); width: 0; height: 0; border-left: 9px solid transparent; border-right: 9px solid transparent; border-bottom: 16px solid rgba(255,59,48,.85); filter: drop-shadow(0 0 2px rgba(0,0,0,.6)); }
+/* Wiederholung: Steuerung, im Vollbild auf der Karte */
+.replay-ctl { gap: 8px; margin: 8px 0; }
+.replay-ctl.on-map { width: min(560px, calc(100vw - 100px)); background: rgba(13,17,23,.92); border: 1px solid var(--border); border-radius: 14px; padding: 8px; margin: 0; }

@@ -60,7 +60,7 @@ export function useGameState(gameId: string | undefined, onNew?: (n: Notificatio
       timer = setTimeout(() => {
         timer = null;
         void load();
-      }, 800);
+      }, 300);
     };
     const channel = db()
       .channel(`game:${gameId}`)
@@ -68,9 +68,14 @@ export function useGameState(gameId: string | undefined, onNew?: (n: Notificatio
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `game_id=eq.${gameId}` }, throttled)
       .subscribe();
     // Handy-App: auch im Hintergrund weiter nachschauen, damit Ping-Alarme ankommen (die Live-Verbindung schläft dort oft ein).
+    // Alle 5 s den Spielstand holen (neue Pings kommen so schnell an); den Spieltakt selbst nur jedes dritte Mal anstossen.
+    let n = 0;
     const tick = setInterval(() => {
-      if (document.visibilityState === 'visible' || isNative) void api.tick(gameId).then(load, () => void load());
-    }, isNative ? 10000 : 15000);
+      if (document.visibilityState !== 'visible' && !isNative) return;
+      n++;
+      if (n % 3 === 0) void api.tick(gameId).then(load, () => void load());
+      else void load();
+    }, 5000);
     const onVisible = () => {
       if (document.visibilityState === 'visible') void load();
     };
