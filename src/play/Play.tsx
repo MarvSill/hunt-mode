@@ -281,10 +281,24 @@ export default function PlayPage() {
   }, [s, seenChats]);
 
   const busy = useRef(false);
+  const [working, setWorking] = useState(false);
+  // Welcher Knopf zuletzt angetippt wurde: er zeigt während der Aktion einen Lade-Kreis.
+  const lastTap = useRef<{ el: HTMLElement; at: number } | null>(null);
+  useEffect(() => {
+    const onDown = (e: PointerEvent) => {
+      const el = (e.target as HTMLElement | null)?.closest?.('button') as HTMLElement | null;
+      if (el) lastTap.current = { el, at: Date.now() };
+    };
+    document.addEventListener('pointerdown', onDown, true);
+    return () => document.removeEventListener('pointerdown', onDown, true);
+  }, []);
   const act = useCallback(async (fn: () => Promise<unknown>, okText?: string) => {
     // Nicht aus Versehen zweimal: solange eine Aktion läuft, wird ein zweites Antippen ignoriert.
     if (busy.current) return false;
     busy.current = true;
+    setWorking(true);
+    const tap = lastTap.current && Date.now() - lastTap.current.at < 1500 ? lastTap.current.el : null;
+    tap?.classList.add('is-loading');
     setMsg(null);
     try {
       await fn();
@@ -296,6 +310,8 @@ export default function PlayPage() {
       return false;
     } finally {
       busy.current = false;
+      setWorking(false);
+      tap?.classList.remove('is-loading');
     }
   }, [reload]);
 
@@ -468,6 +484,7 @@ export default function PlayPage() {
 
       {!ended && <SafetyNotice s={s} act={act} />}
       {!ended && <CatchAsk s={s} act={act} />}
+      {working && <div className="busy-bar" role="progressbar" aria-label={t('Wird ausgeführt …')} />}
       {!ended && <DeviceAlert tracker={tracker} tracking={tracking} />}
       {ended ? <Result s={s} zones={zones} /> : (
         <>

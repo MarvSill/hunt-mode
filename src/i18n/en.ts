@@ -1386,4 +1386,5 @@ export const en: Record<string, string> = {
   "Schnell": "Fast",
   "Alle": "All",
   "Die Linien zeigen den genauen Weg jeder Person (aufgezeichnet, solange der Standort gesendet wurde). Die Kästchen sind die Pings. Tippe Personen an, um sie aus- oder einzublenden.": "The lines show each person’s exact route (recorded while the location was being sent). The boxes are the pings. Tap a person to hide or show them.",
+  "Wird ausgeführt …": "Working …",
 };
