@@ -246,3 +246,5 @@ Abweichungen von der Spezifikation und Annahmen, wo sie nichts festlegt.
 - Nähe-Radar zeigt die Restzeit; über der Karte „Kleiner in …“ bis zur nächsten Verkleinerung.
 - Wiederholung: Punkt alle 5 s, Geschwindigkeit langsam/mittel/schnell, Personen ein-/ausblenden, Hunter mit H1/H2, Steuerung auch im Vollbild; Ergebnis zeigt die zurückgelegte Strecke je Person.
 - Schneller und sicherer: Spielstand alle 5 s, Live-Änderungen nach 0,3 s; eine Aktion kann nicht doppelt ausgelöst werden.
+
+- Runde 21: Fällt ein normaler Ping wegen Regeneration aus, bekommen alle Hunter genau zu diesem Zeitpunkt die Meldung „Kein Ping: A – Regeneration-Joker aktiv, noch x min – kein Fehler der App.“
