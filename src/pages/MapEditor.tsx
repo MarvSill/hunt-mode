@@ -213,6 +213,8 @@ export default function MapEditorPage() {
     const m = L.map(el.current).setView([47.3769, 8.5417], 13);
     // Grundkarte im gewählten Stil (flach, damit man genau zeichnen kann).
     setBase(m, getMapSettings().style);
+    // Massstab unten links, damit man die Grösse des Spielfelds einschätzen kann.
+    L.control.scale({ metric: true, imperial: false, position: 'bottomleft' }).addTo(m);
     previewLayer.current = L.layerGroup().addTo(m);
     group.current = L.featureGroup().addTo(m);
     badges.current = L.layerGroup().addTo(m);
@@ -708,7 +710,9 @@ export default function MapEditorPage() {
     itemsRef.current = next;
     setItems(next);
     setDirty(true);
-    m.fitBounds((it.layer as L.Polygon).getBounds(), { padding: [20, 20] });
+    // Nur herauszoomen, wenn das neue Spielfeld nicht ganz sichtbar ist; so sieht man, wie gross es wirklich ist.
+    const bounds = (it.layer as L.Polygon).getBounds();
+    if (!m.getBounds().contains(bounds)) m.fitBounds(bounds, { padding: [20, 20] });
     setMsg({ ok: true, text: me ? t('Spielfeld um deinen Standort erstellt. Du kannst es antippen und die Ecken verschieben. Danach „Weiter“.') : t('Spielfeld erstellt. Du kannst es antippen und die Ecken verschieben. Danach „Weiter“.') });
   }
 
@@ -725,7 +729,9 @@ export default function MapEditorPage() {
     itemsRef.current = next;
     setItems(next);
     setDirty(true);
-    m.fitBounds((it.layer as L.Polygon).getBounds(), { padding: [20, 20] });
+    // Nicht neu einpassen: sonst sähe das Spielfeld nach + / − immer gleich gross aus. Nur herauszoomen, wenn es nicht mehr ganz sichtbar ist.
+    const bounds = (it.layer as L.Polygon).getBounds();
+    if (!m.getBounds().contains(bounds)) m.fitBounds(bounds, { padding: [20, 20] });
   }
 
   function autoMeet(): GeoJSON.Position | null {
