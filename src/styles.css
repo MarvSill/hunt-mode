@@ -526,3 +526,31 @@ body.kb-open .tabbar, body.kb-open .running-bar { display: none; }
 .chat-screen.kb .composer { padding-bottom: 8px; }
 .draw-step { width: 40px; height: 36px; min-height: 0; padding: 0; border-radius: 10px; font-size: 18px; flex-shrink: 0; }
 .draw-step:disabled { opacity: .35; }
+/* Eigener Punkt: Blickrichtung als Kegel */
+.hm-mk { position: relative; }
+.hm-heading { position: absolute; inset: 0; pointer-events: none; }
+.hm-heading::before { content: ''; position: absolute; left: 50%; bottom: 100%; margin-bottom: 1px; transform: translateX(-50%); width: 0; height: 0; border-left: 9px solid transparent; border-right: 9px solid transparent; border-bottom: 16px solid rgba(255,59,48,.85); filter: drop-shadow(0 0 2px rgba(0,0,0,.6)); }
+/* Wiederholung: Steuerung, im Vollbild auf der Karte */
+.replay-ctl { gap: 8px; margin: 8px 0; }
+.replay-ctl.on-map { width: min(560px, calc(100vw - 100px)); background: rgba(13,17,23,.92); border: 1px solid var(--border); border-radius: 14px; padding: 8px; margin: 0; }
+
+/* Runde 21: Rückmeldung, solange eine Aktion läuft (angetippter Knopf dreht, oben ein Ladebalken). */
+@keyframes hm-spin { to { transform: rotate(360deg); } }
+@keyframes hm-busy { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
+@keyframes hm-fade-in { from { opacity: 0; } to { opacity: 1; } }
+button.is-loading { position: relative; pointer-events: none; color: transparent !important; }
+button.is-loading > * { visibility: hidden; }
+button.is-loading::after {
+  content: ''; position: absolute; left: 50%; top: 50%; width: 18px; height: 18px; margin: -9px 0 0 -9px;
+  border-radius: 50%; border: 2.5px solid rgba(255,255,255,.3); border-top-color: #fff;
+  animation: hm-spin .7s linear infinite;
+}
+.busy-bar {
+  position: fixed; left: 0; right: 0; top: env(safe-area-inset-top, 0px); height: 3px; z-index: 9999;
+  overflow: hidden; pointer-events: none; opacity: 0; animation: hm-fade-in .15s ease .15s forwards;
+}
+.busy-bar::before {
+  content: ''; position: absolute; top: 0; bottom: 0; width: 40%;
+  background: linear-gradient(90deg, transparent, var(--red-2), transparent);
+  animation: hm-busy 1s ease-in-out infinite;
+}

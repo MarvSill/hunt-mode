@@ -29,6 +29,8 @@ export interface Marker {
   text?: string;
   /** Farbiger Ring um den Punkt (z. B. gelb = letzter Ping, rot = Blitzjagd). */
   ring?: string;
+  /** Eigener Punkt: Blickrichtung in Grad ab Norden (Kegel vor dem Punkt). */
+  heading?: number;
 }
 
 interface Props {
@@ -109,6 +111,13 @@ function markerEl(m: Marker): HTMLElement {
   if (m.ring) d.style.boxShadow = `0 0 0 2px #fff, 0 0 0 6px ${m.ring}, 0 3px 8px rgba(0,0,0,.45)`;
   if (m.text) d.textContent = m.text;
   d.title = m.label;
+  if (m.kind === 'me' && m.heading != null) {
+    // Blickrichtung: Kegel vor dem Punkt; der Marker dreht mit der Karte, also zeigt der Kegel immer richtig.
+    const h = document.createElement('span');
+    h.className = 'hm-heading';
+    h.style.transform = `rotate(${m.heading}deg)`;
+    d.appendChild(h);
+  }
   if (!ping || !m.text) return d;
   // Ping mit Nummer: Kartennadel, deren Spitze genau auf den Ort zeigt.
   const pin = pinElement(m.color, m.text, m.ring, m.opacity ?? 1);
@@ -276,7 +285,7 @@ export default function MapView({ zones, markers, lines, onClick, fitKey, height
           .setPopup(new maplibregl.Popup({ offset: 18, closeButton: false }).setHTML(esc(`${k === 'exit' ? t('FLUCHTPUNKT: ') : ''}${name}`)))
           .addTo(m);
         zoneMarkers.current.push(mk);
-      } else if (k === 'sperrzone') {
+      } else if (k === 'sperrzone' && settingsRef.current.dangerIcons !== false) {
         const [lng, lat] = pointOnFeature(f as GeoJSON.Feature).geometry.coordinates;
         const mk = new maplibregl.Marker({ element: badgeEl(f) }).setLngLat([lng, lat])
           .setPopup(new maplibregl.Popup({ offset: 12, closeButton: false }).setHTML(esc(t('GEFAHR ({0}): ', { 0: restrictedInfo(f.properties.restricted_type).label }) + name)))
@@ -308,7 +317,7 @@ export default function MapView({ zones, markers, lines, onClick, fitKey, height
     for (const mk of htmlMarkers.current) mk.remove();
     htmlMarkers.current = list.map((x) => {
       const pin = (x.kind === 'ping' || x.kind === 'fake') && !!x.text;
-      const mk = new maplibregl.Marker({ element: markerEl(x), anchor: pin ? 'bottom' : 'center', offset: pin ? [0, PIN_TIP_OFFSET] : [0, 0] }).setLngLat([x.lng, x.lat])
+      const mk = new maplibregl.Marker({ element: markerEl(x), anchor: pin ? 'bottom' : 'center', offset: pin ? [0, PIN_TIP_OFFSET] : [0, 0], rotationAlignment: x.kind === 'me' && x.heading != null ? 'map' : 'auto' }).setLngLat([x.lng, x.lat])
         .setPopup(new maplibregl.Popup({ offset: pin ? 38 : 12, closeButton: false }).setHTML(esc(x.popup ? `${x.label} · ${x.popup}` : x.label)))
         .addTo(m);
       if (x.kind === 'me') mk.getElement().style.zIndex = '5';
@@ -381,6 +390,9 @@ export default function MapView({ zones, markers, lines, onClick, fitKey, height
     // Ganz neu laden (ohne Diff), damit "style.load" sicher kommt und die eigenen Ebenen neu gezeichnet werden.
     m.setStyle(styleUrl as unknown as StyleSpecification, { diff: false });
   }, [styleId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Symbole der Gefahrenzonen ein/aus
+  useEffect(() => { drawZones(); }, [settings.dangerIcons]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Immer nach Norden: Drehen sperren und auf Norden stellen.
   useEffect(() => {

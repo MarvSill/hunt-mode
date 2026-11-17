@@ -28,6 +28,11 @@ export default function Result({ s, zones }: { s: GameState; zones: MapFeature[]
   const [replayAsk, setReplayAsk] = useState(false);
   /** Ping für Ping durchgehen: Nummer des gezeigten Pings (−1 = freie Zeit über den Regler). */
   const [step, setStep] = useState(-1);
+  /** Abspielgeschwindigkeit: langsam = genau mitverfolgen, schnell = Überblick. */
+  const [speed, setSpeed] = useState<'langsam' | 'mittel' | 'schnell'>('mittel');
+  /** Einzelne Personen ausblenden (nur ihre Wege, Punkte und Pings). */
+  const [hidden, setHidden] = useState<Set<string>>(new Set());
+  const [full, setFull] = useState(false);
 
   useEffect(() => {
     api.replay(s.game.id).then((x) => {
@@ -42,12 +47,14 @@ export default function Result({ s, zones }: { s: GameState; zones: MapFeature[]
   useEffect(() => {
     if (!playing) return;
     const i = setInterval(() => setT((x) => {
-      const n = x + Math.max(60, (end - start) / 120);
+      // Je 0,1 s: langsam 5 s Spielzeit (jeder Punkt der Aufzeichnung), mittel etwa 1 min, schnell das ganze Spiel in ~12 s.
+      const stepS = speed === 'langsam' ? 5 : speed === 'mittel' ? Math.max(20, (end - start) / 600) : Math.max(60, (end - start) / 120);
+      const n = x + stepS;
       if (n >= end) { setPlaying(false); return end; }
       return n;
     }), 100);
     return () => clearInterval(i);
-  }, [playing, start, end]);
+  }, [playing, start, end, speed]);
 
   // Alle Pings in zeitlicher Reihenfolge, je Spieler nummeriert (A1, A2 …).
   const steps = useMemo(() => {
@@ -79,16 +86,18 @@ export default function Result({ s, zones }: { s: GameState; zones: MapFeature[]
     const lines: { id: string; points: [number, number][]; color: string }[] = [];
     if (!replay) return { markers, lines };
     for (const [pid, pts] of Object.entries(replay.tracks)) {
+      if (hidden.has(pid)) continue;
       const upto = pts.filter((p) => p[0] <= t);
       if (!upto.length) continue;
       const color = colorFor(s, pid);
-      // Der ganze Weg bis zum gewählten Zeitpunkt (alle 10 s ein Punkt), nicht nur die Pings.
+      // Der ganze Weg bis zum gewählten Zeitpunkt (alle 5 s ein Punkt), nicht nur die Pings.
       lines.push({ id: pid, color, points: upto.map((p) => [p[1], p[2]]) });
       const last = upto[upto.length - 1];
       const p = s.participants.find((x) => x.id === pid);
-      markers.push({ id: pid, lat: last[1], lng: last[2], color, label: p?.tag ?? p?.name ?? '?', kind: p?.role === 'spieler' ? 'player' : 'hunter' });
+      markers.push({ id: pid, lat: last[1], lng: last[2], color, label: p?.tag ?? p?.name ?? '?', text: p?.tag ?? undefined, kind: p?.role === 'spieler' ? 'player' : 'hunter' });
     }
     steps.forEach((pg, i) => {
+      if (hidden.has(pg.participant_id)) return;
       const current = step === i;
       if (!(pg.t <= t && pg.t > t - 3600) && !current) return;
       markers.push({
@@ -98,9 +107,63 @@ export default function Result({ s, zones }: { s: GameState; zones: MapFeature[]
       });
     });
     return { markers, lines };
-  }, [replay, t, s, steps, step]);
+  }, [replay, t, s, steps, step, hidden]);
 
   const players = s.participants.filter((p) => p.role === 'spieler' || p.state === 'gefangen');
+  const people = s.participants.filter((p) => p.role === 'spieler' || p.role === 'hunter');
+  // Zurückgelegte Strecke je Person aus der Aufzeichnung (Sprünge über 15 m/s gelten als GPS-Fehler und zählen nicht).
+  const distance = useMemo(() => {
+    const out = new Map<string, number>();
+    if (!replay) return out;
+    for (const [pid, pts] of Object.entries(replay.tracks)) {
+      let m = 0;
+      for (let i = 1; i < pts.length; i++) {
+        const d = distM(pts[i - 1][1], pts[i - 1][2], pts[i][1], pts[i][2]);
+        const dt = Math.max(1, pts[i][0] - pts[i - 1][0]);
+        if (d / dt <= 15) m += d;
+      }
+      out.set(pid, m);
+    }
+    return out;
+  }, [replay]);
+  const km = (pid: string) => (distance.has(pid) ? `${(distance.get(pid)! / 1000).toFixed(1)} km` : null);
+
+  // Steuerung der Wiederholung (unter der Karte, im Vollbild auf der Karte).
+  const controls = replay && (
+    <div className={`stack replay-ctl${full ? ' on-map' : ''}`}>
+      <div className="row" style={{ flexWrap: 'nowrap', gap: 6 }}>
+        <button className="small" onClick={() => { setStep(-1); if (t >= end) setT(start); setPlaying(!playing); }}>{playing ? '⏸' : '▶'}</button>
+        <input type="range" min={start} max={end} value={t} onChange={(e) => { setStep(-1); setT(+e.target.value); }} style={{ flex: 1, minWidth: 0 }} aria-label={tr('Zeit')} />
+        <span className="small mono">{clock(new Date(t * 1000).toISOString(), s.game.timezone)}</span>
+      </div>
+      <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
+        {(['langsam', 'mittel', 'schnell'] as const).map((v) => (
+          <button key={v} type="button" className={`chip${speed === v ? ' on' : ''}`} onClick={() => setSpeed(v)}>
+            {v === 'langsam' ? `🐢 ${tr('Langsam')}` : v === 'mittel' ? `🚶 ${tr('Mittel')}` : `🚀 ${tr('Schnell')}`}
+          </button>
+        ))}
+        {steps.length > 0 && <>
+          <button className="small" onClick={() => nextFromTime(-1)} disabled={step === 0} aria-label={tr('Vorheriger Ping')}>◀ Ping</button>
+          <button className="small" onClick={() => nextFromTime(1)} disabled={step === steps.length - 1} aria-label={tr('Nächster Ping')}>Ping ▶</button>
+        </>}
+      </div>
+      {step >= 0 && steps[step] && (
+        <div className="small"><strong>{tr('Ping {0}', { 0: steps[step].nr })}</strong> · {SOURCE_LABELS[steps[step].source] ?? steps[step].source} · {clock(steps[step].at, s.game.timezone)} · {step + 1}/{steps.length}</div>
+      )}
+      <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
+        {people.map((p) => {
+          const off = hidden.has(p.id);
+          return (
+            <button key={p.id} type="button" className={`chip${off ? '' : ' on'}`} style={off ? undefined : { background: colorFor(s, p.id), borderColor: colorFor(s, p.id) }}
+              aria-pressed={!off} onClick={() => { const n = new Set(hidden); if (off) n.delete(p.id); else n.add(p.id); setHidden(n); }}>
+              {p.tag ?? p.name}
+            </button>
+          );
+        })}
+        {hidden.size > 0 && <button type="button" className="chip" onClick={() => setHidden(new Set())}>{tr('Alle')}</button>}
+      </div>
+    </div>
+  );
   const winners = new Set(r?.winners ?? []);
 
   return (
@@ -120,44 +183,24 @@ export default function Result({ s, zones }: { s: GameState; zones: MapFeature[]
           {players.map((p) => (
             <li key={p.id}>
               <span className="dot" style={{ background: colorFor(s, p.id) }} />
-              <span className="spacer">{p.tag ? <span className="tag">{p.tag}</span> : p.name}</span>
+              <span className="spacer">{p.tag ? <span className="tag">{p.tag}</span> : p.name}{km(p.id) && <span className="muted small"> · 👣 {km(p.id)}</span>}</span>
               <span className={`badge${winners.has(p.id) ? ' green' : ''}`}>{winners.has(p.id) ? tr('Sieg') : r?.reason === 'abgebrochen' && ['aktiv', 'ausserhalb', 'notfall'].includes(p.state) ? tr('Abgebrochen') : STATE_LABELS[p.state] ?? p.state}</span>
               {r?.mode === 'punkte' && <span className="badge">{r.scores[p.id] ?? 0} P</span>}
             </li>
           ))}
           {s.participants.filter((p) => p.role === 'hunter').map((p) => (
-            <li key={p.id}><span className="dot" style={{ background: '#f85149' }} /><span className="spacer">{p.tag ? <span className="tag hunter">{p.tag}</span> : p.name}</span><span className="badge red">{tr('Kopfgeld')} {p.bounty}</span></li>
+            <li key={p.id}><span className="dot" style={{ background: '#f85149' }} /><span className="spacer">{p.tag ? <span className="tag hunter">{p.tag}</span> : p.name}{km(p.id) && <span className="muted small"> · 👣 {km(p.id)}</span>}</span><span className="badge red">{tr('Kopfgeld')} {p.bounty}</span></li>
           ))}
         </ul>
       </div>
       <h2>{tr('Wiederholung')}</h2>
-      <div className="muted small" style={{ marginTop: -6, marginBottom: 8 }}>{tr('Die Linien zeigen den genauen Weg jeder Person (aufgezeichnet, solange der Standort gesendet wurde). Die Kästchen sind die Pings.')}</div>
+      <div className="muted small" style={{ marginTop: -6, marginBottom: 8 }}>{tr('Die Linien zeigen den genauen Weg jeder Person (aufgezeichnet, solange der Standort gesendet wurde). Die Kästchen sind die Pings. Tippe Personen an, um sie aus- oder einzublenden.')}</div>
       {err && <div className="notice error">{err}</div>}
       {replay && <KeepCard gameId={s.game.id} replay={replay} onChange={(keep) => setReplay({ ...replay, keep_forever: keep })} />}
       {replay && (
         <>
-          <MapView zones={zones} markers={markers} lines={lines} fitKey="replay" height="50dvh" />
-          <div className="row">
-            <button className="small" onClick={() => { setStep(-1); if (t >= end) setT(start); setPlaying(!playing); }}>{playing ? tr('Pause') : tr('Schnelldurchlauf')}</button>
-            <input type="range" min={start} max={end} value={t} onChange={(e) => { setStep(-1); setT(+e.target.value); }} style={{ flex: 1 }} aria-label={tr('Zeit')} />
-            <span className="small">{clock(new Date(t * 1000).toISOString(), s.game.timezone)}</span>
-          </div>
-          {steps.length > 0 && (
-            <div className="card stack">
-              <div className="row" style={{ flexWrap: 'nowrap' }}>
-                <button className="small" onClick={() => nextFromTime(-1)} disabled={step === 0} aria-label={tr('Vorheriger Ping')}>◀</button>
-                <div className="spacer" style={{ textAlign: 'center' }}>
-                  {step >= 0 ? (
-                    <>
-                      <strong>{tr('Ping {0}', { 0: steps[step].nr })}</strong> · {nameOf(s, steps[step].participant_id)}
-                      <div className="small muted">{SOURCE_LABELS[steps[step].source] ?? steps[step].source} · {clock(steps[step].at, s.game.timezone)} · {step + 1}/{steps.length}</div>
-                    </>
-                  ) : <span className="small">{tr('Ping für Ping durchgehen ({0} Pings)', { 0: steps.length })}</span>}
-                </div>
-                <button className="small" onClick={() => nextFromTime(1)} disabled={step === steps.length - 1} aria-label={tr('Nächster Ping')}>▶</button>
-              </div>
-            </div>
-          )}
+          <MapView zones={zones} markers={markers} lines={lines} fitKey="replay" height="50dvh" onFullscreen={setFull}>{full ? controls : null}</MapView>
+          {!full && controls}
           <details className="card">
             <summary>{tr('Ereignisse (')}{replay.events.length})</summary>
             <ul className="list small">
@@ -198,4 +241,11 @@ function KeepCard({ gameId, replay, onChange }: { gameId: string; replay: Replay
       {err && <span className="small red">{err}</span>}
     </div>
   );
+}
+
+/** Abstand zweier Punkte in Metern. */
+function distM(lat1: number, lng1: number, lat2: number, lng2: number) {
+  const R = 6371000, r = Math.PI / 180;
+  const a = Math.sin(((lat2 - lat1) * r) / 2) ** 2 + Math.cos(lat1 * r) * Math.cos(lat2 * r) * Math.sin(((lng2 - lng1) * r) / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
 }

@@ -89,11 +89,11 @@ describe('Fluchtpunkt automatisch verschieben', () => {
 
   it('empfiehlt die Fläche nach der Formel', () => {
     // 4 min Abstand, 5 Pings (20 min), 2 Personen, zu Fuss: genau 2 km²
-    expect(recommendedFieldKm2({ pingMinutes: 4, durationMinutes: 20, people: 2, motorized: false, bikes: false })).toBeCloseTo(2, 5);
+    expect(recommendedFieldKm2({ pingMinutes: 4, durationMinutes: 20, hunters: 1, motorized: false, bikes: false })).toBeCloseTo(2, 5);
     // Viermal so viele Pings ergeben die doppelte Fläche
-    expect(recommendedFieldKm2({ pingMinutes: 4, durationMinutes: 80, people: 2, motorized: false, bikes: false })).toBeCloseTo(4, 5);
+    expect(recommendedFieldKm2({ pingMinutes: 4, durationMinutes: 80, hunters: 1, motorized: false, bikes: false })).toBeCloseTo(4, 5);
     // ÖV erlaubt: dreimal so gross
-    expect(recommendedFieldKm2({ pingMinutes: 4, durationMinutes: 20, people: 2, motorized: true, bikes: true })).toBeCloseTo(6, 5);
+    expect(recommendedFieldKm2({ pingMinutes: 4, durationMinutes: 20, hunters: 1, motorized: true, bikes: true })).toBeCloseTo(6, 5);
     expect(areaKm2(rectWithArea([8.5, 47.3], 3))).toBeCloseTo(3, 1);
   });
 });

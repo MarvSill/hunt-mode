@@ -13,6 +13,8 @@ export interface MapSettings {
   tilt: boolean;
   /** Karte zeigt immer nach Norden (kein Drehen). */
   north: boolean;
+  /** Symbole der Gefahrenzonen anzeigen (die Zonen selbst sind immer zu sehen). */
+  dangerIcons: boolean;
 }
 
 /** Klassische OpenStreetMap-Karte (wie früher), als Kachel-Adresse. */
@@ -31,7 +33,7 @@ export const MAP_STYLES: { id: Exclude<MapStyleId, 'auto'>; label: string; hint:
 ];
 
 const KEY = 'hm-map';
-const DEFAULTS: MapSettings = { style: 'klassisch', tilt: false, north: false };
+const DEFAULTS: MapSettings = { style: 'klassisch', tilt: false, north: false, dangerIcons: true };
 
 function load(): MapSettings {
   try {
