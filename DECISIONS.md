@@ -255,3 +255,4 @@ Abweichungen von der Spezifikation und Annahmen, wo sie nichts festlegt.
 - Formel v7 für die empfohlene Fläche (ersetzt v6): 2 km² × Zeitfaktor × (Hunter ÷ 2)^0,3 × Fortbewegung; Zeitfaktor = (Ping-Abstand ÷ 5 min)^1,05 × (Anzahl Pings ÷ 8)^0,5, mindestens 1.
 - Karten-Editor: Jede Zone (auch das Spielfeld) lässt sich verschieben: lange drücken (½ s), dann mit dem gleichen Finger ziehen.
 - Karten-Editor: Beim Zeichnen eines neuen Spielfelds verschwindet das alte sofort (kommt bei „Abbrechen“ zurück). Beim Zeichnen: „↶ Punkt zurück“ und „Neu anfangen“. Neu: „Spielfeld löschen“.
+- Formel v8 für die empfohlene Fläche (ersetzt v7): 1,5 km² × max(1, (Ping-Abstand ÷ 5 min)^1,14 × (Anzahl Pings ÷ 8)^0,5) × (Hunter ÷ 2)^0,3 × Fortbewegung.
