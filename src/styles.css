@@ -496,7 +496,7 @@ body:has(.running-bar) .app { padding-bottom: calc(env(safe-area-inset-bottom) +
 .draw-color { width: 26px; height: 26px; min-height: 0; padding: 0; border-radius: 50%; border: 2px solid rgba(255,255,255,.3); }
 .draw-color.on { border: 3px solid #fff; box-shadow: 0 0 0 2px #000; }
 .draw-menu { position: absolute; z-index: 1003; width: 262px; background: rgba(13,17,23,.97); border: 1px solid var(--border); border-radius: 14px; padding: 8px; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 10px 30px rgba(0,0,0,.6); }
-.draw-hint { position: absolute; left: 50%; top: 12px; transform: translateX(-50%); z-index: 1003; background: rgba(13,17,23,.94); border-radius: 999px; padding: 8px 14px; font-size: 13px; font-weight: 700; white-space: nowrap; }
+.hdraw-hint { position: absolute; left: 50%; top: 12px; transform: translateX(-50%); z-index: 1003; background: rgba(13,17,23,.94); border-radius: 999px; padding: 8px 14px; font-size: 13px; font-weight: 700; white-space: nowrap; }
 .draw-label { background: rgba(13,17,23,.9); color: #fff; font-size: 12px; font-weight: 700; padding: 3px 8px; border-radius: 8px; border: 2px solid #fff; white-space: nowrap; pointer-events: none; }
 /* Hilfe-Karte (Helfer, Hinweise): klein und ganz unten am Bildschirm */
 .guide-card { left: 0; right: 0; bottom: 0; max-width: 640px; margin: 0 auto; border-radius: 16px 16px 0 0; border-width: 2px 0 0; padding: 10px 14px calc(10px + env(safe-area-inset-bottom)); gap: 4px; font-size: 14px; z-index: 2050; }

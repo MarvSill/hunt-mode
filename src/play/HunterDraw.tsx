@@ -376,7 +376,7 @@ export default function HunterDraw({ map, styleVer, gameId }: { map: maplibregl.
           </div>
         </div>
       )}
-      {err && <div className="draw-hint red">{err}</div>}
+      {err && <div className="hdraw-hint red">{err}</div>}
     </>
   );
 }
