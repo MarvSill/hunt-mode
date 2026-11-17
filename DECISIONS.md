@@ -256,3 +256,4 @@ Abweichungen von der Spezifikation und Annahmen, wo sie nichts festlegt.
 - Karten-Editor: Jede Zone (auch das Spielfeld) lässt sich verschieben: lange drücken (½ s), dann mit dem gleichen Finger ziehen.
 - Karten-Editor: Beim Zeichnen eines neuen Spielfelds verschwindet das alte sofort (kommt bei „Abbrechen“ zurück). Beim Zeichnen: „↶ Punkt zurück“ und „Neu anfangen“. Neu: „Spielfeld löschen“.
 - Formel v8 für die empfohlene Fläche (ersetzt v7): 1,5 km² × max(1, (Ping-Abstand ÷ 5 min)^1,14 × (Anzahl Pings ÷ 8)^0,5) × (Hunter ÷ 2)^0,3 × Fortbewegung.
+- Beim Einsetzen der Regeneration sehen die Hunter keine Dauer mehr: „Ein Spieler ist gerade nicht ortbar.“
