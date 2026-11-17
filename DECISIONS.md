@@ -250,3 +250,4 @@ Abweichungen von der Spezifikation und Annahmen, wo sie nichts festlegt.
 - Runde 21: Fällt ein normaler Ping wegen Regeneration aus, bekommen alle Hunter genau zu diesem Zeitpunkt die Meldung „Kein Ping: A – Regeneration-Joker aktiv, noch x min – kein Fehler der App.“
 - Korrektur: Die Hunter sehen dabei nicht, wie lange die Regeneration noch läuft, nur dass sie gerade aktiv ist: „Kein Ping: A – Hat gerade den Regeneration-Joker – kein Fehler der App.“
 - Kein Kopfgeld für Hunter mehr (Ergebnis, Hunter-Ansicht, Regel-Editor; in der Datenbank immer 0).
+- Karten-Editor: Nach dem Erstellen und nach + / − zoomt die Karte nicht mehr neu ein (nur heraus, wenn das Spielfeld nicht ganz sichtbar ist), damit man die echte Grösse sieht. Massstab unten links.
