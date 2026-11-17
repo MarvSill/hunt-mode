@@ -1389,4 +1389,6 @@ export const fr: Record<string, string> = {
   "Wird ausgeführt …": "En cours …",
   "Dein Spielfeld: {0} (empfohlen etwa {1}). Mit + / − kannst du es anpassen.": "Ton terrain : {0} (recommandé environ {1}). Avec + / − tu peux l’ajuster.",
   "Fläche jetzt: {0}": "Surface actuelle : {0}",
+  "Antippen = Ecken verschieben · lange drücken = ganze Zone verschieben": "Toucher = déplacer les coins · appui long = déplacer toute la zone",
+  "Zone verschoben.": "Zone déplacée.",
 };

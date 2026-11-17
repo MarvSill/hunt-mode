@@ -4,6 +4,7 @@ import Icon from '../components/Icon';
 import '@geoman-io/leaflet-geoman-free';
 import '@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css';
 import L from 'leaflet';
+import { tapFeedback } from '../lib/haptics';
 import { addMapButtons } from '../lib/mapControls';
 import 'leaflet/dist/leaflet.css';
 import { maplibreGL } from '@maplibre/maplibre-gl-leaflet';
@@ -128,6 +129,7 @@ export default function MapEditorPage() {
 
   const editable = !!game && ['entwurf', 'geplant', 'lobby'].includes(game.status);
   const editableRef = useRef(editable);
+  const justMoved = useRef(0);
   editableRef.current = editable;
   const gameId = game?.id;
   const features = useMemo(() => items.map((x) => x.feature), [items]);
@@ -163,6 +165,68 @@ export default function MapEditorPage() {
     return { type: 'Feature', geometry: gj.geometry, properties: props };
   }, []);
 
+  /**
+   * Zone verschieben: lange auf die Fläche drücken (½ s), dann mit dem gleichen Finger ziehen.
+   * Beim Loslassen bleibt sie dort. Die Karte bewegt sich währenddessen nicht.
+   */
+  const holdToMove = useCallback((l: L.Polygon, changed: () => void) => {
+    const attach = () => {
+      const el = l.getElement() as SVGElement | undefined;
+      if (!el || (el as unknown as { hmHold?: boolean }).hmHold) return;
+      (el as unknown as { hmHold?: boolean }).hmHold = true;
+      el.addEventListener('pointerdown', (down: PointerEvent) => {
+        const m = map.current;
+        if (!m || !editableRef.current || pendingRef.current || !down.isPrimary) return;
+        let timer: number | undefined;
+        let moving = false;
+        let start: L.LatLng | null = null;
+        let orig: unknown = null;
+        const sx = down.clientX, sy = down.clientY;
+        const shift = (v: unknown, dLat: number, dLng: number): unknown =>
+          Array.isArray(v) ? v.map((x) => shift(x, dLat, dLng)) : L.latLng((v as L.LatLng).lat + dLat, (v as L.LatLng).lng + dLng);
+        const onMove = (e: PointerEvent) => {
+          if (!moving) {
+            // Finger bewegt, bevor die halbe Sekunde um ist: normales Verschieben der Karte.
+            if (Math.hypot(e.clientX - sx, e.clientY - sy) > 10) stop();
+            return;
+          }
+          e.preventDefault();
+          const now = m.mouseEventToLatLng(e as unknown as MouseEvent);
+          l.setLatLngs(shift(orig, now.lat - start!.lat, now.lng - start!.lng) as L.LatLng[][]);
+        };
+        const stop = () => {
+          window.clearTimeout(timer);
+          document.removeEventListener('pointermove', onMove);
+          document.removeEventListener('pointerup', stop);
+          document.removeEventListener('pointercancel', stop);
+          if (moving) {
+            moving = false;
+            m.dragging.enable();
+            l.setStyle({ dashArray: undefined });
+            // Den Klick nach dem Loslassen nicht als Antippen werten.
+            justMoved.current = Date.now();
+            changed();
+            setSelected(null);
+            setMsg({ ok: true, text: t('Zone verschoben.') });
+          }
+        };
+        timer = window.setTimeout(() => {
+          moving = true;
+          start = m.mouseEventToLatLng(down as unknown as MouseEvent);
+          orig = l.getLatLngs();
+          m.dragging.disable();
+          l.setStyle({ dashArray: '8 6' });
+          tapFeedback();
+        }, 500);
+        document.addEventListener('pointermove', onMove, { passive: false });
+        document.addEventListener('pointerup', stop);
+        document.addEventListener('pointercancel', stop);
+      });
+    };
+    attach();
+    l.on('add', attach);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const addItem = useCallback((feature: MapFeature) => {
     const g = group.current!;
     let l: L.Layer;
@@ -176,13 +240,14 @@ export default function MapEditorPage() {
     const it: Item = { key: newKey(), feature, layer: l };
     restyle(it);
     // Beim Setzen eines Punkts nicht die Zone darunter öffnen.
-    l.on('click', () => { if (!pendingRef.current) setSelected(it.key); });
+    l.on('click', () => { if (!pendingRef.current && Date.now() - justMoved.current > 400) setSelected(it.key); });
     const changed = () => {
       setItems((prev) => prev.map((x) => (x.key === it.key ? { ...x, feature: layerToFeature(l, x.feature.properties) } : x)));
       setDirty(true);
     };
     l.on('pm:edit', changed);
     l.on('dragend', changed);
+    if (!(l instanceof L.Marker)) holdToMove(l as L.Polygon, changed);
     return it;
   }, [layerToFeature, restyle]);
 
@@ -941,7 +1006,7 @@ export default function MapEditorPage() {
                   <button type="button" className="big" style={{ minWidth: 56, fontSize: 24 }} aria-label={t('Spielfeld grösser')} onClick={() => scaleField(1.2)}>+</button>
                 </div>
               )}
-              {field1 && <div className="muted small">{t('Antippen = Ecken verschieben')}</div>}
+              {field1 && <div className="muted small">{t('Antippen = Ecken verschieben · lange drücken = ganze Zone verschieben')}</div>}
             </>
           )}
 
