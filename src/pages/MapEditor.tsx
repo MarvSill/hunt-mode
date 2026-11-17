@@ -61,6 +61,7 @@ function circleToPolygon(lat: number, lng: number, r: number, n = 48): GeoJSON.P
   return { type: 'Polygon', coordinates: [coords] };
 }
 
+const kmText = (v: number) => (v < 1 ? `${Math.round(v * 100)} ha` : `${v.toFixed(1)} km²`);
 const asArea = (f: MapFeature): Area => ({ type: 'Feature', geometry: f.geometry as GeoJSON.Polygon, properties: {} });
 const isArea = (f: MapFeature) => f.geometry.type === 'Polygon' || f.geometry.type === 'MultiPolygon';
 
@@ -82,6 +83,8 @@ export default function MapEditorPage() {
   const [items, setItems] = useState<Item[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [pending, setPending] = useState<Pending | null>(null);
+  /** Fläche der Form, die gerade gezeichnet wird (km², live). */
+  const [drawKm2, setDrawKm2] = useState<number | null>(null);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [dirty, setDirty] = useState(false);
   const [search, setSearch] = useState('');
@@ -224,6 +227,18 @@ export default function MapEditorPage() {
     m.pm.setLang('de');
     m.pm.setGlobalOptions({ snappable: true, snapDistance: 15, allowSelfIntersection: false } as L.PM.GlobalOptions);
     m.on('pm:create', (e: { layer: L.Layer }) => handleCreateRef.current(e.layer));
+    // Beim Zeichnen live anzeigen, wie gross die Fläche ist (eigene Form: ab der 3. Ecke).
+    m.on('pm:drawstart', (e: { workingLayer?: L.Layer }) => {
+      setDrawKm2(null);
+      const wl = e.workingLayer as L.Polygon | undefined;
+      wl?.on?.('pm:vertexadded', () => {
+        const pts = (wl.getLatLngs() as L.LatLng[]).flat ? (wl.getLatLngs() as L.LatLng[]).flat() as L.LatLng[] : [];
+        if (pts.length < 3) return setDrawKm2(null);
+        const ring = [...pts.map((q) => [q.lng, q.lat]), [pts[0].lng, pts[0].lat]];
+        setDrawKm2(areaKm2({ type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [ring] } }));
+      });
+    });
+    m.on('pm:drawend', () => setDrawKm2(null));
     addMapButtons(m, {
       wrap: () => el.current?.parentElement ?? null,
       fit: () => {
@@ -462,6 +477,13 @@ export default function MapEditorPage() {
     const it = addItem(f);
     setItems((prev) => [...prev, it]);
     setDirty(true);
+    if (p.kind === 'spielfeld' && config) {
+      const rec = recommendedFieldKm2({
+        pingMinutes: config.ping.interval_minutes, durationMinutes: config.game.duration_minutes,
+        hunters: config.roles.hunters_max, motorized: config.transport.motorized_allowed, bikes: config.transport.bikes_allowed,
+      });
+      setMsg({ ok: true, text: t('Dein Spielfeld: {0} (empfohlen etwa {1}). Mit + / − kannst du es anpassen.', { 0: kmText(areaKm2(asArea(f))), 1: kmText(rec) }) });
+    }
     if (moved) setMsg({ ok: true, text: t('Der Fluchtpunkt lag in einer Gefahrenzone oder ausserhalb der kleinsten Zone und wurde an die nächste erlaubte Stelle verschoben.') });
     // Fluchtpunkte: gleich den nächsten antippen, ohne jedes Mal den Knopf zu drücken.
     if (p.kind === 'exit') {
@@ -819,7 +841,6 @@ export default function MapEditorPage() {
     { id: 'fertig', icon: '✅', title: t('Prüfen'), text: t('Hier siehst du, ob die Karte bereit ist.'), done: !issues.some((i) => i.level === 'error') },
   ];
   const cur = steps[Math.min(stepIdx, steps.length - 1)];
-  const kmText = (v: number) => (v < 1 ? `${Math.round(v * 100)} ha` : `${v.toFixed(1)} km²`);
   const legend = (['spielfeld', 'sperrzone', 'treffpunkt', 'exit'] as ZoneKind[]).filter((k) => k === 'spielfeld' || has(k));
 
   return (
@@ -851,6 +872,7 @@ export default function MapEditorPage() {
           <div className="draw-hint">
             <strong>{ICON[pending.kind]} {pending.kind === 'spielfeld' && pending.phase && pending.phase > 1 ? t('Spielfeld {0} {1}', { 0: unitLabel, 1: pending.phase }) : ZONE_INFO[pending.kind].label}</strong>
             <div className="small">{TOOL_HINT[pending.tool]}</div>
+            {pending.kind === 'spielfeld' && drawKm2 != null && <div><strong>{t('Fläche jetzt: {0}', { 0: kmText(drawKm2) })}</strong></div>}
             <div className="row">
               {pending.tool === 'Line' && <button className="small primary" onClick={finishLine}>{t('Linie fertig')}</button>}
               {pending.kind === 'exit'
