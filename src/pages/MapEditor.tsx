@@ -451,6 +451,14 @@ export default function MapEditorPage() {
         setMsg(null);
       }
     }
+    if (p.kind === 'spielfeld') {
+      // Nur ein Spielfeld je Phase: ein selbst gezeichnetes ersetzt das bisherige (z. B. den automatischen Kreis).
+      const phase = p.phase && p.phase > 1 ? p.phase : null;
+      const same = (x: Item) => x.feature.properties.kind === 'spielfeld' && (phase ? x.feature.properties.day_index === phase : !x.feature.properties.day_index || x.feature.properties.day_index === 1);
+      for (const old of itemsRef.current.filter(same)) group.current?.removeLayer(old.layer);
+      itemsRef.current = itemsRef.current.filter((x) => !same(x));
+      setItems((prev) => prev.filter((x) => !same(x)));
+    }
     const it = addItem(f);
     setItems((prev) => [...prev, it]);
     setDirty(true);
