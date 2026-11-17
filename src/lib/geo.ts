@@ -163,7 +163,8 @@ export function checkMap(i: MapCheckInput): MapIssue[] {
 
 /**
  * Empfohlene Fläche des Spielfelds in km² (Formel von Marvin, Runde 21):
- * Fläche = 2 km² × (Ping-Abstand ÷ 4 min)^0,91 × (Anzahl Pings ÷ 5)^0,5 × (Hunter ÷ 2)^0,3 × Fortbewegung (Formel v6)
+ * Fläche = 2 km² × Zeitfaktor × (Hunter ÷ 2)^0,3 × Fortbewegung (Formel v7)
+ * Zeitfaktor = (Ping-Abstand ÷ 5 min)^1,05 × (Anzahl Pings ÷ 8)^0,5, aber mindestens 1
  * - Doppelt so viele Hunter ergeben etwa 23 % mehr Fläche
  * - Anzahl Pings = Spieldauer ÷ Ping-Abstand
  * - Fortbewegung: zu Fuss 1, Velo/Trottinett 2, ÖV 3 (das schnellste erlaubte Mittel zählt)
@@ -174,7 +175,8 @@ export function recommendedFieldKm2(i: { pingMinutes: number; durationMinutes: n
   const ping = Math.max(1, i.pingMinutes);
   const pings = Math.max(1, i.durationMinutes / ping);
   const move = i.motorized ? 3 : i.bikes ? 2 : 1;
-  return 2 * (ping / 4) ** 0.91 * (pings / 5) ** 0.5 * (Math.max(1, i.hunters) / 2) ** 0.3 * move;
+  const time = Math.max(1, (ping / 5) ** 1.05 * (pings / 8) ** 0.5);
+  return 2 * time * (Math.max(1, i.hunters) / 2) ** 0.3 * move;
 }
 
 /** Rechteck (3 : 2, breiter als hoch) mit gewünschter Fläche um einen Mittelpunkt. */
