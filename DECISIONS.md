@@ -248,3 +248,4 @@ Abweichungen von der Spezifikation und Annahmen, wo sie nichts festlegt.
 - Schneller und sicherer: Spielstand alle 5 s, Live-Änderungen nach 0,3 s; eine Aktion kann nicht doppelt ausgelöst werden.
 
 - Runde 21: Fällt ein normaler Ping wegen Regeneration aus, bekommen alle Hunter genau zu diesem Zeitpunkt die Meldung „Kein Ping: A – Regeneration-Joker aktiv, noch x min – kein Fehler der App.“
+- Korrektur: Die Hunter sehen dabei nicht, wie lange die Regeneration noch läuft, nur dass sie gerade aktiv ist: „Kein Ping: A – Hat gerade den Regeneration-Joker – kein Fehler der App.“
