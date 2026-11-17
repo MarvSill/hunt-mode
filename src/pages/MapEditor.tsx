@@ -130,6 +130,8 @@ export default function MapEditorPage() {
   const editable = !!game && ['entwurf', 'geplant', 'lobby'].includes(game.status);
   const editableRef = useRef(editable);
   const justMoved = useRef(0);
+  /** Spielfeld, das beim Zeichnen eines neuen weggenommen wurde (kommt bei „Abbrechen“ zurück). */
+  const replaced = useRef<Item[]>([]);
   editableRef.current = editable;
   const gameId = game?.id;
   const features = useMemo(() => items.map((x) => x.feature), [items]);
@@ -533,8 +535,8 @@ export default function MapEditorPage() {
     }
     if (p.kind === 'spielfeld') {
       // Nur ein Spielfeld je Phase: ein selbst gezeichnetes ersetzt das bisherige (z. B. den automatischen Kreis).
-      const phase = p.phase && p.phase > 1 ? p.phase : null;
-      const same = (x: Item) => x.feature.properties.kind === 'spielfeld' && (phase ? x.feature.properties.day_index === phase : !x.feature.properties.day_index || x.feature.properties.day_index === 1);
+      const same = sameField(p.phase);
+      replaced.current = [];
       for (const old of itemsRef.current.filter(same)) group.current?.removeLayer(old.layer);
       itemsRef.current = itemsRef.current.filter((x) => !same(x));
       setItems((prev) => prev.filter((x) => !same(x)));
@@ -566,6 +568,16 @@ export default function MapEditorPage() {
     setSelected(null);
     setPending(p);
     if (fresh) setMsg(null);
+    if (p.kind === 'spielfeld' && fresh) {
+      // Neues Spielfeld zeichnen: das bisherige (z. B. der automatische Kreis) verschwindet sofort.
+      // Bei „Abbrechen“ kommt es zurück.
+      const same = sameField(p.phase);
+      const old = itemsRef.current.filter(same);
+      for (const o of old) group.current?.removeLayer(o.layer);
+      replaced.current = [...replaced.current, ...old];
+      itemsRef.current = itemsRef.current.filter((x) => !same(x));
+      setItems((prev) => prev.filter((x) => !same(x)));
+    }
     const color = p.kind === 'sperrzone' ? '#f85149' : ZONE_INFO[p.kind].color;
     m.pm.enableDraw(p.tool, {
       snappable: true,
@@ -581,6 +593,42 @@ export default function MapEditorPage() {
     map.current?.doubleClickZoom.enable();
     map.current?.pm.disableDraw();
     setPending(null);
+    // Abgebrochen: das vorherige Spielfeld wieder hinstellen.
+    const back = replaced.current;
+    replaced.current = [];
+    if (back.length) {
+      for (const o of back) group.current?.addLayer(o.layer);
+      itemsRef.current = [...itemsRef.current, ...back];
+      setItems((prev) => [...prev, ...back]);
+    }
+  }
+
+  /** Spielfelder derselben Phase (ohne Phase = Phase 1). */
+  function sameField(phase?: number | null) {
+    const ph = phase && phase > 1 ? phase : null;
+    return (x: Item) => x.feature.properties.kind === 'spielfeld' && (ph ? x.feature.properties.day_index === ph : !x.feature.properties.day_index || x.feature.properties.day_index === 1);
+  }
+
+  /** Beim Zeichnen den zuletzt gesetzten Punkt wieder wegnehmen. */
+  function undoPoint() {
+    const m = map.current as unknown as { pm: { Draw: Record<string, { _removeLastVertex?: () => void; _layer?: L.Polyline }> } } | null;
+    const tool = pendingRef.current?.tool;
+    if (!m || !tool) return;
+    const d = m.pm.Draw[tool];
+    const n = (d?._layer?.getLatLngs() as L.LatLng[] | undefined)?.length ?? 0;
+    if (n > 0) d?._removeLastVertex?.();
+    const pts = (d?._layer?.getLatLngs() as L.LatLng[] | undefined) ?? [];
+    setDrawKm2(pts.length >= 3 ? areaKm2({ type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [[...pts.map((q) => [q.lng, q.lat]), [pts[0].lng, pts[0].lat]]] } }) : null);
+  }
+
+  /** Spielfeld (Phase 1) ganz löschen, um neu anzufangen. */
+  function deleteField() {
+    const same = sameField(null);
+    for (const o of itemsRef.current.filter(same)) group.current?.removeLayer(o.layer);
+    itemsRef.current = itemsRef.current.filter((x) => !same(x));
+    setItems((prev) => prev.filter((x) => !same(x)));
+    setDirty(true);
+    setMsg({ ok: true, text: t('Spielfeld gelöscht. Erstelle ein neues.') });
   }
 
   function finishLine() {
@@ -939,6 +987,8 @@ export default function MapEditorPage() {
             <div className="small">{TOOL_HINT[pending.tool]}</div>
             {pending.kind === 'spielfeld' && drawKm2 != null && <div><strong>{t('Fläche jetzt: {0}', { 0: kmText(drawKm2) })}</strong></div>}
             <div className="row">
+              {(pending.tool === 'Polygon' || pending.tool === 'Line') && <button className="small" onClick={undoPoint}>{t('↶ Punkt zurück')}</button>}
+              {pending.tool !== 'Marker' && <button className="small" onClick={() => startDraw(pending, false)}>{t('Neu anfangen')}</button>}
               {pending.tool === 'Line' && <button className="small primary" onClick={finishLine}>{t('Linie fertig')}</button>}
               {pending.kind === 'exit'
                 ? <button className="small primary" onClick={cancelDraw}>{t('Fertig')} ({features.filter((f) => f.properties.kind === 'exit').length})</button>
@@ -1007,6 +1057,7 @@ export default function MapEditorPage() {
                 </div>
               )}
               {field1 && <div className="muted small">{t('Antippen = Ecken verschieben · lange drücken = ganze Zone verschieben')}</div>}
+              {field1 && editable && <button type="button" className="ghost small" onClick={deleteField}>🗑 {t('Spielfeld löschen')}</button>}
             </>
           )}
 

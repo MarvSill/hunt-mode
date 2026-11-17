@@ -1391,4 +1391,8 @@ export const fr: Record<string, string> = {
   "Fläche jetzt: {0}": "Surface actuelle : {0}",
   "Antippen = Ecken verschieben · lange drücken = ganze Zone verschieben": "Toucher = déplacer les coins · appui long = déplacer toute la zone",
   "Zone verschoben.": "Zone déplacée.",
+  "↶ Punkt zurück": "↶ Point précédent",
+  "Neu anfangen": "Recommencer",
+  "Spielfeld gelöscht. Erstelle ein neues.": "Terrain supprimé. Crée-en un nouveau.",
+  "Spielfeld löschen": "Supprimer le terrain",
 };

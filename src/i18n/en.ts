@@ -1391,4 +1391,8 @@ export const en: Record<string, string> = {
   "Fläche jetzt: {0}": "Area now: {0}",
   "Antippen = Ecken verschieben · lange drücken = ganze Zone verschieben": "Tap = move corners · long press = move the whole zone",
   "Zone verschoben.": "Zone moved.",
+  "↶ Punkt zurück": "↶ Undo point",
+  "Neu anfangen": "Start over",
+  "Spielfeld gelöscht. Erstelle ein neues.": "Play area deleted. Create a new one.",
+  "Spielfeld löschen": "Delete play area",
 };
