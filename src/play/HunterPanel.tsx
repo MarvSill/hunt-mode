@@ -85,7 +85,6 @@ export default function HunterPanel({ s, now, act, pos }: PanelProps) {
       </Section>
 
       <div className="card small">
-        {cfg.taskforce.bounty_per_catch > 0 && <div>{t('Deine Punkte:')} <strong>{s.me.bounty}</strong></div>}
         {s.next_silent_ping_at && <div style={{ fontSize: 18 }}>⏱ {t('Nächster Ping in {0}', { 0: countdown(s.next_silent_ping_at, now) })} <span className="muted small">({clock(s.next_silent_ping_at)})</span></div>}
       </div>
     </div>

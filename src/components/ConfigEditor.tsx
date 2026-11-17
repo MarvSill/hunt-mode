@@ -7,6 +7,8 @@ import { t } from '../i18n';
 /** Felder, die nicht mehr einstellbar sind (fest geregelt). */
 const HIDDEN = new Set([
   'out_of_bounds.live_visible',
+  // Kopfgeld für Hunter gibt es nicht mehr.
+  'taskforce.bounty_per_catch',
   // Das Spiel läuft am Stück: diese Werte setzt die App selbst.
   'game.days', 'game.day_length_minutes',
   // Joker-Liste hat eine eigene Eingabe in den Schnell-Einstellungen.
