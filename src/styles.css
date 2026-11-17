@@ -399,7 +399,9 @@ details.acc > summary .chev { transform-origin: 50% 50%; }
 @keyframes hm-ring-red { 0% { box-shadow: 0 0 0 0 rgba(255,0,0,.8); } 70% { box-shadow: 0 0 0 22px rgba(255,0,0,0); } 100% { box-shadow: 0 0 0 0 rgba(255,0,0,0); } }
 .hm-map-buttons button { width: 36px; height: 36px; font-size: 17px; font-weight: 700; color: #1f2328; }
 .map-fullscreen .maplibregl-map { height: 100% !important; border-radius: 0; }
-.maplibregl-popup-content { background: #161b22; color: #f0f6fc; border-radius: 10px; padding: 8px 10px; font-size: 14px; font-weight: 600; box-shadow: 0 6px 20px rgba(0,0,0,.45); }
+/* Die Karten-Bibliothek lädt ihr eigenes CSS später (weisser Hintergrund): darum fest, sonst helle Schrift auf hellem Grund. */
+.maplibregl-popup .maplibregl-popup-content { background: #161b22 !important; color: #f0f6fc !important; border: 1px solid #30363d; border-radius: 10px; padding: 8px 10px; font-size: 14px; font-weight: 600; line-height: 1.35; box-shadow: 0 6px 20px rgba(0,0,0,.45); }
+.maplibregl-popup .maplibregl-popup-content * { color: inherit; }
 .maplibregl-popup-tip { border-top-color: #161b22 !important; border-bottom-color: #161b22 !important; border-left-color: transparent !important; border-right-color: transparent !important; }
 /* Beschriftungen auf der Karte: immer dunkler Hintergrund mit heller Schrift (gut lesbar, auch im hellen Modus). */
 .leaflet-popup-content-wrapper, .leaflet-popup-tip { background: #161b22 !important; color: #f0f6fc !important; box-shadow: 0 6px 20px rgba(0,0,0,.45) !important; }
