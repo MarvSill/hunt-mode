@@ -27,6 +27,7 @@ const RULES: Rule[] = [
   r('Die Hunter haben gerade den Standort eines Spielers bekommen.', 'Les hunters viennent de recevoir la position d’un joueur.', 'The hunters just received a player’s location.'),
   r('Kein Standort: {N}', 'Pas de position : $1', 'No location: $1'),
   r('Kein Ping: {N}', 'Pas de ping : $1', 'No ping: $1'),
+  r('Hat gerade den Regeneration-Joker – kein Fehler der App.', 'A le joker Régénération en ce moment – ce n’est pas une erreur de l’app.', 'Has the Regeneration joker right now – not an app error.'),
   r('Regeneration-Joker aktiv, noch {D} min – kein Fehler der App.', 'Joker Régénération actif, encore $1 min – ce n’est pas une erreur de l’app.', 'Regeneration joker active, $1 min left – not an app error.'),
   r('Regeneration-Joker aktiv – kein Fehler der App.', 'Joker Régénération actif – ce n’est pas une erreur de l’app.', 'Regeneration joker active – not an app error.'),
   r('Das Handy hat noch keinen Standort gesendet (App geschlossen oder kein GPS).', 'Le téléphone n’a pas encore envoyé de position (app fermée ou pas de GPS).', 'The phone has not sent a location yet (app closed or no GPS).'),

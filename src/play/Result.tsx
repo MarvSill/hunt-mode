@@ -189,7 +189,7 @@ export default function Result({ s, zones }: { s: GameState; zones: MapFeature[]
             </li>
           ))}
           {s.participants.filter((p) => p.role === 'hunter').map((p) => (
-            <li key={p.id}><span className="dot" style={{ background: '#f85149' }} /><span className="spacer">{p.tag ? <span className="tag hunter">{p.tag}</span> : p.name}{km(p.id) && <span className="muted small"> · 👣 {km(p.id)}</span>}</span><span className="badge red">{tr('Kopfgeld')} {p.bounty}</span></li>
+            <li key={p.id}><span className="dot" style={{ background: '#f85149' }} /><span className="spacer">{p.tag ? <span className="tag hunter">{p.tag}</span> : p.name}{km(p.id) && <span className="muted small"> · 👣 {km(p.id)}</span>}</span></li>
           ))}
         </ul>
       </div>
