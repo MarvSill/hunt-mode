@@ -88,14 +88,14 @@ describe('Fluchtpunkt automatisch verschieben', () => {
   });
 
   it('empfiehlt die Fläche nach der Formel', () => {
-    // 5 min Abstand, 8 Pings (40 min), 2 Hunter, zu Fuss: genau 2 km²
-    expect(recommendedFieldKm2({ pingMinutes: 5, durationMinutes: 40, hunters: 2, motorized: false, bikes: false })).toBeCloseTo(2, 5);
+    // 5 min Abstand, 8 Pings (40 min), 2 Hunter, zu Fuss: genau 1,5 km²
+    expect(recommendedFieldKm2({ pingMinutes: 5, durationMinutes: 40, hunters: 2, motorized: false, bikes: false })).toBeCloseTo(1.5, 5);
     // Viermal so viele Pings ergeben die doppelte Fläche
-    expect(recommendedFieldKm2({ pingMinutes: 5, durationMinutes: 160, hunters: 2, motorized: false, bikes: false })).toBeCloseTo(4, 5);
+    expect(recommendedFieldKm2({ pingMinutes: 5, durationMinutes: 160, hunters: 2, motorized: false, bikes: false })).toBeCloseTo(3, 5);
     // ÖV erlaubt: dreimal so gross
-    expect(recommendedFieldKm2({ pingMinutes: 5, durationMinutes: 40, hunters: 2, motorized: true, bikes: true })).toBeCloseTo(6, 5);
-    // Zeitfaktor mindestens 1: kurzes Spiel ergibt nie weniger als 2 km² (zu Fuss, 2 Hunter)
-    expect(recommendedFieldKm2({ pingMinutes: 2, durationMinutes: 10, hunters: 2, motorized: false, bikes: false })).toBeCloseTo(2, 5);
+    expect(recommendedFieldKm2({ pingMinutes: 5, durationMinutes: 40, hunters: 2, motorized: true, bikes: true })).toBeCloseTo(4.5, 5);
+    // Zeitfaktor mindestens 1: kurzes Spiel ergibt nie weniger als 1,5 km² (zu Fuss, 2 Hunter)
+    expect(recommendedFieldKm2({ pingMinutes: 2, durationMinutes: 10, hunters: 2, motorized: false, bikes: false })).toBeCloseTo(1.5, 5);
     expect(areaKm2(rectWithArea([8.5, 47.3], 3))).toBeCloseTo(3, 1);
   });
 });
