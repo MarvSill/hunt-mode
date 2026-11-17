@@ -64,6 +64,7 @@ const RULES: Rule[] = [
     'Shows you once, when used, where all hunters are right now (not live). Use it under Actions.'),
   r('Joker: Regeneration', 'Joker : Régénération', 'Joker: Regeneration'),
   r('Ein Spieler ist für {D} min nicht ortbar.', 'Un joueur est introuvable pendant $1 min.', 'A player can’t be located for $1 min.'),
+  r('Ein Spieler ist gerade nicht ortbar.', 'Un joueur est introuvable en ce moment.', 'A player can’t be located right now.'),
   r('Hunter-Standorte', 'Position des hunters', 'Hunter locations'),
   r('Einmaliger Ping aller Hunter von {H}, nicht live. Auf der Karte eingezeichnet.', 'Ping unique de tous les hunters à $1, pas en direct. Indiqué sur la carte.', 'One-time ping of all hunters at $1, not live. Shown on the map.'),
   r('Regeneration vorbei', 'Régénération terminée', 'Regeneration over'),
