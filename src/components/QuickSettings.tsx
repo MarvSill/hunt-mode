@@ -162,10 +162,6 @@ export default function QuickSettings({ config, onChange }: Props) {
         <Toggle label={t('Velo und Trottinett erlaubt')} value={config.transport.bikes_allowed} onChange={(v) => set('transport', 'bikes_allowed', v)} />
         <div className="muted small">{t('Zu Fuss geht immer. Fahrten muss man nicht anmelden, und niemand wird dabei live gezeigt.')}</div>
       </Box>
-
-      <Box title={t('Extras')} icon="✨" summary={config.spectator.enabled ? t('Zuschauer') : t('keine')} info={SETTING_HELP.extras}>
-        <Toggle label={t('Zuschauer erlaubt')} value={config.spectator.enabled} onChange={(v) => set('spectator', 'enabled', v)} />
-      </Box>
     </div>
   );
 }

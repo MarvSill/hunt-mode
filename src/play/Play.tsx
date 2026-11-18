@@ -24,6 +24,7 @@ import { SpeedhuntButtons, SpeedhuntDialog } from './SpeedhuntMap';
 import Loader from '../components/Loader';
 import Swipe from '../components/Swipe';
 import SafetyNotice from './SafetyNotice';
+import SpectatorPanel, { speedText } from './SpectatorPanel';
 import HunterDraw from './HunterDraw';
 import Guide, { type GuideStep } from '../components/Guide';
 import { setMapSettings, useMapSettings } from '../lib/mapStyle';
@@ -319,6 +320,7 @@ export default function PlayPage() {
     if (!s) return [];
     const list: Marker[] = [];
     const tf = role === 'hunter';
+    const spectator = role === 'zuschauer';
     const fade = s.game.config.ping.fade_after_minutes * 60000;
     // Pings je Spieler nummeriert (A1, A2 …), jeder Spieler in seiner Farbe. Der neueste Ping ist gelb umrandet,
     // Blitzjagd-Pings rot. Jeder wählt selbst, wie viele Pings je Spieler zu sehen sind.
@@ -350,8 +352,9 @@ export default function PlayPage() {
       const pp = s.participants.find((q) => q.id === x.participant_id);
       list.push({
         id: `pos${x.participant_id}`, lat: x.lat, lng: x.lng, accuracy: x.accuracy_m,
-        color: isMe ? ME_COLOR : colorFor(s, x.participant_id), heading: isMe ? heading ?? undefined : undefined, kind: isMe ? 'me' : pp?.role === 'spieler' ? 'player' : 'hunter',
-        label: `${isMe ? t('Du') : pp?.tag ?? pp?.name ?? '?'}${x.live && !isMe ? t(' (LIVE)') : ''} · ${clock(x.at)}`, pulse: x.live && tf && !isMe, text: pp?.tag ?? undefined,
+        color: isMe ? ME_COLOR : colorFor(s, x.participant_id), kind: isMe ? 'me' : pp?.role === 'spieler' ? 'player' : 'hunter',
+        label: `${isMe ? t('Du') : pp?.tag ?? pp?.name ?? '?'}${x.live && !isMe && !spectator ? t(' (LIVE)') : ''}${spectator ? ` · ${speedText(x.speed_mps)}` : ''} · ${clock(x.at)}`,
+        pulse: x.live && tf && !isMe, text: pp?.tag ?? undefined, heading: !isMe && spectator && x.heading != null ? x.heading : isMe ? heading ?? undefined : undefined,
       });
     }
     // Eigene Live-Position (schneller als der Server-Stand)
@@ -492,7 +495,7 @@ export default function PlayPage() {
           <nav className="tabbar" data-guide="tabs">
             {TABS.map(([id, label, icon]) => (
               <button key={id} className={tab === id ? 'active' : ''} onClick={() => openTab(id)}>
-                <Icon name={icon} />{label}
+                <Icon name={icon} />{id === 'aktionen' && role === 'zuschauer' ? t('Übersicht') : label}
                 {id === 'mehr' && unseen > 0 && <span className="pip" aria-label={t('{0} neu', { 0: unseen })} />}
                 {id === 'chat' && unseenChat > 0 && <span className="pip" aria-label={t('{0} neu', { 0: unseenChat })} />}
               </button>
@@ -518,7 +521,8 @@ export default function PlayPage() {
                   {g.next_phase_at && live && !g.paused && new Date(g.next_phase_at).getTime() > now && (
                     <span className="map-chip" title={t('Dann wird das Spielfeld kleiner (die neue Grenze ist gestrichelt).')}>🎯 {t('Kleiner in {0}', { 0: countdown(g.next_phase_at, now) })}</span>
                   )}
-                  {blitzRunning && <span className="map-chip red pulse">⚡ {t('Blitzjagd läuft')}</span>}
+                  {blitzRunning && <span className="map-chip red pulse">⚡ {t('Blitzjagd läuft')}{role === 'zuschauer' ? ` · ${s.speedhunts.filter((x) => x.status === 'laeuft').map((x) => tagOf(s, x.target_id) ?? '?').join(', ')}` : ''}</span>}
+                  {role === 'zuschauer' && <span className="map-chip">👁 {t('Zuschauer · alles live')}</span>}
                   {role === 'spieler' && s.me.state === 'ausserhalb' && <span className="map-chip red pulse">{t('Zurück ins Spielfeld!')}</span>}
                 </>
               );
@@ -604,7 +608,7 @@ export default function PlayPage() {
           <div className="tab-panel" style={{ display: tab === 'aktionen' ? 'block' : 'none' }}>
             {role === 'spieler' && <PlayerPanel s={s} now={now} act={act} pos={pos} />}
             {role === 'hunter' && <HunterPanel s={s} now={now} act={act} pos={pos} />}
-            {role === 'zuschauer' && <div className="card muted">{t('Du schaust zu. Positionen siehst du mit')} {g.config.spectator.delay_minutes} {t('min Verzögerung.')}</div>}
+            {role === 'zuschauer' && <SpectatorPanel s={s} now={now} />}
             <details className="acc">
               <summary>
                 <span className="ico" aria-hidden="true">📖</span>

@@ -82,6 +82,8 @@ describe('Sprachen', () => {
     expect(translateServer('BLITZJAGD: Abfrage 2 von 3')).toBe('CHASSE ÉCLAIR : requête 2 sur 3');
     _setLangForTest('en');
     expect(translateServer('Neuer Joker: Nähe-Radar')).toBe('New joker: Proximity radar');
+    expect(translateServer('B setzt Joker ein: Nähe-Radar')).toBe('B uses the Proximity radar joker');
+    expect(translateServer('Wirkt 15 min.')).toBe('Active for 15 min.');
     expect(translateServer('Fluchtpunkt bekannt: Bahnhof')).toBe('Escape point revealed: Bahnhof');
     expect(translateServer('Noch 3 Person(en) ohne Rolle.')).toBe('3 person(s) still without a role.');
     expect(translateServer('Unbekannter neuer Text')).toBe('Unbekannter neuer Text');

@@ -13,6 +13,9 @@ export interface Participant {
   catch_free: boolean | null; briefing_done: boolean;
   /** Feste Nummer ab Spielstart: Spieler "1", "2" …, Hunter "H1", "H2" … */
   tag: string | null;
+  /** Nur für Zuschauer: Joker, die gerade wirken, und Joker, die noch bereit sind. */
+  effects?: { type: string; ends_at: string | null }[];
+  jokers?: string[];
 }
 export interface Position { participant_id: string; lat: number; lng: number; accuracy_m: number | null; speed_mps: number | null; heading: number | null; at: string; live: boolean }
 export interface Ping {
