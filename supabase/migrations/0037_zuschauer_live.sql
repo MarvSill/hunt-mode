@@ -157,3 +157,8 @@ begin
 end; $$;
 revoke execute on function public.game_state(uuid) from public, anon;
 grant execute on function public.game_state(uuid) to authenticated;
+
+-- Zuschauer sind immer erlaubt: in allen Spielen und Vorlagen einschalten, ohne Verzögerung.
+update public.games set config_json = jsonb_set(config_json, '{spectator}',
+  coalesce(config_json -> 'spectator', '{}'::jsonb) || '{"enabled": true, "delay_minutes": 0}'::jsonb)
+where config_json is not null and jsonb_typeof(config_json) = 'object';
