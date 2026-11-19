@@ -252,8 +252,9 @@ export const gameConfigSchema = z.object({
     .describe('Ortung'),
   spectator: z
     .object({
-      enabled: bool(false, 'Zuschauer erlaubt'),
-      delay_minutes: int(30, 0, 240, 'Verzögerung (min)'),
+      // Zuschauer sind immer erlaubt und sehen alles live (beide Werte werden nicht mehr angezeigt).
+      enabled: bool(true, 'Zuschauer erlaubt'),
+      delay_minutes: int(0, 0, 240, 'Verzögerung (min)'),
     })
     .default({})
     .describe('Zuschauer'),

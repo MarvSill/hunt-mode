@@ -53,7 +53,6 @@ const LABELS: Record<string, string> = lazy({
   'speedhunt.min_minutes_after_silent_ping': 'Abstand der Blitzjagd zum Ping',
   'out_of_bounds.max_minutes': 'Limit ausserhalb',
   'exit.reveal_minutes_before_end': 'Bekanntgabe des Fluchtpunkts vor Ende',
-  'spectator.delay_minutes': 'Zuschauer-Verzögerung',
 });
 
 function get(c: GameConfig, path: string): number {
@@ -77,12 +76,11 @@ export function timeLimits(c: GameConfig): Record<string, TimeLimit> {
     'ping.jitter_minutes': { max: Math.floor(c.ping.interval_minutes / 2), reason: t('der Ping alle {0} min kommt', { 0: c.ping.interval_minutes }) },
     'out_of_bounds.max_minutes': { max: d, reason: game },
     'exit.reveal_minutes_before_end': { max: d, reason: game },
-    'spectator.delay_minutes': { max: Math.max(0, d - 5), reason: t('Zuschauer sonst nichts sähen') },
   };
   // Nur Regeln prüfen, die im Spiel auch aktiv sind.
   const off: [boolean, string][] = [
     [c.hideout.enabled, 'hideout.'],
-    [c.exit.enabled, 'exit.'], [c.spectator.enabled, 'spectator.'],
+    [c.exit.enabled, 'exit.'],
   ];
   for (const [on, prefix] of off) if (!on) for (const k of Object.keys(out)) if (k.startsWith(prefix)) delete out[k];
   if (c.speedhunt.enabled) {
